@@ -19,10 +19,8 @@ public:
     }
     virtual ~CliCommandGroup() = default;
 
-    CliCommandGroup(const CliCommandGroup&)            = delete;
-    CliCommandGroup& operator=(const CliCommandGroup&) = delete;
-    CliCommandGroup(CliCommandGroup&&)                 = delete;
-    CliCommandGroup& operator=(CliCommandGroup&&)      = delete;
+    //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(CliCommandGroup)
 
     virtual void initCliCommand(std::unique_ptr<Menu>& rootMenu) = 0;
 
@@ -41,14 +39,13 @@ public:
     CliImpl() = default;
     virtual ~CliImpl();
 
-    CliImpl(const CliImpl&)            = delete;
-    CliImpl& operator=(const CliImpl&) = delete;
-    CliImpl(CliImpl&&)                 = delete;
-    CliImpl& operator=(CliImpl&&)      = delete;
+        //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(CliImpl)
 
     bool addCommandGroup(CliCommandGroup* cmd);
     void initCliCommand();
     void runCliImpl();
+    asio::io_context& getIoContext();
 
 private:
     std::unique_ptr<Menu>         m_rootMenu = std::make_unique<Menu>("cli");

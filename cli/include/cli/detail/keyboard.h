@@ -83,11 +83,8 @@ public:
         m_is.stop();
         m_servant.join();
     }
-    // non copyable
-    Keyboard(const Keyboard&)            = delete;
-    Keyboard& operator=(const Keyboard&) = delete;
-    Keyboard(Keyboard&&)                 = delete;
-    Keyboard& operator=(Keyboard&&)      = delete;
+    //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(Keyboard)
 
 private:
     void read() noexcept

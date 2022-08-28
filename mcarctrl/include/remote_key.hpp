@@ -2,7 +2,7 @@
 #ifndef __REMOTE_KEY_HPP__
 #define __REMOTE_KEY_HPP__
 
-#include <pthread.h>
+#include <ioapi/iotimer.hpp>
 #include <list>
 
 #define RC_KEY_0          0x19
@@ -28,19 +28,16 @@
 class RemoteKey
 {
 public:
-    static RemoteKey *getInstance();
+    RemoteKey(asio::io_service& io_service);
+    virtual ~RemoteKey();
     void   handleKeyPress();
 
 private:
-    RemoteKey();
-    virtual ~RemoteKey();
     int32_t getKeyEvent(int32_t *pEvent);
-    static void *remoteKeyThread(void *argc);
+    static void timerCallback(const asio::error_code &e, void *ctxt);
 
-private:
-    static RemoteKey *m_pInstance;
     int32_t m_keyfd;
-    pthread_t m_tipd;
+    IoTimer m_timer;
     std::list<int32_t> m_keyList;
 };
 

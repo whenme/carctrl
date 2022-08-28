@@ -17,11 +17,8 @@ public:
     HistoryStorage()          = default;
     virtual ~HistoryStorage() = default;
 
-    // non copyable
-    HistoryStorage(const HistoryStorage&)            = delete;
-    HistoryStorage& operator=(const HistoryStorage&) = delete;
-    HistoryStorage(HistoryStorage&&)                 = delete;
-    HistoryStorage& operator=(HistoryStorage&&)      = delete;
+    //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(HistoryStorage)
 
     // Store a vector of commands in the history storage
     virtual void store(const std::vector<std::string>& commands) = 0;

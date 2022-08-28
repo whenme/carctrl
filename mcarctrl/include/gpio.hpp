@@ -13,7 +13,6 @@
 #define GPIO_EDGE_BOTH      3
 
 
-
 class Gpio
 {
 public:

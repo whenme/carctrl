@@ -12,6 +12,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include <ioapi/cmn_attribute.hpp>
 
 #include "detail/fromstring.h"
 #include "detail/history.h"
@@ -70,12 +71,9 @@ class Cli
 
 public:
     ~Cli() = default;
-    // disable value semantics
-    Cli(const Cli&)            = delete;
-    Cli& operator=(const Cli&) = delete;
-    // enable move semantics
-    Cli(Cli&&)            = default;
-    Cli& operator=(Cli&&) = default;
+
+    //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(Cli)
 
     /**
      * @brief Construct a new Cli object having a given root menu that contains the first level commands available.
@@ -185,7 +183,7 @@ private:
     std::function<void(std::ostream&, const std::string& cmd, const std::exception&)> m_exceptionHandler;
 };
 
-// ********************************************************************
+
 class Command
 {
 public:
@@ -194,11 +192,8 @@ public:
     }
     virtual ~Command() noexcept = default;
 
-    // disable copy and move semantics
-    Command(const Command&)            = delete;
-    Command(Command&&)                 = delete;
-    Command& operator=(const Command&) = delete;
-    Command& operator=(Command&&)      = delete;
+    //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(Command)
 
     virtual void enable()
     {
@@ -257,7 +252,7 @@ inline std::vector<std::string> getCompletions(const std::shared_ptr<std::vector
     return result;
 }
 
-// ********************************************************************
+
 class CliSession
 {
 public:
@@ -267,12 +262,8 @@ public:
         Cli::unRegisterStream(m_out);
     }
 
-    // disable value semantics
-    CliSession(const CliSession&)            = delete;
-    CliSession& operator=(const CliSession&) = delete;
-    // disable move semantics
-    CliSession(CliSession&&)            = delete;
-    CliSession& operator=(CliSession&&) = delete;
+    //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(CliSession)
 
     void feed(const std::string& cmd);
 
@@ -336,7 +327,7 @@ private:
     static constexpr std::size_t k_MHistorySizeDef = 100;
 };
 
-// ********************************************************************
+
 class CmdHandler
 {
 public:
@@ -414,15 +405,12 @@ private:
     std::shared_ptr<Descriptor> m_descriptor;
 };
 
-// ********************************************************************
+
 class Menu : public Command
 {
 public:
-    // disable value and move semantics
-    Menu(const Menu&)            = delete;
-    Menu& operator=(const Menu&) = delete;
-    Menu(Menu&&)                 = delete;
-    Menu& operator=(Menu&&)      = delete;
+    //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(Menu)
 
     Menu() : Command({}), m_description(), m_cmds(std::make_shared<Cmds>())
     {
@@ -554,8 +542,7 @@ public:
 
     // returns:
     // - the completions of this menu command
-    // - the recursive completions of subcommands
-    // - the recursive completions of parent menu
+    // - the recursive completions of subcommands and parent menu
     [[nodiscard]] std::vector<std::string> getCompletions(const std::string& currentLine) const
     {
         auto result = cli::getCompletions(m_cmds, currentLine);
@@ -593,19 +580,6 @@ public:
         }
         return Command::getCompletionRecursive(line);
     }
-    /*
-    CmdHandler& getCmdHandler(const std::string& name)
-    {
-        for (const auto& cmd : *m_cmds)
-        {
-            if (cmd->Name() == name)
-            {
-            }
-        }
-
-        return {};
-    }
-    */
 
 private:
     template<typename F, typename R, typename... Args>
@@ -637,7 +611,7 @@ private:
     std::shared_ptr<Cmds> m_cmds;
 };
 
-// ********************************************************************
+
 template<typename... Args>
 struct Select;
 
@@ -676,11 +650,8 @@ template<typename F, typename... Args>
 class VariadicFunctionCommand : public Command
 {
 public:
-    // disable value semantics
-    VariadicFunctionCommand(const VariadicFunctionCommand&)            = delete;
-    VariadicFunctionCommand& operator=(const VariadicFunctionCommand&) = delete;
-    VariadicFunctionCommand(VariadicFunctionCommand&&)                 = delete;
-    VariadicFunctionCommand& operator=(VariadicFunctionCommand&&)      = delete;
+    //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(VariadicFunctionCommand)
 
     VariadicFunctionCommand(const std::string& name, F fun, std::string desc, std::vector<std::string> parDesc) :
         Command(name),
@@ -744,11 +715,8 @@ template<typename F>
 class FreeformCommand : public Command
 {
 public:
-    // disable value semantics
-    FreeformCommand(const FreeformCommand&)            = delete;
-    FreeformCommand& operator=(const FreeformCommand&) = delete;
-    FreeformCommand(FreeformCommand&&)                 = delete;
-    FreeformCommand& operator=(FreeformCommand&&)      = delete;
+    //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(FreeformCommand)
 
     FreeformCommand(const std::string& name, F fun, std::string desc, std::vector<std::string> parDesc) :
         Command(name),

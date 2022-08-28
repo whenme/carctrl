@@ -10,7 +10,7 @@ using Json = nlohmann::json;
 class ParamJson
 {
 public:
-    ParamJson(std::string& chipName);
+    ParamJson(std::string& fileName);
     virtual ~ParamJson() = default;
 
     /**
@@ -30,24 +30,21 @@ public:
             return false;
 
         Json obj;
-        try
-        {
+        try {
             obj = m_jsonObj.at(name[0]);
-            for (uint32_t i = 1; i < count; i++)
+            for (uint32_t i = 1; i < count; i++) {
                 obj = obj.at(name[i]);
+            }
         }
-        catch (std::exception &)
-        {
+        catch (std::exception &) {
             std::cout << "no json item for " << item << "..." << std::endl;
             return false;
         }
 
-        try
-        {
+        try {
             obj.get_to(param);
         }
-        catch (std::exception &)
-        {
+        catch (std::exception &) {
             std::cout << "json param or output type error for " << item << "..." << std::endl;
             return false;
         }
@@ -56,7 +53,7 @@ public:
     }
 
 private:
-    void jsonParse(std::string& chipName);
+    void jsonParse(std::string& fileName);
     int32_t splitStr(std::string str, char flag, std::vector<std::string>& output);
 
     Json m_jsonObj;

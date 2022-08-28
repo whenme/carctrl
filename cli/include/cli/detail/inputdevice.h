@@ -35,11 +35,8 @@ public:
     {
     }
     virtual ~InputDevice() = default;
-    // non copyable
-    InputDevice(const InputDevice&)            = delete;
-    InputDevice& operator=(const InputDevice&) = delete;
-    InputDevice(InputDevice&&)                 = delete;
-    InputDevice& operator=(InputDevice&&)      = delete;
+    //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(InputDevice)
 
     template<typename H>
     void registerHandler(H&& hdl)

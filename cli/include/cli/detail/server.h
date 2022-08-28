@@ -13,11 +13,8 @@ class Session : public std::enable_shared_from_this<Session>, public std::stream
 {
 public:
     ~Session() override = default;
-    // disable value semantics
-    Session(const Session&)            = delete;
-    Session& operator=(const Session&) = delete;
-    Session(Session&&)                 = delete;
-    Session& operator=(Session&&)      = delete;
+    //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(Session)
 
     virtual void start()
     {
@@ -110,11 +107,8 @@ template<typename ASIOLIB>
 class Server
 {
 public:
-    // disable value semantics
-    Server(const Server&)            = delete;
-    Server& operator=(const Server&) = delete;
-    Server(Server&&)                 = delete;
-    Server& operator=(Server&&)      = delete;
+    //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(Server)
 
     Server(typename ASIOLIB::ContextType& ios, unsigned short port) :
         m_acceptor(ios, asiolib::ip::tcp::endpoint(asiolib::ip::tcp::v4(), port)),

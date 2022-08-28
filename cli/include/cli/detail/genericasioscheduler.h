@@ -20,11 +20,8 @@ public:
     Scheduler()          = default;
     virtual ~Scheduler() = default;
 
-    // non copyable
-    Scheduler(const Scheduler&)            = delete;
-    Scheduler& operator=(const Scheduler&) = delete;
-    Scheduler(Scheduler&&)                 = delete;
-    Scheduler& operator=(Scheduler&&)      = delete;
+    //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(Scheduler)
 
     /// Submits a completion token or function object for execution.
     virtual void post(const std::function<void()>& fun) = 0;
@@ -58,11 +55,8 @@ public:
         }
     }
 
-    // non copyable
-    GenericAsioScheduler(const GenericAsioScheduler&)            = delete;
-    GenericAsioScheduler& operator=(const GenericAsioScheduler&) = delete;
-    GenericAsioScheduler(GenericAsioScheduler&&)                 = delete;
-    GenericAsioScheduler& operator=(GenericAsioScheduler&&)      = delete;
+    //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(GenericAsioScheduler)
 
     void stop()
     {

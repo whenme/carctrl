@@ -30,11 +30,8 @@ public:
         { /* do nothing */
         }
     }
-    // non copyable
-    GenericCliAsyncSession(const GenericCliAsyncSession&)            = delete;
-    GenericCliAsyncSession& operator=(const GenericCliAsyncSession&) = delete;
-    GenericCliAsyncSession(GenericCliAsyncSession&&)                 = delete;
-    GenericCliAsyncSession& operator=(GenericCliAsyncSession&&)      = delete;
+    //class are neither copyable nor movable
+    CMN_UNCOPYABLE_IMMOVABLE(GenericCliAsyncSession)
 
 private:
     void read()

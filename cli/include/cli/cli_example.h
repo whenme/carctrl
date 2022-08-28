@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#ifndef __CLI_CLI_DEVICE_H_INCLUDE__
-#define __CLI_CLI_DEVICE_H_INCLUDE__
+#ifndef __CLI_CLI_EXAMPLE_H_INCLUDE__
+#define __CLI_CLI_EXAMPLE_H_INCLUDE__
 
 #include <cli/cli.h>
 #include <cli/cli_impl.h>
@@ -17,10 +17,11 @@ public:
     CliExample() : CliCommandGroup("example")
     {
     }
+    virtual ~CliExample() = default;
 
     void initCliCommand(std::unique_ptr<Menu>& rootMenu) override;
 };
 
 }  // namespace cli
 
-#endif  // __CLI_CLI_DEVICE_H_INCLUDE__
+#endif  // __CLI_CLI_EXAMPLE_H_INCLUDE__

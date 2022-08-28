@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <cli/cli_example.h>
 #include <cli/cli_impl.h>
+#include <cli/cli_example.h>
+#include <cli/cli_car.h>
 
 #include <algorithm>
 #include <vector>
@@ -16,8 +17,10 @@ CliImpl::~CliImpl()
 void CliImpl::initCliCommand()
 {
     CliExample cliExample;
+    CliCar     cliCar;
 
     addCommandGroup(&cliExample);
+    addCommandGroup(&cliCar);
 
     // setup cli
     for (auto& it : m_cliGroup)
@@ -36,13 +39,14 @@ bool CliImpl::addCommandGroup(CliCommandGroup* cmd)
             return true;
         }
     }
+
     m_cliGroup.push_back(cmd);
     return true;
 }
 
 void CliImpl::runCliImpl()
 {
-    m_cli = std::make_unique<Cli>(std::move(m_rootMenu), std::make_unique<FileHistoryStorage>(".cli"));
+    m_cli = std::make_unique<Cli>(std::move(m_rootMenu), std::make_unique<FileHistoryStorage>("cli.log"));
     // global exit action
     m_cli->exitAction([](auto& out) {
         out << "Goodbye and thanks for all the fish.\n";
@@ -67,4 +71,9 @@ void CliImpl::runCliImpl()
     });
 
     m_scheduler.run();
+}
+
+asio::io_context& CliImpl::getIoContext()
+{
+    return m_scheduler.getAsioContext();
 }
