@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: GPL-2.0
 #ifndef __CAR_CTRL_HPP__
 #define __CAR_CTRL_HPP__
 

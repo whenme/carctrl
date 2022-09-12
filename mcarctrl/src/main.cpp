@@ -4,15 +4,22 @@
 #include <ioapi/iotimer.hpp>
 #include <ioapi/iothread_pool.hpp>
 #include <cli/cli_impl.h>
+#include <video/sound_intf.hpp>
+
 #include "car_ctrl.hpp"
 #include "remote_key.hpp"
 #include "car_speed.hpp"
 
+
 int32_t main(int argc, char **argv)
 {
+    SoundIntf soundIntf;
+    cmn::setSingletonInstance(&soundIntf);
+    soundIntf.speak("你好, 上海");
+    soundIntf.speak("南汇第二中学, 人工智能车");
+
     cli::CliImpl cliImpl;
     cmn::setSingletonInstance(&cliImpl);
-
     auto& cliObj = cmn::getSingletonInstance<cli::CliImpl>();
 
     CarCtrl carCtrl{cliObj.getIoContext()};

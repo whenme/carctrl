@@ -2,16 +2,18 @@
 #ifndef __IO_THREAD_POOL_HPP__
 #define __IO_THREAD_POOL_HPP__
 
-#include <cstdlib>
-#include <vector>
-#include <queue>
-#include <memory>
-#include <thread>
-#include <mutex>
 #include <condition_variable>
-#include <future>
+#include <cstdlib>
 #include <functional>
+#include <future>
+#include <memory>
+#include <mutex>
+#include <queue>
 #include <stdexcept>
+#include <thread>
+#include <vector>
+
+#include "cmn_attribute.hpp"
 
 class thread_pool
 {
@@ -64,7 +66,7 @@ public:
      * @param : fun - global function,static function,lambda,member function,std::function
      * @return : std::future<...>
      */
-    template<class Fun, class... Args>
+    template<typename Fun, typename... Args>
     auto post(Fun&& fun, Args&&... args) -> std::future<std::invoke_result_t<Fun, Args...>>
     {
         using return_type = std::invoke_result_t<Fun, Args...>;
@@ -126,11 +128,7 @@ public:
     }
 
 private:
-    /// no copy construct function
-    thread_pool(const thread_pool&) = delete;
-
-    /// no operator equal function
-    thread_pool& operator=(const thread_pool&) = delete;
+    CMN_UNCOPYABLE(thread_pool)
 
 protected:
     // need to keep track of threads so we can join them

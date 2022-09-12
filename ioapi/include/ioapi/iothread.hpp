@@ -6,12 +6,10 @@
 #include <string>
 #include <thread>
 
-#include <asio.hpp>
-
 class IoThread
 {
 public:
-    IoThread(std::string& name, int32_t priority,
+    IoThread(std::string name, int32_t priority,
              std::function<void(void *ctxt)> threadFun,
              void *ctxt = nullptr);
     virtual ~IoThread();
@@ -21,9 +19,12 @@ public:
 
     std::string&    getThreadName();
     std::thread::id getThreadId();
+
     int32_t         getThreadPriority();
     int32_t         setThreadPriority(int32_t priority);
+
     int32_t         setCpuAffinity(size_t cpu_id);
+    int32_t         getCpuAffinity(cpu_set_t *cpuset);
 
     constexpr static int32_t ThreadPriorityLowest      = 1;
     constexpr static int32_t ThreadPriorityBelowNormal = 16;

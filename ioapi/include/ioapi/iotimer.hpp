@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-
 #ifndef __IO_TIMER_HPP__
 #define __IO_TIMER_HPP__
 

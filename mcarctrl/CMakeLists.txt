@@ -11,6 +11,6 @@ add_library (${library_name} src/car_ctrl.cpp
 
 target_include_directories (${library_name} PUBLIC include)
 
-target_link_libraries (${library_name} ioapi cli)
+target_link_libraries (${library_name} ioapi cli video)
 
 install (FILES ${param_file} DESTINATION ${PROJECT_BINARY_DIR})

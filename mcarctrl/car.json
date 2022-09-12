@@ -2,9 +2,9 @@
     "car": {
         "device_name": "king",
         "product_name": "King",
-        "wheel_port_left": [7, 8],
-        "wheel_port_right": [9, 10],
-        "ir_left": 200,
-        "ir_right": 201
+        "wheel_port_left": [10, 9],
+        "wheel_port_right": [8, 7],
+        "ir_left": 201,
+        "ir_right": 200
     }
 }

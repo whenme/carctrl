@@ -3,7 +3,7 @@
 #include <pthread.h>
 #include <ioapi/iothread.hpp>
 
-IoThread::IoThread(std::string& name, int32_t priority,
+IoThread::IoThread(std::string name, int32_t priority,
                    std::function<void(void *ctxt)> threadFun,
                    void *ctxt) :
     m_name(name),
@@ -63,6 +63,15 @@ int32_t IoThread::setThreadPriority(int32_t priority)
 
 int32_t IoThread::getThreadPriority()
 {
+    int32_t policy, ret;
+    struct sched_param param;
+    ret = pthread_getschedparam(m_thread.native_handle(), &policy, &param);
+    if (ret) {
+        std::cout << "IoThread::getThreadPriority: fail to get param" << std::endl;
+        return m_priority;
+    }
+
+    m_priority = param.sched_priority;
     return m_priority;
 }
 
@@ -75,6 +84,15 @@ int32_t IoThread::setCpuAffinity(size_t cpu_id)
     int32_t ret = pthread_setaffinity_np(m_thread.native_handle(), sizeof(cpu_set_t), &cpuset);
     if (ret)
         std::cout << "IoThread::setCpuAffinity: set failure" << std::endl;
+
+    return ret;
+}
+
+int32_t IoThread::getCpuAffinity(cpu_set_t *cpuset)
+{
+    int32_t ret = pthread_setaffinity_np(m_thread.native_handle(), sizeof(cpu_set_t), cpuset);
+    if (ret)
+        std::cout << "IoThread::getCpuAffinity: get failure" << std::endl;
 
     return ret;
 }

@@ -3,6 +3,7 @@
 #include <ioapi/cmn_singleton.hpp>
 #include <cli/cli_car.h>
 #include <cli/cli_impl.h>
+#include <video/sound_intf.hpp>
 #include <car_ctrl.hpp>
 #include <car_speed.hpp>
 
@@ -10,8 +11,9 @@ namespace cli
 {
 void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
 {
-    const std::string name    = getGroupName();
-    auto              cliMenu = std::make_unique<Menu>(name);
+    const std::string name = getGroupName();
+    auto           cliMenu = std::make_unique<Menu>(name);
+    auto&        soundIntf = cmn::getSingletonInstance<SoundIntf>();
 
     cliMenu->insert("show-speed", showSpeed, "show car speed");
     /*cliMenu->insert("set-speed0",
@@ -45,12 +47,28 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                             return;
                         }
 
+                        char sound[128] = {0};
                         if (wheel == 0) {
                             ctrlSpeed.setCtrlSteps(0, steps);
                             ctrlSpeed.setCtrlSteps(1, steps);
-                        } else {
+                            if (steps > 0)
+                                sprintf(sound, "前进%d步", steps);
+                            else
+                                sprintf(sound, "后退%d步", abs(steps));
+                        } else if (wheel == 1) {
                             ctrlSpeed.setCtrlSteps(wheel - 1, steps);
+                            if (steps > 0)
+                                sprintf(sound, "左轮前进%d步", steps);
+                            else
+                                sprintf(sound, "左轮后退%d步", abs(steps));
+                        } else if (wheel == 2) {
+                            ctrlSpeed.setCtrlSteps(wheel - 1, steps);
+                            if (steps > 0)
+                                sprintf(sound, "右轮前进%d步", steps);
+                            else
+                                sprintf(sound, "右轮后退%d步", abs(steps));
                         }
+                        soundIntf.speak(sound);
                     },
                     "set car steps");
 

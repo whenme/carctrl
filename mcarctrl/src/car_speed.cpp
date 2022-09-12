@@ -16,17 +16,22 @@ CarSpeed::CarSpeed(asio::io_service& io_service) :
     uint32_t left, right;
 
     bool ret = param.getJsonParam("car.ir_left", left);
-    if (ret)
+    if (ret) {
         m_gpioSpeed[MOTOR_LEFT] = new Gpio(left, GPIO_DIR_IN, GPIO_EDGE_RISING);
+    }
+
     ret = param.getJsonParam("car.ir_right", right);
-    if (ret)
+    if (ret) {
         m_gpioSpeed[MOTOR_RIGHT] = new Gpio(right, GPIO_DIR_IN, GPIO_EDGE_RISING);
+    }
 
-    if ((m_gpioSpeed[MOTOR_LEFT] == nullptr) || (m_gpioSpeed[MOTOR_RIGHT] == nullptr))
+    if ((m_gpioSpeed[MOTOR_LEFT] == nullptr) || (m_gpioSpeed[MOTOR_RIGHT] == nullptr)) {
         std::cout << "CarSpeed: fail to create gpio object" << std::endl;
+    }
 
-    if (pthread_create(&m_tipd, nullptr, CarSpeed::carSpeedThread, this) < 0)
+    if (pthread_create(&m_tipd, nullptr, CarSpeed::carSpeedThread, this) < 0) {
         std::cout << "CarSpeed: fail to create thread" << std::endl;
+    }
 
     m_timerSpeed.start(1000);
 }
@@ -59,15 +64,15 @@ int32_t CarSpeed::setCtrlSteps(int32_t motor, int32_t steps)
 
     m_ctrlSetSteps[motor] = steps;
     if (steps > 10)
-        m_ctrlSteps[motor] = steps - 10;
+        m_ctrlSteps[motor] = steps - 4;
     else if (steps > 5)
-        m_ctrlSteps[motor] = steps - 5;
+        m_ctrlSteps[motor] = steps - 2;
     else if ((steps >= -5) && (steps <= 5))
         m_ctrlSteps[motor] = steps;
     else if ((steps >= -10) && (steps < -5))
-        m_ctrlSteps[motor] = steps + 5;
+        m_ctrlSteps[motor] = steps + 2;
     else if (steps < -10)
-        m_ctrlSteps[motor] = steps + 10;
+        m_ctrlSteps[motor] = steps + 4;
 
     m_actualSteps[motor] = 0;
 
