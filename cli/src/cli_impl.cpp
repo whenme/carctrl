@@ -2,7 +2,8 @@
 
 #include <cli/cli_impl.h>
 #include <cli/cli_example.h>
-#include <cli/cli_car.h>
+#include <cli_car.hpp>
+#include <video/cli_video.hpp>
 
 #include <algorithm>
 #include <vector>
@@ -18,9 +19,11 @@ void CliImpl::initCliCommand()
 {
     CliExample cliExample;
     CliCar     cliCar;
+    CliVideo   cliVideo;
 
     addCommandGroup(&cliExample);
     addCommandGroup(&cliCar);
+    addCommandGroup(&cliVideo);
 
     // setup cli
     for (auto& it : m_cliGroup)

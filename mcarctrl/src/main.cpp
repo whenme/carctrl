@@ -15,8 +15,6 @@ int32_t main(int argc, char **argv)
 {
     SoundIntf soundIntf;
     cmn::setSingletonInstance(&soundIntf);
-    soundIntf.speak("你好, 上海");
-    soundIntf.speak("南汇第二中学, 人工智能车");
 
     cli::CliImpl cliImpl;
     cmn::setSingletonInstance(&cliImpl);

@@ -7,6 +7,7 @@ add_library (${library_name} src/car_ctrl.cpp
                              src/car_speed.cpp
                              src/gpio.cpp
                              src/remote_key.cpp
+                             src/cli_car.cpp
                              src/main.cpp)
 
 target_include_directories (${library_name} PUBLIC include)

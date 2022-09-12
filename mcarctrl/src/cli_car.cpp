@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <ioapi/cmn_singleton.hpp>
-#include <cli/cli_car.h>
 #include <cli/cli_impl.h>
 #include <video/sound_intf.hpp>
 #include <car_ctrl.hpp>
 #include <car_speed.hpp>
+#include <cli_car.hpp>
 
 namespace cli
 {
@@ -16,9 +16,7 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
     auto&        soundIntf = cmn::getSingletonInstance<SoundIntf>();
 
     cliMenu->insert("show-speed", showSpeed, "show car speed");
-    /*cliMenu->insert("set-speed0",
-                    {"wheel:0-both,1-left,2-right", "speed:-60~+60"},
-                    setCtrlSpeed, "set car speed");*/
+
     cliMenu->insert("set-speed",
                     {"wheel:0-both,1-left,2-right", "speed:-60~+60"},
                     [&](std::ostream& out, int32_t wheel, int32_t speed) {

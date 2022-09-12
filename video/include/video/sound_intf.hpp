@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #ifndef __SOUND_INTF_HPP__
 #define __SOUND_INTF_HPP__
 
@@ -13,7 +14,7 @@ public:
     virtual ~SoundIntf();
 
     int32_t speak(std::string content);
-    void    setSoundState(bool enable);
+    void    setSoundState(int32_t enable);
     bool    getSoundState();
 
 private:
@@ -23,9 +24,9 @@ private:
     IoTimer  m_timer;
     bool     m_state;
     std::vector<std::string> m_vectContent;
-
     static constexpr int32_t m_interval = 100;
 
+    void showWelcome();
     static void timerCallback(const asio::error_code &e, void *ctxt);
     static void threadFun(void *ctxt);
 };

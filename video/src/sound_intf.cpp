@@ -5,19 +5,22 @@
 #include <ioapi/cmn_singleton.hpp>
 #include <video/sound_intf.hpp>
 
-SoundIntf::SoundIntf()
-:m_ios(1),
- m_iow(m_ios),
- m_iosThread("sound thread", IoThread::ThreadPriorityNormal, threadFun, this),
- m_timer(m_ios, timerCallback, this),
- m_state(true)
+SoundIntf::SoundIntf():
+  m_ios(1),
+  m_iow(m_ios),
+  m_iosThread("sound thread", IoThread::ThreadPriorityNormal, threadFun, this),
+  m_timer(m_ios, timerCallback, this),
+  m_state(true)
 {
     system("pulseaudio --start"); //start pulseaudio service
     m_iosThread.start();
+
+    showWelcome();
 }
 
 SoundIntf::~SoundIntf()
 {
+    m_timer.stop();
     m_iosThread.stop();
     m_ios.stop();
 }
@@ -53,12 +56,21 @@ void SoundIntf::threadFun(void *ctxt)
     obj->m_ios.run();
 }
 
-void SoundIntf::setSoundState(bool enable)
+void SoundIntf::setSoundState(int32_t enable)
 {
-    m_state = enable;
+    m_state = enable ? true : false;
+    if (m_state) {
+        showWelcome();
+    }
 }
 
 bool SoundIntf::getSoundState()
 {
     return m_state;
+}
+
+void SoundIntf::showWelcome()
+{
+    speak("你好, 上海");
+    speak("南汇第二中学, 人工智能车");
 }
