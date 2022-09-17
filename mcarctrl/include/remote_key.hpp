@@ -15,15 +15,15 @@
 #define RC_KEY_7          0x07
 #define RC_KEY_8          0x15
 #define RC_KEY_9          0x09
-#define RC_KEY_STAR       0x16
-#define RC_KEY_POUND      0x0d
-#define RC_KEY_LEFT       0x08
-#define RC_KEY_RIGHT      0x5a
-#define RC_KEY_UP         0x18
-#define RC_KEY_DOWN       0x52
-#define RC_KEY_OK         0x1c
+#define RC_KEY_STAR       0x16  //stop
+#define RC_KEY_POUND      0x0d  //step/speed switch
+#define RC_KEY_LEFT       0x08  //left wheel steps
+#define RC_KEY_RIGHT      0x5a  //right wheel steps
+#define RC_KEY_UP         0x18  //forward
+#define RC_KEY_DOWN       0x52  //back
+#define RC_KEY_OK         0x1c  //speed set
 
-#define RC_KEY_FILE       "/dev/input/event1"
+#define RC_KEY_FILE       "/dev/input/event2"
 
 class RemoteKey
 {

@@ -2,6 +2,8 @@
 
 #include <stdlib.h>
 #include <iostream>
+#include <thread>
+
 #include <ioapi/cmn_singleton.hpp>
 #include <video/sound_intf.hpp>
 
@@ -10,7 +12,7 @@ SoundIntf::SoundIntf():
   m_iow(m_ios),
   m_iosThread("sound thread", IoThread::ThreadPriorityNormal, threadFun, this),
   m_timer(m_ios, timerCallback, this),
-  m_state(true)
+  m_state(false)
 {
     system("pulseaudio --start"); //start pulseaudio service
     m_iosThread.start();
@@ -32,6 +34,16 @@ int32_t SoundIntf::speak(std::string content)
     return 0;
 }
 
+int32_t SoundIntf::sing()
+{
+    auto fun = []() {
+        system("mplayer -quiet 长相思.mp3");
+    };
+    std::thread th(fun);
+    th.detach();
+    return 0;
+}
+
 void SoundIntf::timerCallback(const asio::error_code &e, void *ctxt)
 {
     SoundIntf* obj = static_cast<SoundIntf*>(ctxt);
@@ -39,7 +51,7 @@ void SoundIntf::timerCallback(const asio::error_code &e, void *ctxt)
         std::string content = *(obj->m_vectContent.begin());
         obj->m_vectContent.erase(obj->m_vectContent.begin());
 
-        if (obj->getSoundState() == true) {
+        if (obj->m_state == true) {
             std::string speakContent = "ekho " + content;
             system(speakContent.c_str());
         }
@@ -62,11 +74,6 @@ void SoundIntf::setSoundState(int32_t enable)
     if (m_state) {
         showWelcome();
     }
-}
-
-bool SoundIntf::getSoundState()
-{
-    return m_state;
 }
 
 void SoundIntf::showWelcome()

@@ -2,14 +2,12 @@
 #include <sys/stat.h>
 #include <ioapi/cmn_singleton.hpp>
 #include <ioapi/iotimer.hpp>
-#include <ioapi/iothread_pool.hpp>
 #include <cli/cli_impl.h>
 #include <video/sound_intf.hpp>
+#include <video/video_ctrl.hpp>
 
 #include "car_ctrl.hpp"
 #include "remote_key.hpp"
-#include "car_speed.hpp"
-
 
 int32_t main(int argc, char **argv)
 {
@@ -18,18 +16,17 @@ int32_t main(int argc, char **argv)
 
     cli::CliImpl cliImpl;
     cmn::setSingletonInstance(&cliImpl);
-    auto& cliObj = cmn::getSingletonInstance<cli::CliImpl>();
 
-    CarCtrl carCtrl{cliObj.getIoContext()};
+    CarCtrl carCtrl{cliImpl.getIoContext()};
     cmn::setSingletonInstance(&carCtrl);
 
-    RemoteKey remoteKey{cliObj.getIoContext()};
+    RemoteKey remoteKey{cliImpl.getIoContext()};
     cmn::setSingletonInstance(&remoteKey);
 
-    CarSpeed carSpeed{cliObj.getIoContext()};
-    cmn::setSingletonInstance(&carSpeed);
+    VideoCtrl videoCtrl{cliImpl.getIoContext()};
+    cmn::setSingletonInstance(&videoCtrl);
 
-    auto timerCallback = [&](const asio::error_code &e, void *ctxt)
+    auto timerCallback = [](const asio::error_code &e, void *ctxt)
     {
         static int state = 0;
         struct stat buffer;
@@ -43,10 +40,10 @@ int32_t main(int argc, char **argv)
             }
         }
     };
-    IoTimer timer(cliObj.getIoContext(), timerCallback, nullptr, true);
+    IoTimer timer(cliImpl.getIoContext(), timerCallback, nullptr, true);
     timer.start(1000);
 
-    cliObj.initCliCommand();
-    cliObj.runCliImpl();
+    cliImpl.initCliCommand();
+    cliImpl.runCliImpl();
     return 0;
 }

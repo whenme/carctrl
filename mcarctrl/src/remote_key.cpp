@@ -2,6 +2,7 @@
 #include <iostream>
 #include <linux/input.h>
 #include <ioapi/cmn_singleton.hpp>
+#include <video/sound_intf.hpp>
 #include "remote_key.hpp"
 #include "car_ctrl.hpp"
 
@@ -74,91 +75,110 @@ int32_t RemoteKey::getKeyEvent(int32_t *event)
 
 void RemoteKey::handleKeyPress()
 {
-    int32_t ctrlSpeed[MOTOR_MAX] = {0, 0};
-    static int32_t inputSpeed = 0;
+    static int32_t input = 0;
     static int32_t oldKey = 0;
+    static bool    remoteFlag = false;
     auto& carctrl = cmn::getSingletonInstance<CarCtrl>();
+    auto& soundIntf = cmn::getSingletonInstance<SoundIntf>();
+    char sound[128] = {0};
 
     int32_t keyEvent = 0;
     int32_t ret = getKeyEvent(&keyEvent);
-    if (ret || keyEvent == oldKey) {//no key pressed or repeated key
+    if (ret || (keyEvent == oldKey) || (keyEvent < 0) || (keyEvent > 0xFF)) {
+        //no key pressed or repeated key or invalid key
         return;
     }
 
     oldKey = keyEvent;
-    std::cout << "RemoteKey: key " << keyEvent << " pressed" << std::endl;
-    carctrl.getCtrlSpeed(MOTOR_LEFT, &ctrlSpeed[MOTOR_LEFT]);
-    carctrl.getCtrlSpeed(MOTOR_RIGHT, &ctrlSpeed[MOTOR_RIGHT]);
+    std::cout << "RemoteKey: key " << std::hex << keyEvent << " pressed" << std::endl;
 
     switch(keyEvent) {
     case RC_KEY_0:
-        inputSpeed = inputSpeed*10;
+        input = input*10;
         break;
     case RC_KEY_1:
-        inputSpeed = inputSpeed*10 + 1;
+        input = input*10 + 1;
         break;
     case RC_KEY_2:
-        inputSpeed = inputSpeed*10 + 2;
+        input = input*10 + 2;
         break;
     case RC_KEY_3:
-        inputSpeed = inputSpeed*10 + 3;
+        input = input*10 + 3;
         break;
     case RC_KEY_4:
-        inputSpeed = inputSpeed*10 + 4;
+        input = input*10 + 4;
         break;
     case RC_KEY_5:
-        inputSpeed = inputSpeed*10 + 5;
+        input = input*10 + 5;
         break;
     case RC_KEY_6:
-        inputSpeed = inputSpeed*10 + 6;
+        input = input*10 + 6;
         break;
     case RC_KEY_7:
-        inputSpeed = inputSpeed*10 + 7;
+        input = input*10 + 7;
         break;
     case RC_KEY_8:
-        inputSpeed = inputSpeed*10 + 8;
+        input = input*10 + 8;
         break;
     case RC_KEY_9:
-        inputSpeed = inputSpeed*10 + 9;
+        input = input*10 + 9;
         break;
 
     case RC_KEY_UP:
-        carctrl.setCtrlSpeed(MOTOR_LEFT, abs(ctrlSpeed[MOTOR_LEFT]));
-        carctrl.setCtrlSpeed(MOTOR_RIGHT, abs(ctrlSpeed[MOTOR_RIGHT]));
-        inputSpeed = 0;
+        carctrl.setCtrlSteps(0, input);
+        carctrl.setCtrlSteps(1, input);
+        sprintf(sound, "前进%d步", input);
+        soundIntf.speak(sound);
+        input = 0;
         break;
     case RC_KEY_DOWN:
-        carctrl.setCtrlSpeed(MOTOR_LEFT, -1*abs(ctrlSpeed[MOTOR_LEFT]));
-        carctrl.setCtrlSpeed(MOTOR_RIGHT, -1*abs(ctrlSpeed[MOTOR_RIGHT]));
-        inputSpeed = 0;
+        carctrl.setCtrlSteps(0, -1*input);
+        carctrl.setCtrlSteps(1, -1*input);
+        sprintf(sound, "后退%d步", input);
+        soundIntf.speak(sound);
+        input = 0;
         break;
     case RC_KEY_LEFT:
-        carctrl.setCtrlSpeed(MOTOR_LEFT, ctrlSpeed[MOTOR_LEFT] - 5*MOTOR_SPEED_STEP);
-        inputSpeed = 0;
+        carctrl.setCtrlSteps(0, input);
+        sprintf(sound, "左轮前进%d步", input);
+        soundIntf.speak(sound);
+        input = 0;
         break;
     case RC_KEY_RIGHT:
-        carctrl.setCtrlSpeed(MOTOR_RIGHT, ctrlSpeed[MOTOR_RIGHT] - 5*MOTOR_SPEED_STEP);
-        inputSpeed = 0;
+        carctrl.setCtrlSteps(1, input);
+        sprintf(sound, "右轮前进%d步", input);
+        soundIntf.speak(sound);
+        input = 0;
         break;
     case RC_KEY_OK:
-        ctrlSpeed[MOTOR_LEFT] = inputSpeed;
-        ctrlSpeed[MOTOR_RIGHT] = inputSpeed;
-        carctrl.setCtrlSpeed(MOTOR_LEFT, ctrlSpeed[MOTOR_LEFT]);
-        carctrl.setCtrlSpeed(MOTOR_RIGHT, ctrlSpeed[MOTOR_RIGHT]);
-        std::cout << "RemoteKey: set motor speed left=" << ctrlSpeed[MOTOR_LEFT]
-                  << " right=" << ctrlSpeed[MOTOR_RIGHT] << std::endl;
-        inputSpeed = 0;
+        carctrl.setCtrlSpeed(MOTOR_LEFT, input);
+        carctrl.setCtrlSpeed(MOTOR_RIGHT, input);
+        std::cout << "RemoteKey: set motor speed " << input << std::endl;
+        sprintf(sound, "设置速度每秒%d步", input);
+        soundIntf.speak(sound);
+        input = 0;
         break;
     case RC_KEY_STAR:
-        carctrl.setCtrlSpeed(MOTOR_LEFT, 0);
-        carctrl.setCtrlSpeed(MOTOR_RIGHT, 0);
+        for (int i = 0; i < MOTOR_MAX; i++) {
+            carctrl.setCtrlSpeed(i, 0);
+            carctrl.setCarState(i, 0);
+        }
+        sprintf(sound, "停止");
+        soundIntf.speak(sound);
+        input = 0;
         break;
     case RC_KEY_POUND:
-        carctrl.setCtrlSpeed(MOTOR_LEFT, MOTOR_MAX_SPEED);
-        carctrl.setCtrlSpeed(MOTOR_RIGHT, MOTOR_MAX_SPEED);
+        if (remoteFlag == false) {
+            remoteFlag = true;
+            sprintf(sound, "遥控设置速度");
+        } else {
+            remoteFlag = false;
+            sprintf(sound, "遥控设置步数");
+        }
+        soundIntf.speak(sound);
         break;
     default:
-        std::cout << "RemoteKey: not handled key " << keyEvent << std::endl;
+        std::cout << "RemoteKey: not handled key " << std::hex << keyEvent << std::endl;
         break;
     }
 }

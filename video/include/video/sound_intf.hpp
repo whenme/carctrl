@@ -14,8 +14,8 @@ public:
     virtual ~SoundIntf();
 
     int32_t speak(std::string content);
+    int32_t sing();
     void    setSoundState(int32_t enable);
-    bool    getSoundState();
 
 private:
     asio::io_service m_ios;
