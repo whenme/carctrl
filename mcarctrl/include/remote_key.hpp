@@ -23,8 +23,6 @@
 #define RC_KEY_DOWN       0x52  //back
 #define RC_KEY_OK         0x1c  //speed set
 
-#define RC_KEY_FILE       "/dev/input/event2"
-
 class RemoteKey
 {
 public:
@@ -33,6 +31,7 @@ public:
     void   handleKeyPress();
 
 private:
+    int32_t initIrKey();
     int32_t getKeyEvent(int32_t *pEvent);
     static void timerCallback(const asio::error_code &e, void *ctxt);
 

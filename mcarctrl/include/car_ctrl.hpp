@@ -36,6 +36,7 @@ private:
     IoTimer  m_timer;
     CarSpeed m_carSpeed;
     bool    m_stepSpeed { false }; //run for step(false) or speed(true)
+    bool    m_straight { false };
     bool    m_runState[MOTOR_MAX] {false, false}; // in run(true) or stop(false)
     int32_t m_ctrlSetSteps[MOTOR_MAX]{0, 0};
     int32_t m_ctrlSteps[MOTOR_MAX]   {0, 0};

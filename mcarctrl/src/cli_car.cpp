@@ -46,19 +46,18 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                         char sound[128] = {0};
                         if (wheel == 0) {
                             carCtrl.setCtrlSteps(0, steps);
-                            carCtrl.setCtrlSteps(1, steps);
                             if (steps > 0)
                                 sprintf(sound, "前进%d步", steps);
                             else
                                 sprintf(sound, "后退%d步", abs(steps));
                         } else if (wheel == 1) {
-                            carCtrl.setCtrlSteps(wheel - 1, steps);
+                            carCtrl.setCtrlSteps(wheel, steps);
                             if (steps > 0)
                                 sprintf(sound, "左轮前进%d步", steps);
                             else
                                 sprintf(sound, "左轮后退%d步", abs(steps));
                         } else if (wheel == 2) {
-                            carCtrl.setCtrlSteps(wheel - 1, steps);
+                            carCtrl.setCtrlSteps(wheel, steps);
                             if (steps > 0)
                                 sprintf(sound, "右轮前进%d步", steps);
                             else

@@ -3,7 +3,7 @@
 #include <video/video_device.hpp>
 
 VideoDevice::VideoDevice():
-  m_state(false)
+    m_state(false)
 {
     m_videoDev = VideoCapture(0);
     if (!m_videoDev.isOpened())

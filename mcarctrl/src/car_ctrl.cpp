@@ -79,24 +79,36 @@ int32_t CarCtrl::getActualSpeed(int32_t motor)
 
 int32_t CarCtrl::setCtrlSteps(int32_t motor, int32_t steps)
 {
-    if (motor >= MOTOR_MAX) {
+    auto setRunSteps = [&](int32_t wheel) {
+        m_runState[wheel] = true;
+        m_ctrlSetSteps[wheel] = steps;
+        m_ctrlSteps[wheel] = 0;
+        if (abs(steps) <= MOTOR_MAX_SUBSTEP) {
+            m_ctrlSubSteps[wheel] = steps;
+            m_carSpeed.setRunSteps(wheel, steps);
+        } else {
+            m_ctrlSubSteps[wheel] = (steps > 0) ? MOTOR_MAX_SUBSTEP : -MOTOR_MAX_SUBSTEP;
+            m_carSpeed.setRunSteps(wheel, m_ctrlSubSteps[wheel]);
+        }
+
+        setCarState(wheel, steps);
+    };
+
+    if (motor > MOTOR_MAX) {
         std::cout << "CarCtrl: error motor " << motor << std::endl;
         return -1;
     }
 
     m_stepSpeed = false;
-    m_runState[motor] = true;
-    m_ctrlSetSteps[motor] = steps;
-    m_ctrlSteps[motor] = 0;
-    if (abs(steps) <= MOTOR_MAX_SUBSTEP) {
-        m_ctrlSubSteps[motor] = steps;
-        m_carSpeed.setRunSteps(motor, steps);
+    if (motor == 0) {
+        m_straight = true;
+        setRunSteps(MOTOR_LEFT);
+        setRunSteps(MOTOR_RIGHT);
     } else {
-        m_ctrlSubSteps[motor] = (steps >= 0) ? MOTOR_MAX_SUBSTEP : -1*MOTOR_MAX_SUBSTEP;
-        m_carSpeed.setRunSteps(motor, m_ctrlSubSteps[motor]);
+        m_straight = false;
+        setRunSteps(motor - 1);
     }
 
-    setCarState(motor, steps);
     return 0;
 }
 
@@ -125,10 +137,10 @@ void CarCtrl::checkNextSteps()
     auto setSubSteps = [&](int32_t wheel) {
         m_ctrlSteps[wheel] += m_carSpeed.getActualSteps(wheel);
         if (std::abs(m_ctrlSteps[wheel]) >= std::abs(m_ctrlSetSteps[wheel])) {
-            setCarState(wheel, 0);
             m_runState[wheel] = false;
             return;
         }
+
         int32_t diffSteps = m_ctrlSubSteps[wheel] - m_carSpeed.getActualSteps(wheel);
         if (m_ctrlSetSteps[wheel] >= m_ctrlSteps[wheel] + MOTOR_MAX_SUBSTEP)
             m_ctrlSubSteps[wheel] = MOTOR_MAX_SUBSTEP + diffSteps;
@@ -141,15 +153,33 @@ void CarCtrl::checkNextSteps()
     if ((m_runState[MOTOR_LEFT] == true) && (m_runState[MOTOR_RIGHT] == true)) {
         if ((m_carSpeed.getRunState(MOTOR_LEFT) == false)
             && (m_carSpeed.getRunState(MOTOR_RIGHT) == false)) { //both stopped
-            for (int32_t i = 0; i < MOTOR_MAX; i++)
+            for (int32_t i = 0; i < MOTOR_MAX; i++) {
                 setSubSteps(i);
+            }
         }
     } else if (m_runState[MOTOR_LEFT] == true) {
-        if (m_carSpeed.getRunState(MOTOR_LEFT) == false) // left stopped
+        if (m_carSpeed.getRunState(MOTOR_LEFT) == false) { // left stopped
             setSubSteps(MOTOR_LEFT);
+        }
     } else if (m_runState[MOTOR_RIGHT] == true) {
-        if (m_carSpeed.getRunState(MOTOR_RIGHT) == false) // left stopped
+        if (m_carSpeed.getRunState(MOTOR_RIGHT) == false) { // right stopped
             setSubSteps(MOTOR_RIGHT);
+        }
+    }
+
+    //when all stopped, fix the last difference steps
+    if (m_straight && (m_runState[0] == false) && (m_runState[1] == false)) {
+        if (m_ctrlSteps[0] > m_ctrlSteps[1]) {
+            int32_t steps = m_ctrlSteps[0] - m_ctrlSteps[1];
+            m_carSpeed.setRunSteps(1, steps);
+            setCarState(1, steps);
+            m_runState[1] = true;
+        } else if (m_ctrlSteps[0] < m_ctrlSteps[1]) {
+            int32_t steps = m_ctrlSteps[1] - m_ctrlSteps[0];
+            m_carSpeed.setRunSteps(0, steps);
+            setCarState(0, steps);
+            m_runState[0] = true;
+        }
     }
 }
 
@@ -165,7 +195,6 @@ void CarCtrl::timerCallback(const asio::error_code &e, void *ctxt)
     }
 
     for (int32_t i = 0; i < MOTOR_MAX; i++) {
-
         int32_t currentCtrlSpeed = pCtrl->m_carSpeed.getCurrentCtrlSpeed(i);
         runTime[i]++;
         if (runState[i] == 0) {//stop
@@ -175,10 +204,11 @@ void CarCtrl::timerCallback(const asio::error_code &e, void *ctxt)
                 runState[i] = 1;
             }
         } else {  //run
-            if (pCtrl->m_ctrlSpeed[i] > 0)
+            if (pCtrl->m_ctrlSpeed[i] > 0) {
                 pCtrl->setCarState(i, 1);
-            else if (pCtrl->m_ctrlSpeed[i] < 0)
+            } else if (pCtrl->m_ctrlSpeed[i] < 0) {
                 pCtrl->setCarState(i, -1);
+            }
 
             if (runTime[i] > abs(currentCtrlSpeed*MOTOR_SPEED_STEP)) {
                 runTime[i] = 0;

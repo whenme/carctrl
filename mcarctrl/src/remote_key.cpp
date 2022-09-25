@@ -12,14 +12,7 @@ RemoteKey::RemoteKey(asio::io_service& io_service) :
 {
     m_keyList.clear();
 
-    //enable lirc
-    system("echo '+rc-5 +nec +rc-6 +jvc +sony +rc-5-sz +sanyo +sharp +mce_kbd +xmp' > /sys/class/rc/rc0/protocols");
-
-    //open key file
-    m_keyfd = open(RC_KEY_FILE, O_RDONLY | O_NONBLOCK);
-    if (m_keyfd < 0)
-        std::cout << "RemoteKey: fail to open " << RC_KEY_FILE << std::endl;
-
+    initIrKey();
     m_timer.start(1000);
 }
 
@@ -28,6 +21,35 @@ RemoteKey::~RemoteKey()
     m_timer.stop();
     if (m_keyfd > 0)
         close(m_keyfd);
+}
+
+int32_t RemoteKey::initIrKey()
+{
+    char buf[128] {0};
+    std::string fileName;
+
+    //enable lirc
+    system("echo '+rc-5 +nec +rc-6 +jvc +sony +rc-5-sz +sanyo +sharp +mce_kbd +xmp' > /sys/class/rc/rc0/protocols");
+
+    //ir key file is /dev/input/event1 or /dev/input/event2. find it with shell
+    FILE *ptr = popen("ls -l /dev/input/by-path |grep ir-event |grep -o 'event[0-5]'", "r");
+    if (ptr != NULL) {
+        if (fgets(buf, 128, ptr) != NULL) {
+            fileName = std::string("/dev/input/") + buf;
+            fileName.pop_back();   //remove last return
+        }
+
+        if (!fileName.empty()) {
+            m_keyfd = open(fileName.c_str(), O_RDONLY | O_NONBLOCK);
+            if (m_keyfd < 0)
+                std::cout << "RemoteKey: fail to open " << fileName << std::endl;
+        }
+        pclose(ptr);
+        ptr = NULL;
+        return 0;
+    }
+
+    return -1;
 }
 
 void RemoteKey::timerCallback(const asio::error_code &e, void *ctxt)
@@ -126,26 +148,24 @@ void RemoteKey::handleKeyPress()
 
     case RC_KEY_UP:
         carctrl.setCtrlSteps(0, input);
-        carctrl.setCtrlSteps(1, input);
         sprintf(sound, "前进%d步", input);
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_DOWN:
         carctrl.setCtrlSteps(0, -1*input);
-        carctrl.setCtrlSteps(1, -1*input);
         sprintf(sound, "后退%d步", input);
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_LEFT:
-        carctrl.setCtrlSteps(0, input);
+        carctrl.setCtrlSteps(1, input);
         sprintf(sound, "左轮前进%d步", input);
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_RIGHT:
-        carctrl.setCtrlSteps(1, input);
+        carctrl.setCtrlSteps(2, input);
         sprintf(sound, "右轮前进%d步", input);
         soundIntf.speak(sound);
         input = 0;
@@ -167,7 +187,7 @@ void RemoteKey::handleKeyPress()
         soundIntf.speak(sound);
         input = 0;
         break;
-    case RC_KEY_POUND:
+    case RC_KEY_POUND: //not handled
         if (remoteFlag == false) {
             remoteFlag = true;
             sprintf(sound, "遥控设置速度");

@@ -78,6 +78,6 @@ void SoundIntf::setSoundState(int32_t enable)
 
 void SoundIntf::showWelcome()
 {
-    speak("你好, 上海");
-    speak("南汇第二中学, 人工智能车");
+    speak("你好, 上海, 人工智能车");
+    speak("artificial intelligence demo car");
 }
