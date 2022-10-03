@@ -4,11 +4,7 @@
 
 #include <ioapi/iotimer.hpp>
 #include <ioapi/iothread.hpp>
-#include "gpio.hpp"
-
-#define MOTOR_LEFT    0
-#define MOTOR_RIGHT   1
-#define MOTOR_MAX     2
+#include "motor.hpp"
 
 class CarCtrl;
 
@@ -24,16 +20,18 @@ public:
     void    setRunSteps(int32_t motor, int32_t steps);
     bool    getRunState(int32_t motor);
     int32_t getActualSteps(int32_t motor);
+    void    setMotorState(int32_t motor, int32_t state);
+    int32_t getMotorState(int32_t motor);
 
 private:
-    static void carSpeedThread(void *args);
+    static void threadFun(void *ctxt);
     static void timerSpeedCallback(const asio::error_code &e, void *ctxt);
-    void calculateSpeedCtrl();
+    void        calculateSpeedCtrl();
 
     asio::io_service& m_ioService;
-    IoTimer   m_timerSpeed;
-    IoThread  m_speedThread;
-    CarCtrl*  m_carCtrl;
+    IoTimer  m_timerSpeed;
+    IoThread m_speedThread;
+    CarCtrl* m_carCtrl;
 
     int32_t m_ctrlSetSteps[MOTOR_MAX]{0, 0};
     int32_t m_ctrlSteps[MOTOR_MAX] {0, 0};
@@ -44,6 +42,10 @@ private:
     int32_t m_swCounter[MOTOR_MAX] {0, 0};
     bool    m_runState[MOTOR_MAX] {false, false};
     Gpio*   m_gpioSpeed[MOTOR_MAX];
+    Motor*  m_motor[MOTOR_MAX];
+
+    static constexpr int32_t m_maxPwm[MOTOR_MAX] {100, 100};
+    int32_t m_ctrlPwm[MOTOR_MAX] {40, 20};
 };
 
 #endif

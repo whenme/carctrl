@@ -11,7 +11,6 @@ IoThread::IoThread(std::string name, int32_t priority,
     m_threadFun(threadFun),
     m_usrContext(ctxt)
 {
-    setThreadPriority(priority);
 }
 
 IoThread::~IoThread()
@@ -26,12 +25,16 @@ void IoThread::start()
     //after detach, native_handle() will changed. save it before detach
     m_threadId = m_thread.native_handle();
     m_thread.detach();
+
+    setThreadPriority(m_priority);
     m_runState = true;
 }
 
 void IoThread::stop()
 {
-    pthread_cancel(m_threadId);
+    if (m_runState)
+        pthread_cancel(m_threadId);
+
     m_runState = false;
 }
 
@@ -54,16 +57,16 @@ int32_t IoThread::setThreadPriority(int32_t priority)
 {
     int32_t policy, ret;
     struct sched_param param;
-    ret = pthread_getschedparam(m_thread.native_handle(), &policy, &param);
+    ret = pthread_getschedparam(m_threadId, &policy, &param);
     if (ret) {
         std::cout << "IoThread::setThreadPriority: fail to get param" << std::endl;
         return -1;
     }
 
     param.sched_priority = priority;
-    ret = pthread_setschedparam(m_thread.native_handle(), policy, &param);
+    ret = pthread_setschedparam(m_threadId, policy, &param);
     if (ret) {
-        std::cout << "IoThread::setThreadPriority: fail to set param" << std::endl;
+        std::cout << "IoThread::setThreadPriority: fail to set param %d" << ret << std::endl;
         return -1;
     }
 
@@ -75,7 +78,7 @@ int32_t IoThread::getThreadPriority()
 {
     int32_t policy, ret;
     struct sched_param param;
-    ret = pthread_getschedparam(m_thread.native_handle(), &policy, &param);
+    ret = pthread_getschedparam(m_threadId, &policy, &param);
     if (ret) {
         std::cout << "IoThread::getThreadPriority: fail to get param" << std::endl;
         return m_priority;
@@ -91,7 +94,7 @@ int32_t IoThread::setCpuAffinity(size_t cpu_id)
 
     CPU_ZERO(&cpuset);
     CPU_SET(cpu_id % std::thread::hardware_concurrency(), &cpuset);
-    int32_t ret = pthread_setaffinity_np(m_thread.native_handle(), sizeof(cpu_set_t), &cpuset);
+    int32_t ret = pthread_setaffinity_np(m_threadId, sizeof(cpu_set_t), &cpuset);
     if (ret)
         std::cout << "IoThread::setCpuAffinity: set failure" << std::endl;
 
@@ -100,7 +103,7 @@ int32_t IoThread::setCpuAffinity(size_t cpu_id)
 
 int32_t IoThread::getCpuAffinity(cpu_set_t *cpuset)
 {
-    int32_t ret = pthread_setaffinity_np(m_thread.native_handle(), sizeof(cpu_set_t), cpuset);
+    int32_t ret = pthread_setaffinity_np(m_threadId, sizeof(cpu_set_t), cpuset);
     if (ret)
         std::cout << "IoThread::getCpuAffinity: get failure" << std::endl;
 

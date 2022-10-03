@@ -181,7 +181,6 @@ void RemoteKey::handleKeyPress()
     case RC_KEY_STAR:
         for (int i = 0; i < MOTOR_MAX; i++) {
             carctrl.setCtrlSpeed(i, 0);
-            carctrl.setCarState(i, 0);
         }
         sprintf(sound, "停止");
         soundIntf.speak(sound);

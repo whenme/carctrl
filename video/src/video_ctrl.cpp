@@ -43,7 +43,7 @@ void VideoCtrl::timerCallback(const asio::error_code &e, void *ctxt)
     }
 
     obj->showImage("capture", frame);
-    Mat gray, thres, edge;
+    Mat gray, edge;
     cvtColor(frame, gray, COLOR_BGR2GRAY); //to gray
     GaussianBlur(gray, gray, Size(5, 5), 0);  //gauss filter
     obj->showImage("gray", gray);

@@ -584,7 +584,7 @@ public:
     }
     void exitAction(std::function<void(std::ostream&)> action)
     {
-        m_exitAction = std::move(action);
+        m_exitAction = action;
     }
     std::shared_ptr<Session> createSession(asiolib::ip::tcp::socket sock) override
     {

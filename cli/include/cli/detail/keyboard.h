@@ -114,6 +114,7 @@ private:
             case k_KeyEot:  // EOT
                 return std::make_pair(KeyType::Eof, ' ');
             case k_KeyBackspace:
+            case 8:
                 return std::make_pair(KeyType::Backspace, ' ');
             case k_KeyRet:
                 return std::make_pair(KeyType::Ret, ' ');
@@ -127,10 +128,9 @@ private:
                         case k_KeyWait:
                             ch = std::getchar();
                             if (ch == k_KeyCanc)
-                            {
                                 return std::make_pair(KeyType::Canc, ' ');
-                            }
-                            return std::make_pair(KeyType::Ignored, ' ');
+                            else
+                                return std::make_pair(KeyType::Ignored, ' ');
                         case k_KeyUp:
                             return std::make_pair(KeyType::Up, ' ');
                         case k_KeyDown:

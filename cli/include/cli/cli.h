@@ -21,12 +21,6 @@
 
 namespace cli
 {
-// forward declarations
-class Menu;
-class CliSession;
-
-class Cli
-{
     // inner class to provide a global output stream
     class OutStream : public std::basic_ostream<char>, public std::streambuf
     {
@@ -53,9 +47,6 @@ class Cli
             return val;
         }
 
-    private:
-        friend class Cli;
-
         void registerStream(std::ostream& os)
         {
             m_ostreams.push_back(&os);
@@ -65,10 +56,16 @@ class Cli
             m_ostreams.erase(std::remove(m_ostreams.begin(), m_ostreams.end(), &os), m_ostreams.end());
         }
 
+    private:
         std::vector<std::ostream*> m_ostreams;
     };
-    // end inner class
 
+// forward declarations
+class Menu;
+class CliSession;
+
+class Cli
+{
 public:
     ~Cli() = default;
 
@@ -90,7 +87,8 @@ public:
     explicit Cli(std::unique_ptr<Menu>           rootMenu,
                  std::unique_ptr<HistoryStorage> historyStorage = std::make_unique<VolatileHistoryStorage>()) :
         m_globalHistoryStorage(std::move(historyStorage)),
-        m_rootMenu(std::move(rootMenu))
+        m_rootMenu(std::move(rootMenu)),
+        m_exitAction{}
     {
     }
 
@@ -125,8 +123,7 @@ public:
      */
     static OutStream& cout()
     {
-        static OutStream s_stm;
-        return s_stm;
+        return *CoutPtr();
     }
 
     Menu* getRootMenu()
@@ -136,6 +133,12 @@ public:
 
 private:
     friend class CliSession;
+
+    static std::shared_ptr<OutStream> CoutPtr()
+    {
+        static std::shared_ptr<OutStream> s = std::make_shared<OutStream>();
+        return s;
+    }
 
     void exitAction(std::ostream& out)
     {
@@ -259,7 +262,7 @@ public:
     CliSession(Cli& cli, std::ostream& out, std::size_t historySize = k_MHistorySizeDef);
     virtual ~CliSession() noexcept
     {
-        Cli::unRegisterStream(m_out);
+        m_coutPtr->unRegisterStream(m_out);
     }
 
     //class are neither copyable nor movable
@@ -316,11 +319,11 @@ public:
 
 private:
     Cli&                               m_cli;
+    std::shared_ptr<cli::OutStream>    m_coutPtr;
     Menu*                              m_current;
     std::unique_ptr<Menu>              m_globalScopeMenu;
     std::ostream&                      m_out;
-    std::function<void(std::ostream&)> m_exitAction = [](std::ostream&) {
-    };
+    std::function<void(std::ostream&)> m_exitAction = [](std::ostream&) { };
     detail::History m_history;
     bool            m_exit{false};  // to prevent the prompt after exit command
 
@@ -480,14 +483,16 @@ public:
                 session.current(this);
                 return true;
             }
-
-            // check also for subcommands
-            const std::vector<std::string> subCmdLine(cmdLine.begin() + 1, cmdLine.end());
-            for (auto& cmd : *m_cmds)
+            else
             {
-                if (cmd->exec(subCmdLine, session))
+                // check also for subcommands
+                const std::vector<std::string> subCmdLine(cmdLine.begin() + 1, cmdLine.end());
+                for (auto& cmd : *m_cmds)
                 {
-                    return true;
+                    if (cmd->exec(subCmdLine, session))
+                    {
+                        return true;
+                    }
                 }
             }
         }
@@ -565,7 +570,7 @@ public:
             rest.erase(0, name().size());
             // trim_left(rest);
             rest.erase(rest.begin(), std::find_if(rest.begin(), rest.end(), [](int ch) {
-                           return std::isspace(ch) == 0;
+                           return !std::isspace(ch);
                        }));
             std::vector<std::string> result;
             for (const auto& cmd : *m_cmds)
@@ -660,7 +665,6 @@ public:
         m_parameterDesc(std::move(parDesc))
     {
     }
-    ~VariadicFunctionCommand() override = default;
 
     bool exec(const std::vector<std::string>& cmdLine, CliSession& session) override
     {
@@ -725,7 +729,6 @@ public:
         m_parameterDesc(std::move(parDesc))
     {
     }
-    ~FreeformCommand() override = default;
 
     bool exec(const std::vector<std::string>& cmdLine, CliSession& session) override
     {
@@ -748,6 +751,7 @@ public:
             return;
         }
         out << " - " << name();
+
         for (const auto& ch : m_parameterDesc)
         {
             out << " <" << ch << '>';
@@ -764,13 +768,15 @@ private:
 // CliSession implementation
 inline CliSession::CliSession(Cli& cli, std::ostream& out, std::size_t historySize) :
     m_cli(cli),
+    m_coutPtr(Cli::CoutPtr()),
     m_current(m_cli.getRootMenu()),
     m_globalScopeMenu(std::make_unique<Menu>()),
     m_out(out),
     m_history(historySize)
 {
     m_history.loadCommands(m_cli.getCommands());
-    Cli::registerStream(m_out);
+
+    m_coutPtr->registerStream(out);
     m_globalScopeMenu->insert(
         "help",
         [this](std::ostream&) {
@@ -847,7 +853,7 @@ inline std::vector<std::string> CliSession::getCompletions(std::string currentLi
 {
     // trim_left(currentLine);
     currentLine.erase(currentLine.begin(), std::find_if(currentLine.begin(), currentLine.end(), [](int ch) {
-                          return std::isspace(ch) == 0;
+                          return !std::isspace(ch);
                       }));
     auto v1 = m_globalScopeMenu->getCompletions(currentLine);
     auto v3 = m_current->getCompletions(currentLine);

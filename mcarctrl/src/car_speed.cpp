@@ -8,13 +8,14 @@
 
 CarSpeed::CarSpeed(asio::io_service& io_service, CarCtrl *carCtrl) :
     m_ioService(io_service),
-    m_timerSpeed(io_service, timerSpeedCallback, this, true),
-    m_speedThread("speed thread", IoThread::ThreadPriorityNormal, CarSpeed::carSpeedThread, this),
+    m_timerSpeed(m_ioService, timerSpeedCallback, this, true),
+    m_speedThread("speed thread", IoThread::ThreadPriorityNormal, CarSpeed::threadFun, this),
     m_carCtrl(carCtrl)
 {
     std::string filename{"car.json"};
     ParamJson param(filename);
     uint32_t left, right;
+    std::vector<uint32_t> leftPort, rightPort;
 
     bool ret = param.getJsonParam("car.ir_left", left);
     if (ret) {
@@ -30,6 +31,23 @@ CarSpeed::CarSpeed(asio::io_service& io_service, CarCtrl *carCtrl) :
         std::cout << "CarSpeed: fail to create gpio object" << std::endl;
     }
 
+    ret = param.getJsonParam("car.wheel_port_left", leftPort);
+    if (ret) {
+        m_motor[MOTOR_LEFT] = new Motor(leftPort);
+    }
+    ret = param.getJsonParam("car.wheel_port_right", rightPort);
+    if (ret) {
+        m_motor[MOTOR_RIGHT] = new Motor(rightPort);
+    }
+
+    if ((m_motor[MOTOR_LEFT] == nullptr) || (m_motor[MOTOR_RIGHT] == nullptr)) {
+        std::cout << "CarSpeed: fail to create motor object" << std::endl;
+    }
+
+    // start thread in cpu1
+    m_speedThread.start();
+    m_speedThread.setCpuAffinity(1);
+
     m_timerSpeed.start(1000);
     m_speedThread.start();
 }
@@ -41,6 +59,8 @@ CarSpeed::~CarSpeed()
 
     delete m_gpioSpeed[MOTOR_LEFT];
     delete m_gpioSpeed[MOTOR_RIGHT];
+    delete m_motor[MOTOR_LEFT];
+    delete m_motor[MOTOR_RIGHT];
 }
 
 int32_t CarSpeed::getActualSpeed(int32_t motor)
@@ -64,6 +84,7 @@ void CarSpeed::setRunSteps(int32_t motor, int32_t steps)
 
     m_actualSteps[motor] = 0;
     m_runState[motor] = true;
+    m_motor[motor]->setRunState(steps);
 }
 
 bool CarSpeed::getRunState(int32_t motor)
@@ -115,13 +136,15 @@ void CarSpeed::timerSpeedCallback(const asio::error_code &e, void *ctxt)
     speedObj->calculateSpeedCtrl();
 }
 
-void CarSpeed::carSpeedThread(void *args)
+void CarSpeed::threadFun(void *ctxt)
 {
-    CarSpeed *obj = static_cast<CarSpeed *>(args);
+    CarSpeed *obj = static_cast<CarSpeed *>(ctxt);
     struct pollfd fds[MOTOR_MAX];
     char buffer[16];
+    int32_t i, pwmCount[MOTOR_MAX]{0, 0};
+    bool runFlag[MOTOR_MAX] { true, true };
 
-    for (int32_t i = 0; i < MOTOR_MAX; i++) {
+    for (i = 0; i < MOTOR_MAX; i++) {
         fds[i].fd = obj->m_gpioSpeed[i]->getGpioFd();
         fds[i].events = POLLPRI;
     }
@@ -129,10 +152,24 @@ void CarSpeed::carSpeedThread(void *args)
     while(1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
+        for (i = 0; i < MOTOR_MAX; i++) {
+            if (obj->m_runState[i] == true) {
+                pwmCount[i]++;
+                if (pwmCount[i] >= (runFlag[i] ? obj->m_ctrlPwm[i] : (obj->m_maxPwm[i] - obj->m_ctrlPwm[i]))) {
+                    pwmCount[i] = 0;
+                    if (runFlag[i])
+                        obj->m_motor[i]->setRunState(MOTOR_STATE_STOP);
+                    else
+                        obj->m_motor[i]->setRunState(obj->m_ctrlSteps[i] > 0?MOTOR_STATE_FORWARD:MOTOR_STATE_BACK);
+                    runFlag[i] = runFlag[i] ? false : true;
+                }
+            }
+        }
+
         if (poll(fds, MOTOR_MAX, 0) <= 0)
             continue;
 
-        for (int32_t i = 0; i < MOTOR_MAX; i++) {
+        for (i = 0; i < MOTOR_MAX; i++) {
             if (fds[i].revents & POLLPRI) {
                 if (lseek(fds[i].fd, 0, SEEK_SET) < 0) {
                     std::cout << "CarSpeed: seek failed" << std::endl;
@@ -151,11 +188,21 @@ void CarSpeed::carSpeedThread(void *args)
                     else
                         obj->m_actualSteps[i]--;
                     if (std::abs(obj->m_actualSteps[i]) >= std::abs(obj->m_ctrlSteps[i])) {
-                        obj->m_carCtrl->setCarState(i, 0);
+                        obj->m_motor[i]->setRunState(MOTOR_STATE_STOP);
                         obj->m_runState[i] = false;
                     }
                 }
             }
         }
     }
+}
+
+void CarSpeed::setMotorState(int32_t motor, int32_t state)
+{
+    m_motor[motor]->setRunState(state);
+}
+
+int32_t CarSpeed::getMotorState(int32_t motor)
+{
+    return m_motor[motor]->getRunState();
 }

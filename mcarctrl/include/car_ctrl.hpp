@@ -26,7 +26,6 @@ public:
     int32_t getCtrlSteps(int32_t motor);
     int32_t getActualSteps(int32_t motor);
 
-    int32_t setCarState(int32_t car, int32_t state);
     void    calculateSpeedCtrl();
     bool    getCtrlState();
 
@@ -34,8 +33,8 @@ private:
     static void timerCallback(const asio::error_code &e, void *ctxt);
     void checkNextSteps();
 
-    IoTimer  m_timer;
     CarSpeed m_carSpeed;
+    IoTimer m_timer;
     bool    m_stepSpeed { false }; //run for step(false) or speed(true)
     bool    m_straight { false };
     bool    m_stepState[MOTOR_MAX] {false, false}; // in run(true) or stop(false)
@@ -46,7 +45,6 @@ private:
 
     int32_t m_ctrlSpeed[MOTOR_MAX]   {0, 0};
     int32_t m_currentSpeed[MOTOR_MAX]{0, 0};
-    Gpio*   m_motorGpio[MOTOR_MAX][2];
 };
 
 #endif

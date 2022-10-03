@@ -18,16 +18,12 @@ public:
     void    setSoundState(int32_t enable);
 
 private:
-    asio::io_service m_ios;
-    asio::io_service::work m_iow;
     IoThread m_iosThread;
-    IoTimer  m_timer;
     bool     m_state;
     std::vector<std::string> m_vectContent;
     static constexpr int32_t m_interval = 100;
 
     void showWelcome();
-    static void timerCallback(const asio::error_code &e, void *ctxt);
     static void threadFun(void *ctxt);
 };
 

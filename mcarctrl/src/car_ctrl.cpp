@@ -7,41 +7,15 @@
 #include "car_ctrl.hpp"
 
 CarCtrl::CarCtrl(asio::io_service& io_service) :
-    m_timer(io_service, timerCallback, this, true),
-    m_carSpeed(io_service, this)
+    m_carSpeed(io_service, this),
+    m_timer(io_service, timerCallback, this, true)
 {
-    std::string filename{"car.json"};
-    ParamJson param(filename);
-    std::vector<uint32_t> left, right;
-
-    bool ret = param.getJsonParam("car.wheel_port_left", left);
-    if (ret) {
-       m_motorGpio[MOTOR_LEFT][0] = new Gpio(left.at(0), GPIO_DIR_OUT, GPIO_EDGE_NONE);
-       m_motorGpio[MOTOR_LEFT][1] = new Gpio(left.at(1), GPIO_DIR_OUT, GPIO_EDGE_NONE);
-    }
-
-    ret = param.getJsonParam("car.wheel_port_right", right);
-    if (ret) {
-       m_motorGpio[MOTOR_RIGHT][0] = new Gpio(right.at(0), GPIO_DIR_OUT, GPIO_EDGE_NONE);
-       m_motorGpio[MOTOR_RIGHT][1] = new Gpio(right.at(1), GPIO_DIR_OUT, GPIO_EDGE_NONE);
-    }
-
-    if ((m_motorGpio[MOTOR_LEFT][0] == NULL) || (m_motorGpio[MOTOR_LEFT][1] == NULL)
-        || (m_motorGpio[MOTOR_RIGHT][0] == NULL) || (m_motorGpio[MOTOR_RIGHT][1] == NULL)) {
-        std::cout <<"CarCtrl: fail to create motor gpio" << std::endl;
-    }
-
     m_timer.start(1);
 }
 
 CarCtrl::~CarCtrl()
 {
     m_timer.stop();
-
-    for (int32_t i = 0; i < MOTOR_MAX; i++) {
-        delete m_motorGpio[i][0];
-        delete m_motorGpio[i][1];
-    }
 }
 
 int32_t CarCtrl::setCtrlSpeed(int32_t motor, int32_t speed)
@@ -56,7 +30,7 @@ int32_t CarCtrl::setCtrlSpeed(int32_t motor, int32_t speed)
     m_currentSpeed[motor] = speed;
     m_stepSpeed = true;
 
-    //m_carSpeed.setRunSteps(motor, 0);
+    m_carSpeed.setMotorState(motor, speed);
     return 0;
 }
 
@@ -92,8 +66,6 @@ int32_t CarCtrl::setCtrlSteps(int32_t motor, int32_t steps)
             m_ctrlSubSteps[wheel] = (steps > 0) ? MOTOR_MAX_SUBSTEP : -MOTOR_MAX_SUBSTEP;
             m_carSpeed.setRunSteps(wheel, m_ctrlSubSteps[wheel]);
         }
-
-        setCarState(wheel, steps);
     };
 
     if (motor > MOTOR_MAX) {
@@ -144,7 +116,7 @@ void CarCtrl::checkNextSteps()
     auto setSubSteps = [&](int32_t motor) {
         m_ctrlSteps[motor] += m_carSpeed.getActualSteps(motor);
         if (std::abs(m_ctrlSteps[motor]) >= std::abs(m_ctrlSetSteps[motor])) {
-            setCarState(motor, 0);
+            m_carSpeed.setRunSteps(motor, 0);
             m_stepState[motor] = false;
         } else {
             int32_t diffSteps = m_ctrlSubSteps[motor] - m_carSpeed.getActualSteps(motor);
@@ -153,7 +125,6 @@ void CarCtrl::checkNextSteps()
             else
                 m_ctrlSubSteps[motor] = m_ctrlSetSteps[motor] - m_ctrlSteps[motor];
             m_carSpeed.setRunSteps(motor, m_ctrlSubSteps[motor]);
-            setCarState(motor, m_ctrlSubSteps[motor]);
             m_stepState[motor] = true;
         }
     };
@@ -180,12 +151,10 @@ void CarCtrl::checkNextSteps()
         if (m_ctrlSteps[0] > m_ctrlSteps[1]) {
             int32_t steps = m_ctrlSteps[0] - m_ctrlSteps[1];
             m_carSpeed.setRunSteps(1, steps);
-            setCarState(1, steps);
             m_stepState[1] = true;
         } else if (m_ctrlSteps[0] < m_ctrlSteps[1]) {
             int32_t steps = m_ctrlSteps[1] - m_ctrlSteps[0];
             m_carSpeed.setRunSteps(0, steps);
-            setCarState(0, steps);
             m_stepState[0] = true;
         }
     }
@@ -206,16 +175,16 @@ void CarCtrl::timerCallback(const asio::error_code &e, void *ctxt)
         int32_t currentCtrlSpeed = pCtrl->m_carSpeed.getCurrentCtrlSpeed(i);
         runTime[i]++;
         if (runState[i] == 0) {//stop
-            pCtrl->setCarState(i, 0);
+            pCtrl->m_carSpeed.setMotorState(i, 0);
             if (runTime[i] > (MOTOR_MAX_TIME - abs(currentCtrlSpeed*MOTOR_SPEED_STEP))) {
                 runTime[i] = 0;
                 runState[i] = 1;
             }
         } else {  //run
             if (pCtrl->m_ctrlSpeed[i] > 0) {
-                pCtrl->setCarState(i, 1);
+                pCtrl->m_carSpeed.setMotorState(i, 1);
             } else if (pCtrl->m_ctrlSpeed[i] < 0) {
-                pCtrl->setCarState(i, -1);
+                pCtrl->m_carSpeed.setMotorState(i, -1);
             }
 
             if (runTime[i] > abs(currentCtrlSpeed*MOTOR_SPEED_STEP)) {
@@ -224,24 +193,4 @@ void CarCtrl::timerCallback(const asio::error_code &e, void *ctxt)
             }
         }
     }
-}
-
-int32_t CarCtrl::setCarState(int32_t motor, int32_t state)
-{
-    static int32_t direct[] {0, 0};
-    if ((state > 0) && (direct[motor] != 1)) {
-        m_motorGpio[motor][0]->setValue(0);
-        m_motorGpio[motor][1]->setValue(1);
-        direct[motor] = 1;
-    } else if ((state == 0) && (direct[motor] != 0)) {
-        m_motorGpio[motor][0]->setValue(0);
-        m_motorGpio[motor][1]->setValue(0);
-        direct[motor] = 0;
-    } else if ((state < 0) && (direct[motor] != -1)) {
-        m_motorGpio[motor][0]->setValue(1);
-        m_motorGpio[motor][1]->setValue(0);
-        direct[motor] = -1;
-    }
-
-    return 0;
 }

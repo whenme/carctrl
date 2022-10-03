@@ -2,16 +2,12 @@
 
 #include <stdlib.h>
 #include <iostream>
-#include <thread>
 
 #include <ioapi/cmn_singleton.hpp>
 #include <video/sound_intf.hpp>
 
 SoundIntf::SoundIntf():
-  m_ios(1),
-  m_iow(m_ios),
   m_iosThread("sound thread", IoThread::ThreadPriorityNormal, threadFun, this),
-  m_timer(m_ios, timerCallback, this),
   m_state(false)
 {
     system("pulseaudio --start"); //start pulseaudio service
@@ -21,17 +17,15 @@ SoundIntf::SoundIntf():
 
 SoundIntf::~SoundIntf()
 {
-    m_timer.stop();
     if (m_iosThread.getRunState())
         m_iosThread.stop();
-
-    m_ios.stop();
 }
 
 int32_t SoundIntf::speak(std::string content)
 {
-    m_vectContent.push_back(content);
-    m_timer.start(m_interval);
+    if (m_state)
+        m_vectContent.push_back(content);
+
     return 0;
 }
 
@@ -45,36 +39,35 @@ int32_t SoundIntf::sing()
     return 0;
 }
 
-void SoundIntf::timerCallback(const asio::error_code &e, void *ctxt)
+void SoundIntf::threadFun(void *ctxt)
 {
     SoundIntf* obj = static_cast<SoundIntf*>(ctxt);
-    if (obj->m_vectContent.size()) {
-        std::string content = *(obj->m_vectContent.begin());
-        obj->m_vectContent.erase(obj->m_vectContent.begin());
 
-        if (obj->m_state == true) {
-            std::string speakContent = "ekho " + content;
-            system(speakContent.c_str());
-        }
+    while(1) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(obj->m_interval));
 
         if (obj->m_vectContent.size()) {
-            obj->m_timer.start(obj->m_interval);
+            std::string content = *(obj->m_vectContent.begin());
+            obj->m_vectContent.erase(obj->m_vectContent.begin());
+
+            if (obj->m_state == true) {
+                std::string speakContent = "ekho " + content;
+                system(speakContent.c_str());
+            }
         }
     }
 }
 
-void SoundIntf::threadFun(void *ctxt)
-{
-    SoundIntf* obj = static_cast<SoundIntf*>(ctxt);
-    obj->m_ios.run();
-}
-
 void SoundIntf::setSoundState(int32_t enable)
 {
+    m_vectContent.clear();
     m_state = enable ? true : false;
     if (m_state) {
-        if (!m_iosThread.getRunState())
+        if (!m_iosThread.getRunState()) {
             m_iosThread.start();
+            m_iosThread.setCpuAffinity(2);
+        }
+
         showWelcome();
     } else {
         m_vectContent.clear();
