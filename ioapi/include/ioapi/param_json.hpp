@@ -24,15 +24,14 @@ public:
     [[nodiscard]] bool getJsonParam(std::string item, auto& param)
     {
         std::vector<std::string> name;
-        int32_t ret = splitStr(item, '.', name);
-        uint32_t count = static_cast<uint32_t>(name.size());
-        if ((ret < 0) || (count < 1) || (m_jsonState == false))
+        int32_t count = splitStr(item, '.', name);
+        if ((count <= 0) || (m_jsonState == false))
             return false;
 
         Json obj;
         try {
             obj = m_jsonObj.at(name[0]);
-            for (uint32_t i = 1; i < count; i++) {
+            for (int32_t i = 1; i < count; i++) {
                 obj = obj.at(name[i]);
             }
         }
@@ -53,9 +52,8 @@ public:
     }
 
 private:
-    void jsonParse(std::string& fileName);
-    int32_t splitStr(std::string str, char flag, std::vector<std::string>& output);
+    int32_t splitStr(std::string strSrc, char splitChar, std::vector<std::string>& output);
 
     Json m_jsonObj;
-    bool m_jsonState;
+    bool m_jsonState {false};
 };

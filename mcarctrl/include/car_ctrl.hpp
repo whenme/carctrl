@@ -10,7 +10,7 @@
 #define MOTOR_MAX_TIME    500
 #define MOTOR_SPEED_STEP  (MOTOR_MAX_TIME/MOTOR_MAX_SPEED)
 
-#define MOTOR_MAX_SUBSTEP 10
+#define MOTOR_MAX_SUBSTEP 20
 
 class CarCtrl
 {
@@ -28,6 +28,7 @@ public:
 
     int32_t setCarState(int32_t car, int32_t state);
     void    calculateSpeedCtrl();
+    bool    getCtrlState();
 
 private:
     static void timerCallback(const asio::error_code &e, void *ctxt);
@@ -37,7 +38,7 @@ private:
     CarSpeed m_carSpeed;
     bool    m_stepSpeed { false }; //run for step(false) or speed(true)
     bool    m_straight { false };
-    bool    m_runState[MOTOR_MAX] {false, false}; // in run(true) or stop(false)
+    bool    m_stepState[MOTOR_MAX] {false, false}; // in run(true) or stop(false)
     int32_t m_ctrlSetSteps[MOTOR_MAX]{0, 0};
     int32_t m_ctrlSteps[MOTOR_MAX]   {0, 0};
     int32_t m_ctrlSubSteps[MOTOR_MAX]{0, 0};

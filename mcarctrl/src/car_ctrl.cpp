@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <iostream>
+#include <poll.h>
+
 #include <ioapi/cmn_singleton.hpp>
 #include <ioapi/param_json.hpp>
 #include "car_ctrl.hpp"
@@ -54,7 +56,7 @@ int32_t CarCtrl::setCtrlSpeed(int32_t motor, int32_t speed)
     m_currentSpeed[motor] = speed;
     m_stepSpeed = true;
 
-    m_carSpeed.setRunSteps(motor, 0);
+    //m_carSpeed.setRunSteps(motor, 0);
     return 0;
 }
 
@@ -80,7 +82,7 @@ int32_t CarCtrl::getActualSpeed(int32_t motor)
 int32_t CarCtrl::setCtrlSteps(int32_t motor, int32_t steps)
 {
     auto setRunSteps = [&](int32_t wheel) {
-        m_runState[wheel] = true;
+        m_stepState[wheel] = true;
         m_ctrlSetSteps[wheel] = steps;
         m_ctrlSteps[wheel] = 0;
         if (abs(steps) <= MOTOR_MAX_SUBSTEP) {
@@ -122,6 +124,11 @@ int32_t CarCtrl::getCtrlSteps(int32_t motor)
     return m_ctrlSetSteps[motor];
 }
 
+bool CarCtrl::getCtrlState()
+{
+    return m_stepSpeed;
+}
+
 int32_t CarCtrl::getActualSteps(int32_t motor)
 {
     if (motor >= MOTOR_MAX) {
@@ -134,51 +141,52 @@ int32_t CarCtrl::getActualSteps(int32_t motor)
 
 void CarCtrl::checkNextSteps()
 {
-    auto setSubSteps = [&](int32_t wheel) {
-        m_ctrlSteps[wheel] += m_carSpeed.getActualSteps(wheel);
-        if (std::abs(m_ctrlSteps[wheel]) >= std::abs(m_ctrlSetSteps[wheel])) {
-            m_runState[wheel] = false;
-            return;
+    auto setSubSteps = [&](int32_t motor) {
+        m_ctrlSteps[motor] += m_carSpeed.getActualSteps(motor);
+        if (std::abs(m_ctrlSteps[motor]) >= std::abs(m_ctrlSetSteps[motor])) {
+            setCarState(motor, 0);
+            m_stepState[motor] = false;
+        } else {
+            int32_t diffSteps = m_ctrlSubSteps[motor] - m_carSpeed.getActualSteps(motor);
+            if (m_ctrlSetSteps[motor] >= m_ctrlSteps[motor] + MOTOR_MAX_SUBSTEP)
+                m_ctrlSubSteps[motor] = MOTOR_MAX_SUBSTEP + diffSteps;
+            else
+                m_ctrlSubSteps[motor] = m_ctrlSetSteps[motor] - m_ctrlSteps[motor];
+            m_carSpeed.setRunSteps(motor, m_ctrlSubSteps[motor]);
+            setCarState(motor, m_ctrlSubSteps[motor]);
+            m_stepState[motor] = true;
         }
-
-        int32_t diffSteps = m_ctrlSubSteps[wheel] - m_carSpeed.getActualSteps(wheel);
-        if (m_ctrlSetSteps[wheel] >= m_ctrlSteps[wheel] + MOTOR_MAX_SUBSTEP)
-            m_ctrlSubSteps[wheel] = MOTOR_MAX_SUBSTEP + diffSteps;
-        else
-            m_ctrlSubSteps[wheel] = m_ctrlSetSteps[wheel] - m_ctrlSteps[wheel];
-        m_carSpeed.setRunSteps(wheel, m_ctrlSubSteps[wheel]);
-        setCarState(wheel, m_ctrlSubSteps[wheel]);
     };
 
-    if ((m_runState[MOTOR_LEFT] == true) && (m_runState[MOTOR_RIGHT] == true)) {
+    if ((m_stepState[MOTOR_LEFT] == true) && (m_stepState[MOTOR_RIGHT] == true)) {
         if ((m_carSpeed.getRunState(MOTOR_LEFT) == false)
             && (m_carSpeed.getRunState(MOTOR_RIGHT) == false)) { //both stopped
             for (int32_t i = 0; i < MOTOR_MAX; i++) {
                 setSubSteps(i);
             }
         }
-    } else if (m_runState[MOTOR_LEFT] == true) {
+    } else if (m_stepState[MOTOR_LEFT] == true) {
         if (m_carSpeed.getRunState(MOTOR_LEFT) == false) { // left stopped
             setSubSteps(MOTOR_LEFT);
         }
-    } else if (m_runState[MOTOR_RIGHT] == true) {
+    } else if (m_stepState[MOTOR_RIGHT] == true) {
         if (m_carSpeed.getRunState(MOTOR_RIGHT) == false) { // right stopped
             setSubSteps(MOTOR_RIGHT);
         }
     }
 
     //when all stopped, fix the last difference steps
-    if (m_straight && (m_runState[0] == false) && (m_runState[1] == false)) {
+    if (m_straight && (m_stepState[0] == false) && (m_stepState[1] == false)) {
         if (m_ctrlSteps[0] > m_ctrlSteps[1]) {
             int32_t steps = m_ctrlSteps[0] - m_ctrlSteps[1];
             m_carSpeed.setRunSteps(1, steps);
             setCarState(1, steps);
-            m_runState[1] = true;
+            m_stepState[1] = true;
         } else if (m_ctrlSteps[0] < m_ctrlSteps[1]) {
             int32_t steps = m_ctrlSteps[1] - m_ctrlSteps[0];
             m_carSpeed.setRunSteps(0, steps);
             setCarState(0, steps);
-            m_runState[0] = true;
+            m_stepState[0] = true;
         }
     }
 }

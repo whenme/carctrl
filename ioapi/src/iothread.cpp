@@ -22,12 +22,17 @@ IoThread::~IoThread()
 void IoThread::start()
 {
     m_thread = std::thread(m_threadFun, m_usrContext);
+
+    //after detach, native_handle() will changed. save it before detach
+    m_threadId = m_thread.native_handle();
     m_thread.detach();
+    m_runState = true;
 }
 
 void IoThread::stop()
 {
-    pthread_cancel(m_thread.native_handle());
+    pthread_cancel(m_threadId);
+    m_runState = false;
 }
 
 std::string& IoThread::getThreadName()
@@ -38,6 +43,11 @@ std::string& IoThread::getThreadName()
 std::thread::id IoThread::getThreadId()
 {
     return m_thread.get_id();
+}
+
+bool IoThread::getRunState()
+{
+    return m_runState;
 }
 
 int32_t IoThread::setThreadPriority(int32_t priority)

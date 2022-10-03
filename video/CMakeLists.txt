@@ -13,3 +13,5 @@ target_include_directories (${library_name} PUBLIC include)
 
 target_link_libraries (${library_name} ioapi cli
                                        ${OpenCV_LIBS})
+
+install (FILES lena.png DESTINATION ${PROJECT_BINARY_DIR})

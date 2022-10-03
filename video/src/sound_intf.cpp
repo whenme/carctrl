@@ -15,15 +15,16 @@ SoundIntf::SoundIntf():
   m_state(false)
 {
     system("pulseaudio --start"); //start pulseaudio service
-    m_iosThread.start();
 
-    showWelcome();
+    setSoundState(m_state);
 }
 
 SoundIntf::~SoundIntf()
 {
     m_timer.stop();
-    m_iosThread.stop();
+    if (m_iosThread.getRunState())
+        m_iosThread.stop();
+
     m_ios.stop();
 }
 
@@ -72,12 +73,16 @@ void SoundIntf::setSoundState(int32_t enable)
 {
     m_state = enable ? true : false;
     if (m_state) {
+        if (!m_iosThread.getRunState())
+            m_iosThread.start();
         showWelcome();
+    } else {
+        m_vectContent.clear();
     }
 }
 
 void SoundIntf::showWelcome()
 {
     speak("你好, 上海, 人工智能车");
-    speak("artificial intelligence demo car");
+    speak("artificial intelligence car demo");
 }

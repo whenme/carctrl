@@ -5,9 +5,21 @@
 
 VideoCtrl::VideoCtrl(asio::io_service& io_service):
   m_ios(io_service),
-  m_timer(io_service, timerCallback, this, true),
-  m_showVideo(true)
+  m_timer(io_service, timerCallback, this, true)
 {
+    //check there is GUI backend or not
+    Mat img = imread("lena.png");
+    if (!img.empty()) {
+        try {
+            imshow("lena", img);
+            destroyWindow("lena");
+        }
+        catch(...) {
+            // No GUI backend...
+            m_showVideo = false;
+        }
+    }
+
     m_timer.start(100);
 }
 
@@ -19,13 +31,10 @@ VideoCtrl::~VideoCtrl()
 void VideoCtrl::timerCallback(const asio::error_code &e, void *ctxt)
 {
     VideoCtrl *obj = static_cast<VideoCtrl *>(ctxt);
-    bool videoState = obj->m_videoDev.getDeviceState();
-    if (!videoState) {
-        std::cout << "video device error..." << std::endl;
+    if (!obj->m_videoDev.getDeviceState())
         return;
-    }
 
-    Mat frame, resizeFrame;
+    Mat frame;
     auto& video = obj->m_videoDev.getVideoCapture();
     video >> frame;
     if (frame.empty()) {
@@ -33,11 +42,9 @@ void VideoCtrl::timerCallback(const asio::error_code &e, void *ctxt)
         return;
     }
 
-    resize(frame, resizeFrame, Size(1024, 680), INTER_NEAREST);
-
-    obj->showImage("capture", resizeFrame);
+    obj->showImage("capture", frame);
     Mat gray, thres, edge;
-    cvtColor(resizeFrame, gray, COLOR_BGR2GRAY); //to gray
+    cvtColor(frame, gray, COLOR_BGR2GRAY); //to gray
     GaussianBlur(gray, gray, Size(5, 5), 0);  //gauss filter
     obj->showImage("gray", gray);
 

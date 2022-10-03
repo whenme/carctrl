@@ -34,8 +34,8 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                     },
                     "set car speed");
 
-    cliMenu->insert("show-steps", showSteps, "show car steps");
-    cliMenu->insert("set-steps",
+    cliMenu->insert("show-step", showSteps, "show car steps");
+    cliMenu->insert("set-step",
                     {"wheel:0-both,1-left,2-right", "steps"},
                     [&](std::ostream& out, int32_t wheel, int32_t steps) {
                         if ((wheel < 0) || (wheel > 2) || (steps == 0)) {
@@ -79,11 +79,11 @@ void CliCar::showSpeed(std::ostream& out)
     int32_t ctrlLeft, ctrlRight;
     carCtrl.getCtrlSpeed(0, &ctrlLeft);
     carCtrl.getCtrlSpeed(1, &ctrlRight);
-    out << "control speed: left:" << ctrlLeft << "   right:" << ctrlRight << "\n";
+    out << "control speed: left:" << std::dec << ctrlLeft << "   right:" << ctrlRight << "\n";
 
     int32_t actualLeft = carCtrl.getActualSpeed(0);
     int32_t actualRight = carCtrl.getActualSpeed(1);
-    out << "actual speed:  left:" << actualLeft << "   right:" << actualRight << "\n";
+    out << "actual speed:  left:" << std::dec << actualLeft << "   right:" << actualRight << "\n";
 }
 
 void CliCar::showSteps(std::ostream& out)
@@ -92,11 +92,11 @@ void CliCar::showSteps(std::ostream& out)
 
     int32_t ctrlLeft = carCtrl.getCtrlSteps(0);
     int32_t ctrlRight = carCtrl.getCtrlSteps(1);
-    out << "control steps: left:" << ctrlLeft << "   right:" << ctrlRight << "\n";
+    out << "control step: left:" << std::dec << ctrlLeft << "   right:" << ctrlRight << "\n";
 
     int32_t actualLeft = carCtrl.getActualSteps(0);
     int32_t actualRight = carCtrl.getActualSteps(1);
-    out << "actual steps:  left:" << actualLeft << "   right:" << actualRight << "\n";
+    out << "actual step:  left:" << std::dec << actualLeft << "   right:" << actualRight << "\n";
 }
 
 void CliCar::setCtrlSpeed(std::ostream& out, int32_t wheel, int32_t speed)

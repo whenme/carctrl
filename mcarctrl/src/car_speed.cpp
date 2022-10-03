@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <poll.h>
 #include <iostream>
 
 #include <ioapi/cmn_singleton.hpp>
@@ -10,6 +9,7 @@
 CarSpeed::CarSpeed(asio::io_service& io_service, CarCtrl *carCtrl) :
     m_ioService(io_service),
     m_timerSpeed(io_service, timerSpeedCallback, this, true),
+    m_speedThread("speed thread", IoThread::ThreadPriorityNormal, CarSpeed::carSpeedThread, this),
     m_carCtrl(carCtrl)
 {
     std::string filename{"car.json"};
@@ -30,17 +30,14 @@ CarSpeed::CarSpeed(asio::io_service& io_service, CarCtrl *carCtrl) :
         std::cout << "CarSpeed: fail to create gpio object" << std::endl;
     }
 
-    if (pthread_create(&m_tipd, nullptr, CarSpeed::carSpeedThread, this) < 0) {
-        std::cout << "CarSpeed: fail to create thread" << std::endl;
-    }
-
     m_timerSpeed.start(1000);
+    m_speedThread.start();
 }
 
 CarSpeed::~CarSpeed()
 {
     m_timerSpeed.stop();
-    pthread_cancel(m_tipd);
+    m_speedThread.stop();
 
     delete m_gpioSpeed[MOTOR_LEFT];
     delete m_gpioSpeed[MOTOR_RIGHT];
@@ -118,7 +115,7 @@ void CarSpeed::timerSpeedCallback(const asio::error_code &e, void *ctxt)
     speedObj->calculateSpeedCtrl();
 }
 
-void *CarSpeed::carSpeedThread(void *args)
+void CarSpeed::carSpeedThread(void *args)
 {
     CarSpeed *obj = static_cast<CarSpeed *>(args);
     struct pollfd fds[MOTOR_MAX];
@@ -130,11 +127,10 @@ void *CarSpeed::carSpeedThread(void *args)
     }
 
     while(1) {
-        usleep(1000);
-        if (poll(fds, MOTOR_MAX, 0) < 0) {
-            std::cout << "CarSpeed: fail to poll" << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+        if (poll(fds, MOTOR_MAX, 0) <= 0)
             continue;
-        }
 
         for (int32_t i = 0; i < MOTOR_MAX; i++) {
             if (fds[i].revents & POLLPRI) {
@@ -148,17 +144,18 @@ void *CarSpeed::carSpeedThread(void *args)
                     continue;
                 }
                 obj->m_swCounter[i]++;
-                if (obj->m_ctrlSteps[i] >= 0)
-                    obj->m_actualSteps[i]++;
-                else
-                    obj->m_actualSteps[i]--;
-                if (std::abs(obj->m_actualSteps[i]) >= std::abs(obj->m_ctrlSteps[i])) {
-                    obj->m_carCtrl->setCarState(i, 0);
-                    obj->m_runState[i] = false;
+
+                if (!obj->m_carCtrl->getCtrlState()) { //ctrl is step
+                    if (obj->m_ctrlSteps[i] >= 0)
+                        obj->m_actualSteps[i]++;
+                    else
+                        obj->m_actualSteps[i]--;
+                    if (std::abs(obj->m_actualSteps[i]) >= std::abs(obj->m_ctrlSteps[i])) {
+                        obj->m_carCtrl->setCarState(i, 0);
+                        obj->m_runState[i] = false;
+                    }
                 }
             }
         }
     }
-    
-    return NULL;
 }

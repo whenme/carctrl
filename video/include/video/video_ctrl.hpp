@@ -16,7 +16,7 @@ private:
     asio::io_service& m_ios;
     VideoDevice       m_videoDev;
     IoTimer           m_timer;
-    bool              m_showVideo;
+    bool              m_showVideo { true };
 
     static void timerCallback(const asio::error_code &e, void *ctxt);
     void        showImage(std::string title, Mat& mat);

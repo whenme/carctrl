@@ -3,6 +3,7 @@
 #define __CAR_SPEED_HPP__
 
 #include <ioapi/iotimer.hpp>
+#include <ioapi/iothread.hpp>
 #include "gpio.hpp"
 
 #define MOTOR_LEFT    0
@@ -25,14 +26,14 @@ public:
     int32_t getActualSteps(int32_t motor);
 
 private:
-    static void *carSpeedThread(void *args);
+    static void carSpeedThread(void *args);
     static void timerSpeedCallback(const asio::error_code &e, void *ctxt);
     void calculateSpeedCtrl();
 
     asio::io_service& m_ioService;
     IoTimer   m_timerSpeed;
+    IoThread  m_speedThread;
     CarCtrl*  m_carCtrl;
-    pthread_t m_tipd;
 
     int32_t m_ctrlSetSteps[MOTOR_MAX]{0, 0};
     int32_t m_ctrlSteps[MOTOR_MAX] {0, 0};

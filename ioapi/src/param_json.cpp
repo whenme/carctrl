@@ -2,13 +2,7 @@
 #include <ioapi/param_json.hpp>
 #include <fstream>
 
-ParamJson::ParamJson(std::string& fileName) :
-    m_jsonState(false)
-{
-    jsonParse(fileName);
-}
-
-void ParamJson::jsonParse(std::string& fileName)
+ParamJson::ParamJson(std::string& fileName)
 {
     std::ifstream jsonFile(fileName);
     if (!jsonFile.is_open()) {
@@ -25,16 +19,16 @@ void ParamJson::jsonParse(std::string& fileName)
     m_jsonState = true;
 }
 
-int32_t ParamJson::splitStr(std::string strSrc, char flag, std::vector<std::string>& output)
+int32_t ParamJson::splitStr(std::string strSrc, char splitChar, std::vector<std::string>& output)
 {
-    if (strSrc.empty() || !flag)
+    if (strSrc.empty() || !splitChar)
         return -1;
 
     std::string strContent = strSrc;
     std::string strTemp;
     std::string::size_type begin = 0, end = 0;
     while (1) {
-        end = strContent.find(flag, begin);
+        end = strContent.find(splitChar, begin);
         if (end == std::string::npos) {
             strTemp = strContent.substr(begin, strContent.length());
             if (!strTemp.empty())

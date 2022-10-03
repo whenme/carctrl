@@ -19,6 +19,7 @@ public:
 
     std::string&    getThreadName();
     std::thread::id getThreadId();
+    bool            getRunState();
 
     int32_t         getThreadPriority();
     int32_t         setThreadPriority(int32_t priority);
@@ -33,10 +34,12 @@ public:
     constexpr static int32_t ThreadPriorityHighest     = 99;
 
 private:
+    bool        m_runState { false };
     std::thread m_thread;
     std::string m_name;
-    int32_t m_priority;
-    void *m_usrContext;
+    int32_t     m_priority;
+    pthread_t   m_threadId;
+    void*       m_usrContext;
     std::function<void(void *ctxt)> m_threadFun;
 };
 
