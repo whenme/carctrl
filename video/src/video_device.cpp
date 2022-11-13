@@ -2,8 +2,7 @@
 
 #include <video/video_device.hpp>
 
-VideoDevice::VideoDevice():
-    m_state(false)
+VideoDevice::VideoDevice()
 {
     m_videoDev = VideoCapture(0);
     if (!m_videoDev.isOpened())
@@ -13,9 +12,14 @@ VideoDevice::VideoDevice():
         std::cout << "Cannot find video device..." << std::endl;
     } else {
         m_state = true;
+        m_videoDev.set(CAP_PROP_FRAME_WIDTH, 1280);
+        m_videoDev.set(CAP_PROP_FRAME_HEIGHT, 720);
+
         m_videoParam.cameraWidth = m_videoDev.get(CAP_PROP_FRAME_WIDTH);
         m_videoParam.cameraHeight = m_videoDev.get(CAP_PROP_FRAME_HEIGHT);
         m_videoParam.cameraFps = m_videoDev.get(CAP_PROP_FPS);
+        std::cout << "video parameter: width " << m_videoParam.cameraWidth << " height "
+                  << m_videoParam.cameraHeight << " Fps " << m_videoParam.cameraFps << std::endl;
     }
 }
 

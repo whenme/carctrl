@@ -66,7 +66,7 @@ int32_t IoThread::setThreadPriority(int32_t priority)
     param.sched_priority = priority;
     ret = pthread_setschedparam(m_threadId, policy, &param);
     if (ret) {
-        std::cout << "IoThread::setThreadPriority: fail to set param %d" << ret << std::endl;
+        std::cout << "IoThread::setThreadPriority: fail to set param " << ret << std::endl;
         return -1;
     }
 

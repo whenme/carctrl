@@ -102,7 +102,7 @@ void RemoteKey::handleKeyPress()
     static bool    remoteFlag = false;
     auto& carctrl = cmn::getSingletonInstance<CarCtrl>();
     auto& soundIntf = cmn::getSingletonInstance<SoundIntf>();
-    char sound[128] = {0};
+    char sound[128] {0};
 
     int32_t keyEvent = 0;
     int32_t ret = getKeyEvent(&keyEvent);
@@ -171,17 +171,15 @@ void RemoteKey::handleKeyPress()
         input = 0;
         break;
     case RC_KEY_OK:
-        carctrl.setCtrlSpeed(MOTOR_LEFT, input);
-        carctrl.setCtrlSpeed(MOTOR_RIGHT, input);
-        std::cout << "RemoteKey: set motor speed " << input << std::endl;
-        sprintf(sound, "设置速度每秒%d步", input);
+        for (int32_t i = 0; i < carctrl.getMotorNum(); i++) {
+            carctrl.setMotorPwm(i, input);
+        }
+        std::cout << "RemoteKey: set motor pwm " << input << std::endl;
+        sprintf(sound, "设置速度脉宽%d", input);
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_STAR:
-        for (int i = 0; i < MOTOR_MAX; i++) {
-            carctrl.setCtrlSpeed(i, 0);
-        }
         sprintf(sound, "停止");
         soundIntf.speak(sound);
         input = 0;

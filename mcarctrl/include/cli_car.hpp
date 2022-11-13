@@ -23,7 +23,6 @@ public:
 
 private:
     static void showSpeed(std::ostream& out);
-    static void setCtrlSpeed(std::ostream& out, int32_t wheel, int32_t speed);
     static void showSteps(std::ostream& out);
 
     static constexpr int32_t m_maxSpeed = 60;

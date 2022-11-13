@@ -27,7 +27,7 @@ public:
 private:
     VideoCapture m_videoDev;
     CameraParam  m_videoParam;
-    bool         m_state;
+    bool         m_state {false};
 };
 
 #endif

@@ -1,7 +1,7 @@
 
 set (library_name mcarctrl)
 
-set (param_file car.json)
+set (param_file param.json)
 
 add_library (${library_name} src/car_ctrl.cpp
                              src/car_speed.cpp

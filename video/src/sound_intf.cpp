@@ -32,7 +32,7 @@ int32_t SoundIntf::speak(std::string content)
 int32_t SoundIntf::sing()
 {
     auto fun = []() {
-        system("mplayer -quiet 长相思.mp3");
+        system("mplayer -quiet 长相思.mp3 -volume 70");
     };
     std::thread th(fun);
     th.detach();

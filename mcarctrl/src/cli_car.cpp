@@ -17,28 +17,29 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
 
     cliMenu->insert("show-speed", showSpeed, "show car speed");
 
-    cliMenu->insert("set-speed",
-                    {"wheel:0-both,1-left,2-right", "speed:-60~+60"},
-                    [&](std::ostream& out, int32_t wheel, int32_t speed) {
-                        if ((wheel < 0) || (wheel > 2) || (speed > 60)) {
-                            out << "paramet error: wheel<0-2>-" << wheel << " speed<0-60>-" << speed << "\n";
+    cliMenu->insert("set-pwm",
+                    {"motor:0-all,1~4 motor id", "pwm:0~100"},
+                    [&](std::ostream& out, int32_t motor, int32_t pwm) {
+                        if ((motor < 0) || (motor > carCtrl.getMotorNum()) || (pwm > 100)) {
+                            out << "paramet error: motor<0-4>-" << motor << " pwm<0-100>-" << pwm << "\n";
                             return;
                         }
 
-                        if (wheel == 0) {
-                            carCtrl.setCtrlSpeed(0, speed);
-                            carCtrl.setCtrlSpeed(1, speed);
+                        if (motor == 0) {
+                            for (int32_t i = 0; i < carCtrl.getMotorNum(); i++) {
+                                carCtrl.setMotorPwm(i, pwm);
+                            }
                         } else {
-                            carCtrl.setCtrlSpeed(wheel - 1, speed);
+                            carCtrl.setMotorPwm(motor - 1, pwm);
                         }
                     },
-                    "set car speed");
+                    "set motor pwm");
 
     cliMenu->insert("show-step", showSteps, "show car steps");
     cliMenu->insert("set-step",
-                    {"wheel:0-both,1-left,2-right", "steps"},
+                    {"wheel:0-all,1~4 motor id", "steps"},
                     [&](std::ostream& out, int32_t wheel, int32_t steps) {
-                        if ((wheel < 0) || (wheel > 2) || (steps == 0)) {
+                        if ((wheel < 0) || (wheel >= carCtrl.getMotorNum()) || (steps == 0)) {
                             out << "paramet error: wheel<0-2>-" << wheel << "\n";
                             return;
                         }
@@ -67,6 +68,12 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                     },
                     "set car steps");
 
+    cliMenu->insert("set-runtime", {"time: seconds"},
+                    [&](std::ostream& out, int32_t runtime) {
+                        carCtrl.setRunTime(runtime);
+                    },
+                    "set car run time");
+
     if (rootMenu != nullptr) {
         rootMenu->insert(std::move(cliMenu));
     }
@@ -76,42 +83,19 @@ void CliCar::showSpeed(std::ostream& out)
 {
     auto& carCtrl = cmn::getSingletonInstance<CarCtrl>();
 
-    int32_t ctrlLeft, ctrlRight;
-    carCtrl.getCtrlSpeed(0, &ctrlLeft);
-    carCtrl.getCtrlSpeed(1, &ctrlRight);
-    out << "control speed: left:" << std::dec << ctrlLeft << "   right:" << ctrlRight << "\n";
-
-    int32_t actualLeft = carCtrl.getActualSpeed(0);
-    int32_t actualRight = carCtrl.getActualSpeed(1);
-    out << "actual speed:  left:" << std::dec << actualLeft << "   right:" << actualRight << "\n";
+    for (int32_t i = 0; i < carCtrl.getMotorNum(); i++) {
+        int32_t actualSpeed = carCtrl.getActualSpeed(i);
+        out << "motor " << i+1 << " actual speed=" << actualSpeed << " pwm=" << carCtrl.getMotorPwm(i) << "\n";
+    }
 }
 
 void CliCar::showSteps(std::ostream& out)
 {
     auto& carCtrl = cmn::getSingletonInstance<CarCtrl>();
 
-    int32_t ctrlLeft = carCtrl.getCtrlSteps(0);
-    int32_t ctrlRight = carCtrl.getCtrlSteps(1);
-    out << "control step: left:" << std::dec << ctrlLeft << "   right:" << ctrlRight << "\n";
-
-    int32_t actualLeft = carCtrl.getActualSteps(0);
-    int32_t actualRight = carCtrl.getActualSteps(1);
-    out << "actual step:  left:" << std::dec << actualLeft << "   right:" << actualRight << "\n";
-}
-
-void CliCar::setCtrlSpeed(std::ostream& out, int32_t wheel, int32_t speed)
-{
-    auto& carCtrl = cmn::getSingletonInstance<CarCtrl>();
-    if ((wheel < 0) || (wheel > 2) || (speed > m_maxSpeed) || (speed < -m_maxSpeed)) {
-        out << "paramet error: wheel<0-2>-" << wheel << " speed<0-60>-" << speed << "\n";
-        return;
-    }
-
-    if (wheel == 0) {
-        carCtrl.setCtrlSpeed(0, speed);
-        carCtrl.setCtrlSpeed(1, speed);
-    } else {
-        carCtrl.setCtrlSpeed(wheel - 1, speed);
+    for (int32_t i = 0; i < carCtrl.getMotorNum(); i++) {
+        out << "motor " << i+1 << " steps: control=" << carCtrl.getCtrlSteps(i)
+            << " actual=" << carCtrl.getActualSteps(i) << "\n";
     }
 }
 

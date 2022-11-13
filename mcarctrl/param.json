@@ -1,0 +1,24 @@
+{
+    "tricycle": {
+        "device_name": "tricycle",
+        "product_name": "Tricycle",
+        "motor_num": 2,
+        "motor_front_left": [10, 9],
+        "motor_front_right": [8, 7],
+        "ir_front_left": 201,
+        "ir_front_right": 200
+    },
+    "quadcycle": {
+        "device_name": "quadcycle",
+        "product_name": "Quadcycle",
+        "motor_num": 4,
+        "motor_front_left":  [117, 118],
+        "motor_front_right": [72, 71],
+        "motor_back_left":   [227, 228],
+        "motor_back_right":  [229, 230],
+        "ir_front_left": 73,
+        "ir_front_right": 121,
+        "ir_back_left": 122,
+        "ir_back_right": 119
+    }
+}
