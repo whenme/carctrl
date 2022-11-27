@@ -16,9 +16,13 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
     auto& carCtrl = cmn::getSingletonInstance<CarCtrl>();
 
     cliMenu->insert("show-speed", showSpeed, "show car speed");
+    cliMenu->insert("set-speed", {"speed: 1-9 for speed level"},
+                    [&](std::ostream& out, int32_t speed) {
+                        carCtrl.setMotorSpeedLevel(speed);
+                    },
+                    "set motor speed level");
 
-    cliMenu->insert("set-pwm",
-                    {"motor:0-all,1~4 motor id", "pwm:0~100"},
+    cliMenu->insert("set-pwm", {"motor:0-all,1~4 motor id", "pwm:0~100"},
                     [&](std::ostream& out, int32_t motor, int32_t pwm) {
                         if ((motor < 0) || (motor > carCtrl.getMotorNum()) || (pwm > 100)) {
                             out << "paramet error: motor<0-4>-" << motor << " pwm<0-100>-" << pwm << "\n";
@@ -36,10 +40,9 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                     "set motor pwm");
 
     cliMenu->insert("show-step", showSteps, "show car steps");
-    cliMenu->insert("set-step",
-                    {"wheel:0-all,1~4 motor id", "steps"},
+    cliMenu->insert("set-step", {"wheel:0-all,1~4 motor id", "steps"},
                     [&](std::ostream& out, int32_t wheel, int32_t steps) {
-                        if ((wheel < 0) || (wheel >= carCtrl.getMotorNum()) || (steps == 0)) {
+                        if ((wheel < 0) || (wheel > carCtrl.getMotorNum()) || (steps == 0)) {
                             out << "paramet error: wheel<0-2>-" << wheel << "\n";
                             return;
                         }
@@ -85,7 +88,8 @@ void CliCar::showSpeed(std::ostream& out)
 
     for (int32_t i = 0; i < carCtrl.getMotorNum(); i++) {
         int32_t actualSpeed = carCtrl.getActualSpeed(i);
-        out << "motor " << i+1 << " actual speed=" << actualSpeed << " pwm=" << carCtrl.getMotorPwm(i) << "\n";
+        out << "motor " << i+1 << " actual speed=" << actualSpeed << " pwm=" << carCtrl.getMotorPwm(i)
+            << " step=" << carCtrl.getActualSteps(i) << "\n";
     }
 }
 

@@ -4,16 +4,20 @@
 
 VideoDevice::VideoDevice()
 {
-    m_videoDev = VideoCapture(0);
-    if (!m_videoDev.isOpened())
-        m_videoDev = VideoCapture(1);
+    for (int32_t i = 0; i < 2; i++) {
+        m_videoDev = VideoCapture(i);
+        if (m_videoDev.grab()) { //true for capture exist
+            std::cout << "video capture " << i << " exist!" <<std::endl;
+            break;
+        }
+    }
 
+    m_videoDev.set(CAP_PROP_FRAME_HEIGHT, video_frame_height);
+    m_videoDev.set(CAP_PROP_FRAME_WIDTH, video_frame_width);
     if (!m_videoDev.isOpened()) {
         std::cout << "Cannot find video device..." << std::endl;
     } else {
         m_state = true;
-        m_videoDev.set(CAP_PROP_FRAME_WIDTH, 1280);
-        m_videoDev.set(CAP_PROP_FRAME_HEIGHT, 720);
 
         m_videoParam.cameraWidth = m_videoDev.get(CAP_PROP_FRAME_WIDTH);
         m_videoParam.cameraHeight = m_videoDev.get(CAP_PROP_FRAME_HEIGHT);
@@ -38,14 +42,12 @@ bool VideoDevice::getDeviceState()
     return m_state;
 }
 
-void VideoDevice::getDeviceParam(CameraParam& param)
+CameraParam& VideoDevice::getDeviceParam()
 {
-    param.cameraWidth = m_videoParam.cameraWidth;
-    param.cameraHeight = m_videoParam.cameraHeight;
-    param.cameraFps = m_videoParam.cameraFps;
+    return m_videoParam;
 }
 
-int32_t VideoDevice::setDeviceParam(CameraParam& param)
+int32_t VideoDevice::setDeviceParam(CameraParam param)
 {
     if (!m_state) {
         std::cout << "video device error..." << std::endl;

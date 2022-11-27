@@ -35,28 +35,35 @@ CarSpeed::~CarSpeed()
 
 void CarSpeed::initJsonParam()
 {
-    std::string filename{"param.json"};
-    ParamJson param(filename);
-
+    ParamJson param("param.json");
     std::string hostname, jsonItem;
     std::ifstream ifs("/etc/hostname", std::ifstream::in);
     ifs >> hostname;
     if (hostname == "orangepioneplus")
         jsonItem = "quadcycle.";
     else
-        jsonItem = "tricycle.";
+        jsonItem = "bicycle.";
 
     auto createMotorObject = [&](std::string jsonMotor, std::string jsonIr) {
         std::vector<uint32_t> port;
         uint32_t inputPort;
-		int32_t outputRet = param.getJsonParam(jsonItem + jsonMotor, port);
-        int32_t inputRet = param.getJsonParam(jsonItem + jsonIr, inputPort);
+        bool outputRet = param.getJsonParam(jsonItem + jsonMotor, port);
+        bool inputRet = param.getJsonParam(jsonItem + jsonIr, inputPort);
         if (outputRet && inputRet) {
             port.push_back(inputPort);
             m_motor.push_back(new Motor(port));
         } else {
             std::cout << "CarSpeed::initParam: json parameter error: " << outputRet << "," << inputRet << std::endl;
         }
+    };
+
+    auto getPwmParam = [&](int32_t ii, std::string item) {
+        std::vector<int32_t> vectVal;
+        bool ret = param.getJsonParam(jsonItem + "pwm." + item, vectVal);
+        if (ret)
+            m_pwmVect.push_back(vectVal);
+        else
+            std::cout << "CarSpeed::initParam: json pwm param error" << std::endl;
     };
 
     bool ret = param.getJsonParam(jsonItem + "motor_num", m_motorNum);
@@ -73,6 +80,24 @@ void CarSpeed::initJsonParam()
         createMotorObject("motor_back_left", "ir_back_left");
         createMotorObject("motor_back_right", "ir_back_right");
     }
+
+    getPwmParam(0, "one");
+    getPwmParam(1, "two");
+    getPwmParam(2, "three");
+    getPwmParam(3, "four");
+    getPwmParam(4, "five");
+    getPwmParam(5, "six");
+    getPwmParam(6, "seven");
+    getPwmParam(7, "eight");
+    getPwmParam(8, "nine");
+    /*for (int32_t i = 0; i < m_pwmVect.size(); i++) {
+        for (int32_t j = 0; j < m_pwmVect[0].size(); j++)
+            std::cout << m_pwmVect[i][j] << " ";
+        std::cout << std::endl;
+    }*/
+
+    //set default speed
+    setMotorSpeedLevel(3);
 }
 
 int32_t CarSpeed::getActualSpeed(int32_t motor)
@@ -83,25 +108,19 @@ int32_t CarSpeed::getActualSpeed(int32_t motor)
 void CarSpeed::setRunSteps(int32_t motor, int32_t steps)
 {
     setActualSteps(motor, 0);
-    m_ctrlSetSteps[motor] = steps;
 
-    if (steps > 10)
-        m_motor[motor]->setCtrlSteps(steps - 4);
-    else if (steps > 5)
-        m_motor[motor]->setCtrlSteps(steps - 2);
-    else if ((steps >= -5) && (steps <= 5))
-        m_motor[motor]->setCtrlSteps(steps);
-    else if ((steps >= -10) && (steps < -5))
-        m_motor[motor]->setCtrlSteps(steps + 2);
-    else if (steps < -10)
-        m_motor[motor]->setCtrlSteps(steps + 4);
-
+    m_motor[motor]->setCtrlSteps(steps);
     m_motor[motor]->setRunState(steps);
 }
 
 bool CarSpeed::getRunState(int32_t motor)
 {
     return m_motor[motor]->getRunState();
+}
+
+int32_t CarSpeed::getCtrlSteps(int32_t motor)
+{
+    return m_motor[motor]->getCtrlSteps();
 }
 
 int32_t CarSpeed::getActualSteps(int32_t motor)
@@ -127,40 +146,53 @@ void CarSpeed::timerSpeedCallback(const asio::error_code &e, void *ctxt)
     }
 }
 
+void CarSpeed::motorPwmCtrl()
+{
+    static int32_t pwmCount[MOTOR_NUM_MAX]{0, 0, 0, 0};
+    static bool runFlag[MOTOR_NUM_MAX] { true, true, true, true };
+
+    for (int32_t i = 0; i < m_motorNum; i++) {
+        if (m_motor[i]->getRunState() != MOTOR_STATE_STOP) {
+            pwmCount[i]++;
+            if (pwmCount[i] >= (runFlag[i] ? m_motor[i]->getRunPwm() : m_motor[i]->getStopPwm())) {
+                pwmCount[i] = 0;
+                if (runFlag[i])
+                    m_motor[i]->setNowState(MOTOR_STATE_STOP);
+                else
+                    m_motor[i]->setNowState(m_motor[i]->getCtrlSteps() > 0?MOTOR_STATE_FORWARD:MOTOR_STATE_BACK);
+                runFlag[i] = runFlag[i] ? false : true;
+            }
+
+            if ((std::abs(m_motor[i]->getActualSteps()) > std::abs(m_motor[i]->getCtrlSteps()))
+                && (m_carCtrl->getCtrlMode() == CTRL_MODE_STEP)) {
+                    m_motor[i]->setRunState(MOTOR_STATE_STOP);
+            }
+        } else {
+            pwmCount[i] = 0;
+            m_motor[i]->setNowState(MOTOR_STATE_STOP);
+        }
+    }
+}
+
 void CarSpeed::threadFun(void *ctxt)
 {
     CarSpeed *obj = static_cast<CarSpeed *>(ctxt);
     struct pollfd fds[MOTOR_NUM_MAX];
     char buffer[16];
-    int32_t i, pwmCount[MOTOR_NUM_MAX]{0, 0, 0, 0};
-    bool runFlag[MOTOR_NUM_MAX] { true, true, true, true };
 
-    for (i = 0; i < obj->m_motorNum; i++) {
+    for (int32_t i = 0; i < obj->m_motorNum; i++) {
         fds[i].fd = obj->m_motor[i]->getInputGpioFd();
         fds[i].events = POLLPRI;
     }
 
     while(1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
-
-        for (i = 0; i < obj->m_motorNum; i++) {
-            if (obj->m_motor[i]->getRunState() != MOTOR_STATE_STOP) {
-                pwmCount[i]++;
-                if (pwmCount[i] >= (runFlag[i] ? obj->m_motor[i]->getRunPwm() : obj->m_motor[i]->getStopPwm())) {
-                    pwmCount[i] = 0;
-                    if (runFlag[i])
-                        obj->m_motor[i]->setRunState(MOTOR_STATE_STOP);
-                    else
-                        obj->m_motor[i]->setRunState(obj->m_motor[i]->getCtrlSteps() > 0?MOTOR_STATE_FORWARD:MOTOR_STATE_BACK);
-                    runFlag[i] = runFlag[i] ? false : true;
-                }
-            }
-        }
+        obj->motorPwmCtrl();
 
         if (poll(fds, obj->m_motorNum, 0) <= 0)
             continue;
 
-        for (i = 0; i < obj->m_motorNum; i++) {
+        for (int32_t i = 0; i < obj->m_motorNum; i++) {
             if (fds[i].revents & POLLPRI) {
                 if (lseek(fds[i].fd, 0, SEEK_SET) < 0) {
                     std::cout << "CarSpeed: seek failed" << std::endl;
@@ -173,15 +205,10 @@ void CarSpeed::threadFun(void *ctxt)
                 }
                 obj->m_motor[i]->m_swCounter++;
 
-                if (obj->m_carCtrl->getCtrlMode() == CTRL_MODE_STEP) { //ctrl is step
-                    if (obj->m_motor[i]->getCtrlSteps() >= 0)
-                        obj->m_motor[i]->getActualSteps()++;
-                    else
-                        obj->m_motor[i]->getActualSteps()--;
-                    if (std::abs(obj->m_motor[i]->getActualSteps()) > std::abs(obj->m_motor[i]->getCtrlSteps())) {
-                        obj->m_motor[i]->setRunState(MOTOR_STATE_STOP);
-                    }
-                }
+                if (obj->m_motor[i]->getCtrlSteps() >= 0)
+                    obj->m_motor[i]->setActualSteps(obj->m_motor[i]->getActualSteps() + 1);
+                else
+                    obj->m_motor[i]->setActualSteps(obj->m_motor[i]->getActualSteps() - 1);
             }
         }
     }
@@ -206,8 +233,15 @@ void CarSpeed::setMotorPwm(int32_t motor, int32_t pwm)
 {
     m_motor[motor]->setRunPwm(pwm);
 }
-	
+
 int32_t CarSpeed::getMotorPwm(int32_t motor)
 {
     return m_motor[motor]->getRunPwm();
+}
+
+void CarSpeed::setMotorSpeedLevel(int32_t level)
+{
+    for (int32_t ii = 0; ii < getMotorNum(); ii++) {
+        m_motor[ii]->setRunPwm(m_pwmVect[level][ii]);
+    }
 }

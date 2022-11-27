@@ -112,7 +112,7 @@ void RemoteKey::handleKeyPress()
     }
 
     oldKey = keyEvent;
-    std::cout << "RemoteKey: key " << std::hex << keyEvent << " pressed" << std::endl;
+    std::cout << "RemoteKey: key " << std::hex << keyEvent << " pressed" << std::dec << std::endl;
 
     switch(keyEvent) {
     case RC_KEY_0:
@@ -171,15 +171,14 @@ void RemoteKey::handleKeyPress()
         input = 0;
         break;
     case RC_KEY_OK:
-        for (int32_t i = 0; i < carctrl.getMotorNum(); i++) {
-            carctrl.setMotorPwm(i, input);
-        }
-        std::cout << "RemoteKey: set motor pwm " << input << std::endl;
-        sprintf(sound, "设置速度脉宽%d", input);
+        carctrl.setMotorSpeedLevel(input);
+        std::cout << "RemoteKey: set motor speed level " << input << std::endl;
+        sprintf(sound, "设置速度等级%d", input);
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_STAR:
+        carctrl.setAllMotorState(MOTOR_STATE_STOP);
         sprintf(sound, "停止");
         soundIntf.speak(sound);
         input = 0;
@@ -195,7 +194,7 @@ void RemoteKey::handleKeyPress()
         soundIntf.speak(sound);
         break;
     default:
-        std::cout << "RemoteKey: not handled key " << std::hex << keyEvent << std::endl;
+        std::cout << "RemoteKey: not handled key " << std::hex << keyEvent << std::dec << std::endl;
         break;
     }
 }

@@ -7,7 +7,7 @@
 #include <video/sound_intf.hpp>
 
 SoundIntf::SoundIntf():
-  m_iosThread("sound thread", IoThread::ThreadPriorityNormal, threadFun, this),
+  m_iosThread("sound thread", IoThread::ThreadPriorityNormal, soundThreadFun, this),
   m_state(false)
 {
     system("pulseaudio --start"); //start pulseaudio service
@@ -39,7 +39,7 @@ int32_t SoundIntf::sing()
     return 0;
 }
 
-void SoundIntf::threadFun(void *ctxt)
+void SoundIntf::soundThreadFun(void *ctxt)
 {
     SoundIntf* obj = static_cast<SoundIntf*>(ctxt);
 

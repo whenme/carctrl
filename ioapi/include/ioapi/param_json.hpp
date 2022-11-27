@@ -10,7 +10,7 @@ using Json = nlohmann::json;
 class ParamJson
 {
 public:
-    ParamJson(std::string& fileName);
+    ParamJson(std::string fileName);
     virtual ~ParamJson() = default;
 
     /**

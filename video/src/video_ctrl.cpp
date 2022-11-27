@@ -4,8 +4,7 @@
 #include <vector>
 
 VideoCtrl::VideoCtrl(asio::io_service& io_service):
-  m_ios(io_service),
-  m_timer(io_service, timerCallback, this, true)
+  m_videoThread("video thread", IoThread::ThreadPriorityNormal, videoThreadFun, this)
 {
     //check there is GUI backend or not
     Mat img = imread("lena.png");
@@ -20,45 +19,48 @@ VideoCtrl::VideoCtrl(asio::io_service& io_service):
         }
     }
 
-    m_timer.start(100);
+    m_videoThread.start();
 }
 
 VideoCtrl::~VideoCtrl()
 {
-    m_timer.stop();
+    if (m_videoThread.getRunState())
+        m_videoThread.stop();
 }
 
-void VideoCtrl::timerCallback(const asio::error_code &e, void *ctxt)
+void VideoCtrl::videoThreadFun(void *ctxt)
 {
     VideoCtrl *obj = static_cast<VideoCtrl *>(ctxt);
     if (!obj->m_videoDev.getDeviceState())
         return;
 
-    Mat frame;
-    auto& video = obj->m_videoDev.getVideoCapture();
-    video >> frame;
-    if (frame.empty()) {
-        std::cout << "device read video error..." << std::endl;
-        return;
+    Mat frame, gray, edge;
+    while(1) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+        auto& video = obj->m_videoDev.getVideoCapture();
+        video >> frame;
+        if (frame.empty()) {
+            std::cout << "device read video error..." << std::endl;
+            continue;
+        }
+
+        obj->showImage("capture", frame);
+        cvtColor(frame, gray, COLOR_BGR2GRAY); //to gray
+        GaussianBlur(gray, gray, Size(5, 5), 0);  //gauss filter
+        obj->showImage("gray", gray);
+
+        Canny(gray, edge, 40, 100, 3, false); //edge detection
+        //threshold(edge, edge, 170, 255, THRESH_BINARY);
+
+        std::vector<Vec4i> lineP1;
+        HoughLinesP(edge, lineP1, 1, CV_PI/180, 90, 30, 40); //100/90
+        for (size_t i = 0; i < lineP1.size(); i++) { //draw line
+            line(edge, Point(lineP1[i][0], lineP1[i][1]), Point(lineP1[i][2], lineP1[i][3]), Scalar(255), 3);
+        }
+        obj->showImage("edge", edge);
+        waitKey(1000 / video.get(CAP_PROP_FPS));
     }
-
-    obj->showImage("capture", frame);
-    Mat gray, edge;
-    cvtColor(frame, gray, COLOR_BGR2GRAY); //to gray
-    GaussianBlur(gray, gray, Size(5, 5), 0);  //gauss filter
-    obj->showImage("gray", gray);
-
-    Canny(gray, edge, 40, 100, 3, false); //edge detection
-    //threshold(edge, edge, 170, 255, THRESH_BINARY);
-
-    std::vector<Vec4i> lineP1;
-    HoughLinesP(edge, lineP1, 1, CV_PI/180, 90, 30, 40); //100/90
-    for (size_t i = 0; i < lineP1.size(); i++) { //draw line
-        line(edge, Point(lineP1[i][0], lineP1[i][1]), Point(lineP1[i][2], lineP1[i][3]), Scalar(255), 3);
-    }
-    obj->showImage("edge", edge);
-
-    waitKey(1000 / video.get(CAP_PROP_FPS));
 }
 
 void VideoCtrl::showImage(std::string title, Mat& mat)

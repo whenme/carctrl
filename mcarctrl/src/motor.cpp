@@ -18,24 +18,19 @@ Motor::Motor(std::vector<uint32_t> port)
                   << " input gpio " << port.at(2) << std::endl;
     }
 
-    setRunState(MOTOR_STATE_STOP);
+    setNowState(MOTOR_STATE_STOP);
 }
 
 Motor::~Motor()
 {
-    setRunState(MOTOR_STATE_STOP);
+    setNowState(MOTOR_STATE_STOP);
 
     delete m_outputGpio[0];
     delete m_outputGpio[1];
     delete m_inputGpio;
 }
 
-int32_t Motor::getRunState()
-{
-    return m_runState;
-}
-
-void Motor::setRunState(int32_t state)
+void Motor::setNowState(int32_t state)
 {
     auto setPortState = [&](int32_t port, int32_t state) {
         if (m_portState[port] != state) {
@@ -44,7 +39,7 @@ void Motor::setRunState(int32_t state)
         }
     };
 
-    if (m_runState == state)
+    if (m_nowState == state)
         return;
 
     if (state > 0) {
@@ -58,50 +53,5 @@ void Motor::setRunState(int32_t state)
         setPortState(1, 0);
     }
 
-    m_runState = state;
-}
-
-int32_t Motor::getInputGpioFd()
-{
-    return m_inputGpio->getGpioFd();
-}
-
-void Motor::setRunPwm(int32_t pwm)
-{
-    m_ctrlPwm = pwm;
-}
-
-int32_t Motor::getRunPwm()
-{
-    return m_ctrlPwm;
-}
-
-int32_t Motor::getStopPwm()
-{
-    return m_maxPwm - m_ctrlPwm;
-}
-
-int32_t Motor::getMaxPwm()
-{
-    return m_maxPwm;
-}
-
-void Motor::setCtrlSteps(int32_t steps)
-{
-    m_ctrlSteps = steps;
-}
-
-int32_t& Motor::getCtrlSteps()
-{
-    return m_ctrlSteps;
-}
-
-void Motor::setActualSteps(int32_t steps)
-{
-    m_actualSteps = steps;
-}
-
-int32_t& Motor::getActualSteps()
-{
-    return m_actualSteps;
+    m_nowState = state;
 }

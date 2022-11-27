@@ -3,7 +3,6 @@
 #define __SOUND_INTF_HPP__
 
 #include <string>
-#include <ioapi/iotimer.hpp>
 #include <ioapi/iothread.hpp>
 #include "asio.hpp"
 
@@ -24,7 +23,7 @@ private:
     static constexpr int32_t m_interval = 100;
 
     void showWelcome();
-    static void threadFun(void *ctxt);
+    static void soundThreadFun(void *ctxt);
 };
 
 #endif

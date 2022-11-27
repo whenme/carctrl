@@ -2,7 +2,7 @@
 #include <ioapi/param_json.hpp>
 #include <fstream>
 
-ParamJson::ParamJson(std::string& fileName)
+ParamJson::ParamJson(std::string fileName)
 {
     std::ifstream jsonFile(fileName);
     if (!jsonFile.is_open()) {

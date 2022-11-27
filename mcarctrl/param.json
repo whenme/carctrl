@@ -1,12 +1,23 @@
 {
-    "tricycle": {
-        "device_name": "tricycle",
-        "product_name": "Tricycle",
+    "bicycle": {
+        "device_name": "bicycle",
+        "product_name": "Bicycle",
         "motor_num": 2,
         "motor_front_left": [10, 9],
         "motor_front_right": [8, 7],
         "ir_front_left": 201,
-        "ir_front_right": 200
+        "ir_front_right": 200,
+        "pwm": {
+            "one":   [10, 6],
+            "two":   [20, 15],
+            "three": [30, 19],
+            "four":  [40, 29],
+            "five":  [50, 37],
+            "six":   [60, 47],
+            "seven": [70, 55],
+            "eight": [80, 66],
+            "nine":  [90, 77]
+        }
     },
     "quadcycle": {
         "device_name": "quadcycle",
@@ -19,6 +30,17 @@
         "ir_front_left": 73,
         "ir_front_right": 121,
         "ir_back_left": 122,
-        "ir_back_right": 119
+        "ir_back_right": 119,
+        "pwm": {
+            "one":   [10, 8, 9, 12],
+            "two":   [20, 15, 10, 16],
+            "three": [30, 20, 30, 30],
+            "four":  [40, 40, 40, 40],
+            "five":  [50, 50, 50, 50],
+            "six":   [60, 60, 60, 60],
+            "seven": [70, 70, 70, 70],
+            "eight": [80, 80, 80, 80],
+            "nine":  [90, 90, 90, 90]
+        }
     }
 }

@@ -16,12 +16,15 @@ public:
     virtual ~CarSpeed();
 
     int32_t getActualSpeed(int32_t motor);
+    int32_t getMotorNum();
+    void    setMotorSpeedLevel(int32_t level);
+
     void    setRunSteps(int32_t motor, int32_t steps);
     bool    getRunState(int32_t motor);
 
     void    setActualSteps(int32_t motor, int32_t steps);
     int32_t getActualSteps(int32_t motor);
-    int32_t getMotorNum();
+    int32_t getCtrlSteps(int32_t motor);
 
     void    setMotorState(int32_t motor, int32_t state);
     int32_t getMotorState(int32_t motor);
@@ -33,6 +36,7 @@ private:
     static void threadFun(void *ctxt);
     static void timerSpeedCallback(const asio::error_code &e, void *ctxt);
     void        initJsonParam();
+    void        motorPwmCtrl();
 
     asio::io_service& m_ioService;
     IoTimer  m_timerSpeed;
@@ -40,8 +44,7 @@ private:
     CarCtrl* m_carCtrl;
     int32_t  m_motorNum {0};
     std::vector<Motor*> m_motor;
-
-    int32_t m_ctrlSetSteps[MOTOR_NUM_MAX]{0, 0, 0, 0};
+    std::vector<std::vector<int32_t>> m_pwmVect;
 };
 
 #endif
