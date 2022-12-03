@@ -30,6 +30,22 @@ Motor::~Motor()
     delete m_inputGpio;
 }
 
+void Motor::setCtrlSteps(int32_t steps)
+{
+    m_ctrlSteps = steps;
+    setRunState(steps);
+}
+
+void Motor::setRunState(int32_t state)
+{
+    if (state > 0)
+        m_runState = MOTOR_STATE_FORWARD;
+    else if (!state)
+        m_runState = MOTOR_STATE_STOP;
+    else
+        m_runState = MOTOR_STATE_BACK;
+}
+
 void Motor::setNowState(int32_t state)
 {
     auto setPortState = [&](int32_t port, int32_t state) {

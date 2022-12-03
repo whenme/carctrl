@@ -15,14 +15,14 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
     auto& soundIntf = cmn::getSingletonInstance<SoundIntf>();
     auto& carCtrl = cmn::getSingletonInstance<CarCtrl>();
 
-    cliMenu->insert("show-speed", showSpeed, "show car speed");
-    cliMenu->insert("set-speed", {"speed: 1-9 for speed level"},
+    cliMenu->insert("show-param", showParam, "show car speed/pwm/step");
+    cliMenu->insert("set-speedlevel", {"speed: 1-9 for speed level"},
                     [&](std::ostream& out, int32_t speed) {
                         carCtrl.setMotorSpeedLevel(speed);
                     },
                     "set motor speed level");
 
-    cliMenu->insert("set-pwm", {"motor:0-all,1~4 motor id", "pwm:0~100"},
+    cliMenu->insert("set-motorpwm", {"motor:0-all,1~4 motor id", "pwm:0~100"},
                     [&](std::ostream& out, int32_t motor, int32_t pwm) {
                         if ((motor < 0) || (motor > carCtrl.getMotorNum()) || (pwm > 100)) {
                             out << "paramet error: motor<0-4>-" << motor << " pwm<0-100>-" << pwm << "\n";
@@ -39,11 +39,11 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                     },
                     "set motor pwm");
 
-    cliMenu->insert("show-step", showSteps, "show car steps");
-    cliMenu->insert("set-step", {"wheel:0-all,1~4 motor id", "steps"},
+    cliMenu->insert("show-motorstep", showSteps, "show car steps");
+    cliMenu->insert("set-motorstep", {"wheel:0-all,1~4 motor id", "steps"},
                     [&](std::ostream& out, int32_t wheel, int32_t steps) {
                         if ((wheel < 0) || (wheel > carCtrl.getMotorNum()) || (steps == 0)) {
-                            out << "paramet error: wheel<0-2>-" << wheel << "\n";
+                            out << "paramet error: wheel<0-4>-" << wheel << "\n";
                             return;
                         }
 
@@ -57,35 +57,78 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                         } else if (wheel == 1) {
                             carCtrl.setCtrlSteps(wheel, steps);
                             if (steps > 0)
-                                sprintf(sound, "左轮前进%d步", steps);
+                                sprintf(sound, "左前轮前进%d步", steps);
                             else
-                                sprintf(sound, "左轮后退%d步", abs(steps));
+                                sprintf(sound, "左前轮后退%d步", abs(steps));
                         } else if (wheel == 2) {
                             carCtrl.setCtrlSteps(wheel, steps);
                             if (steps > 0)
-                                sprintf(sound, "右轮前进%d步", steps);
+                                sprintf(sound, "右前轮前进%d步", steps);
                             else
-                                sprintf(sound, "右轮后退%d步", abs(steps));
+                                sprintf(sound, "右前轮后退%d步", abs(steps));
+                        } else if (wheel == 3) {
+                            carCtrl.setCtrlSteps(wheel, steps);
+                            if (steps > 0)
+                                sprintf(sound, "左后轮前进%d步", steps);
+                            else
+                                sprintf(sound, "左后轮后退%d步", abs(steps));
+                        } else if (wheel == 4) {
+                            carCtrl.setCtrlSteps(wheel, steps);
+                            if (steps > 0)
+                                sprintf(sound, "右后轮前进%d步", steps);
+                            else
+                                sprintf(sound, "右后轮后退%d步", abs(steps));
                         }
                         soundIntf.speak(sound);
                     },
-                    "set car steps");
+                    "set motor steps");
 
+    cliMenu->insert("set-carstep",
+                    {"direction:0-forward/backward, 1-left/right, 2-rotation", "steps: >0-forward or left, <0-backward or right"},
+                    [&](std::ostream& out, int32_t direction, int32_t steps) {
+                        if (direction == 0) {
+                            carCtrl.setCtrlSteps(0, steps);
+                        } else if (direction == 1) { //left/right
+                            if (carCtrl.getMotorNum() < 4) { // 2 motor not support
+                                out << "not support left/right moving with 2 motor" << "\n";
+                            } else {
+                                carCtrl.setCtrlSteps(1, -steps);
+                                carCtrl.setCtrlSteps(2, steps);
+                                carCtrl.setCtrlSteps(3, steps);
+                                carCtrl.setCtrlSteps(4, -steps);
+                            }
+                        } else { //rotation
+                            if (carCtrl.getMotorNum() < 4) { // 2 motor not support
+                                out << "not support rotation moving with 2 motor" << "\n";
+                            } else {
+                                carCtrl.setCtrlSteps(1, steps);
+                                carCtrl.setCtrlSteps(2, -steps);
+                                carCtrl.setCtrlSteps(3, steps);
+                                carCtrl.setCtrlSteps(4, -steps);
+                            }
+                        }
+                    },
+                    "set car steps");
     cliMenu->insert("set-runtime", {"time: seconds"},
                     [&](std::ostream& out, int32_t runtime) {
                         carCtrl.setRunTime(runtime);
                     },
-                    "set car run time");
+                    "set car run time for speed regulation");
+    cliMenu->insert("stop", [&](std::ostream& out) {
+                        carCtrl.setAllMotorState(MOTOR_STATE_STOP);
+                    },
+                    "stop all motors");
 
     if (rootMenu != nullptr) {
         rootMenu->insert(std::move(cliMenu));
     }
 }
 
-void CliCar::showSpeed(std::ostream& out)
+void CliCar::showParam(std::ostream& out)
 {
     auto& carCtrl = cmn::getSingletonInstance<CarCtrl>();
 
+    out << "speed level: " << carCtrl.getMotorSpeedLevel() << "\n";
     for (int32_t i = 0; i < carCtrl.getMotorNum(); i++) {
         int32_t actualSpeed = carCtrl.getActualSpeed(i);
         out << "motor " << i+1 << " actual speed=" << actualSpeed << " pwm=" << carCtrl.getMotorPwm(i)

@@ -97,7 +97,7 @@ void CarSpeed::initJsonParam()
     }*/
 
     //set default speed
-    setMotorSpeedLevel(3);
+    setMotorSpeedLevel(2);
 }
 
 int32_t CarSpeed::getActualSpeed(int32_t motor)
@@ -110,7 +110,6 @@ void CarSpeed::setRunSteps(int32_t motor, int32_t steps)
     setActualSteps(motor, 0);
 
     m_motor[motor]->setCtrlSteps(steps);
-    m_motor[motor]->setRunState(steps);
 }
 
 bool CarSpeed::getRunState(int32_t motor)
@@ -155,11 +154,12 @@ void CarSpeed::motorPwmCtrl()
         if (m_motor[i]->getRunState() != MOTOR_STATE_STOP) {
             pwmCount[i]++;
             if (pwmCount[i] >= (runFlag[i] ? m_motor[i]->getRunPwm() : m_motor[i]->getStopPwm())) {
-                pwmCount[i] = 0;
                 if (runFlag[i])
                     m_motor[i]->setNowState(MOTOR_STATE_STOP);
                 else
-                    m_motor[i]->setNowState(m_motor[i]->getCtrlSteps() > 0?MOTOR_STATE_FORWARD:MOTOR_STATE_BACK);
+                    m_motor[i]->setNowState(m_motor[i]->getRunState());
+
+                pwmCount[i] = 0;
                 runFlag[i] = runFlag[i] ? false : true;
             }
 
@@ -241,7 +241,13 @@ int32_t CarSpeed::getMotorPwm(int32_t motor)
 
 void CarSpeed::setMotorSpeedLevel(int32_t level)
 {
+    m_speedLevel = level;
     for (int32_t ii = 0; ii < getMotorNum(); ii++) {
         m_motor[ii]->setRunPwm(m_pwmVect[level][ii]);
     }
+}
+
+int32_t CarSpeed::getMotorSpeedLevel()
+{
+    return m_speedLevel;
 }

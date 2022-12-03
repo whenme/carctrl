@@ -99,8 +99,7 @@ void RemoteKey::handleKeyPress()
 {
     static int32_t input = 0;
     static int32_t oldKey = 0;
-    static bool    remoteFlag = false;
-    auto& carctrl = cmn::getSingletonInstance<CarCtrl>();
+    auto& carCtrl = cmn::getSingletonInstance<CarCtrl>();
     auto& soundIntf = cmn::getSingletonInstance<SoundIntf>();
     char sound[128] {0};
 
@@ -147,51 +146,66 @@ void RemoteKey::handleKeyPress()
         break;
 
     case RC_KEY_UP:
-        carctrl.setCtrlSteps(0, input);
+        carCtrl.setCtrlSteps(0, input);
         sprintf(sound, "前进%d步", input);
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_DOWN:
-        carctrl.setCtrlSteps(0, -1*input);
+        carCtrl.setCtrlSteps(0, -1*input);
         sprintf(sound, "后退%d步", input);
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_LEFT:
-        carctrl.setCtrlSteps(1, input);
+        if (carCtrl.getMotorNum() < 4) {
+            carCtrl.setCtrlSteps(1, input);
         sprintf(sound, "左轮前进%d步", input);
+        } else {
+            carCtrl.setCtrlSteps(1, -input);
+            carCtrl.setCtrlSteps(2, input);
+            carCtrl.setCtrlSteps(3, input);
+            carCtrl.setCtrlSteps(4, -input);
+            sprintf(sound, "左移%d步", input);
+        }
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_RIGHT:
-        carctrl.setCtrlSteps(2, input);
+        if (carCtrl.getMotorNum() < 4) {
+            carCtrl.setCtrlSteps(2, input);
         sprintf(sound, "右轮前进%d步", input);
+        } else {
+            carCtrl.setCtrlSteps(1, input);
+            carCtrl.setCtrlSteps(2, -input);
+            carCtrl.setCtrlSteps(3, -input);
+            carCtrl.setCtrlSteps(4, input);
+            sprintf(sound, "右移%d步", input);
+        }
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_OK:
-        carctrl.setMotorSpeedLevel(input);
+        carCtrl.setMotorSpeedLevel(input);
         std::cout << "RemoteKey: set motor speed level " << input << std::endl;
         sprintf(sound, "设置速度等级%d", input);
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_STAR:
-        carctrl.setAllMotorState(MOTOR_STATE_STOP);
+        carCtrl.setAllMotorState(MOTOR_STATE_STOP);
         sprintf(sound, "停止");
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_POUND: //not handled
-        if (remoteFlag == false) {
-            remoteFlag = true;
-            sprintf(sound, "遥控设置速度");
-        } else {
-            remoteFlag = false;
-            sprintf(sound, "遥控设置步数");
-        }
+        carCtrl.setCtrlSteps(1, input);
+        carCtrl.setCtrlSteps(2, -input);
+        carCtrl.setCtrlSteps(3, input);
+        carCtrl.setCtrlSteps(4, -input);
+        sprintf(sound, "旋转%d步", input);
         soundIntf.speak(sound);
+        input = 0;
         break;
     default:
         std::cout << "RemoteKey: not handled key " << std::hex << keyEvent << std::dec << std::endl;

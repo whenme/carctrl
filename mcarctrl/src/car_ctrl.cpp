@@ -130,6 +130,11 @@ int32_t CarCtrl::setMotorSpeedLevel(int32_t level)
     return 0;
 }
 
+int32_t CarCtrl::getMotorSpeedLevel()
+{
+    return m_carSpeed.getMotorSpeedLevel() + 1;
+}
+
 void CarCtrl::setAllMotorState(int32_t state)
 {
     for (int32_t i = 0; i < m_carSpeed.getMotorNum(); i++) {

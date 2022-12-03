@@ -18,6 +18,7 @@ public:
     int32_t getActualSpeed(int32_t motor);
     int32_t getMotorNum();
     void    setMotorSpeedLevel(int32_t level);
+    int32_t getMotorSpeedLevel();
 
     void    setRunSteps(int32_t motor, int32_t steps);
     bool    getRunState(int32_t motor);
@@ -42,7 +43,8 @@ private:
     IoTimer  m_timerSpeed;
     IoThread m_speedThread;
     CarCtrl* m_carCtrl;
-    int32_t  m_motorNum {0};
+    int32_t  m_motorNum { 0 };
+    int32_t  m_speedLevel { 0 };
     std::vector<Motor*> m_motor;
     std::vector<std::vector<int32_t>> m_pwmVect;
 };

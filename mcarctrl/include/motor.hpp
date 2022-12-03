@@ -23,14 +23,14 @@ public:
 
     inline int32_t getInputGpioFd() { return m_inputGpio->getGpioFd(); }
 
-    inline void setRunState(int32_t state) { m_runState = state; }
-    inline int32_t getRunState()           { return m_runState; }
+    void setRunState(int32_t state);
+    inline int32_t getRunState()    { return m_runState; }
 
     void setNowState(int32_t state);
-    inline int32_t getNowState()           { return m_nowState; }
+    inline int32_t getNowState()    { return m_nowState; }
 
-    inline void setCtrlSteps(int32_t steps) { m_ctrlSteps = steps; }
-    inline int32_t& getCtrlSteps()          { return m_ctrlSteps; }
+    void setCtrlSteps(int32_t steps);
+    inline int32_t& getCtrlSteps()  { return m_ctrlSteps; }
 
     inline void setActualSteps(int32_t steps) { m_actualSteps = steps; }
     inline int32_t getActualSteps()           { return m_actualSteps; }
@@ -48,7 +48,7 @@ private:
     Gpio*   m_inputGpio;
     int32_t m_portState[2];
     int32_t m_runState { MOTOR_STATE_STOP };
-    int32_t m_nowState { MOTOR_STATE_FORWARD };
+    int32_t m_nowState { MOTOR_STATE_STOP };
     int32_t m_ctrlSteps { 0 };
     int32_t m_actualSteps { 0 };
 

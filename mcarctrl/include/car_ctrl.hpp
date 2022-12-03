@@ -27,6 +27,7 @@ public:
     int32_t getActualSteps(int32_t motor);
     int32_t setRunTime(int32_t time);
     int32_t setMotorSpeedLevel(int32_t level);
+    int32_t getMotorSpeedLevel();
     void    setAllMotorState(int32_t state);
 
     int32_t getCtrlMode();

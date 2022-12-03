@@ -16,18 +16,23 @@ Gpio::Gpio(int32_t pin, int32_t direction, int32_t edge) :
     exportPin();
     setDirection(m_direction);
 
-    //only input pin need to setEdge
-    if (m_direction == GPIO_DIR_IN)
-        setEdge();
-
     snprintf(path, sizeof(path), "/sys/class/gpio/gpio%d/value", m_pin);
     m_gpioFd = open(path, O_RDWR);
     if (m_gpioFd < 0)
-        std::cout << "Gpio: fail to open gpio value" << std::endl;
+        std::cout << "Gpio: fail to open gpio " << m_pin << std::endl;
+
+    if (m_direction == GPIO_DIR_IN) {
+        // input pin need to setEdge
+        setEdge();
+    } else {
+        // output set default value
+        setValue(0);
+    }
 }
 
 Gpio::~Gpio()
 {
+    setValue(0);
     unexportPin();
 
     if (m_gpioFd > 0)
@@ -79,7 +84,7 @@ int32_t Gpio::exportPin()
 
     fd = open("/sys/class/gpio/export", O_WRONLY);
     if (fd < 0) {
-        std::cout << "Gpio: fail to open export for writing" << std::endl;
+        std::cout << "Gpio: fail to open export for writing gpio " << m_pin << std::endl;
         return -1;
     }
     
@@ -101,7 +106,7 @@ int32_t Gpio::unexportPin()
 
     fd = open("/sys/class/gpio/unexport", O_WRONLY);
     if (fd < 0) {
-        std::cout << "Gpio: fail to open unexport for writing" << std::endl;
+        std::cout << "Gpio: fail to open unexport for writing for gpio " << m_pin << std::endl;
         return -1;
     }
 
@@ -150,12 +155,12 @@ int32_t Gpio::setEdge()
     snprintf(path, sizeof(path), "/sys/class/gpio/gpio%d/edge", m_pin); 
     int32_t fd = open(path, O_WRONLY);
     if (fd < 0) {
-        std::cout << "Gpio: fail to open edge for write" << std::endl;
+        std::cout << "Gpio: fail to open edge for write gpio " << m_pin << std::endl;
         return -1;
     }
 
     if (write(fd, edgeStr[m_edge], strlen(edgeStr[m_edge])) < 0) {
-        std::cout << "Gpio: fail to set edge" << std::endl;
+        std::cout << "Gpio: fail to set edge for gpio " << m_pin << std::endl;
         close(fd);
         return -1;
     }

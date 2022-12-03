@@ -22,7 +22,7 @@ public:
     void initCliCommand(std::unique_ptr<Menu>& rootMenu) override;
 
 private:
-    static void showSpeed(std::ostream& out);
+    static void showParam(std::ostream& out);
     static void showSteps(std::ostream& out);
 
     static constexpr int32_t m_maxSpeed = 60;
