@@ -160,7 +160,7 @@ void RemoteKey::handleKeyPress()
     case RC_KEY_LEFT:
         if (carCtrl.getMotorNum() < 4) {
             carCtrl.setCtrlSteps(1, input);
-        sprintf(sound, "左轮前进%d步", input);
+            sprintf(sound, "左轮前进%d步", input);
         } else {
             carCtrl.setCtrlSteps(1, -input);
             carCtrl.setCtrlSteps(2, input);
@@ -174,7 +174,7 @@ void RemoteKey::handleKeyPress()
     case RC_KEY_RIGHT:
         if (carCtrl.getMotorNum() < 4) {
             carCtrl.setCtrlSteps(2, input);
-        sprintf(sound, "右轮前进%d步", input);
+            sprintf(sound, "右轮前进%d步", input);
         } else {
             carCtrl.setCtrlSteps(1, input);
             carCtrl.setCtrlSteps(2, -input);
@@ -198,7 +198,7 @@ void RemoteKey::handleKeyPress()
         soundIntf.speak(sound);
         input = 0;
         break;
-    case RC_KEY_POUND: //not handled
+    case RC_KEY_POUND: //rotation
         carCtrl.setCtrlSteps(1, input);
         carCtrl.setCtrlSteps(2, -input);
         carCtrl.setCtrlSteps(3, input);

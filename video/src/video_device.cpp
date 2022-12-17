@@ -1,29 +1,36 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <video/video_device.hpp>
+#include <opencv2/videoio/legacy/constants_c.h>
 
 VideoDevice::VideoDevice()
 {
     for (int32_t i = 0; i < 2; i++) {
-        m_videoDev = VideoCapture(i);
-        if (m_videoDev.grab()) { //true for capture exist
+        bool ret = m_videoDev.open(i);
+        if (ret) {
             std::cout << "video capture " << i << " exist!" <<std::endl;
             break;
         }
     }
 
-    m_videoDev.set(CAP_PROP_FRAME_HEIGHT, video_frame_height);
-    m_videoDev.set(CAP_PROP_FRAME_WIDTH, video_frame_width);
     if (!m_videoDev.isOpened()) {
         std::cout << "Cannot find video device..." << std::endl;
     } else {
         m_state = true;
 
-        m_videoParam.cameraWidth = m_videoDev.get(CAP_PROP_FRAME_WIDTH);
-        m_videoParam.cameraHeight = m_videoDev.get(CAP_PROP_FRAME_HEIGHT);
+        //set default parameter
+        m_videoDev.set(CAP_PROP_FOURCC, CV_FOURCC('M', 'J', 'P', 'G'));
+        m_videoDev.set(CAP_PROP_FPS, 10);
+        m_videoDev.set(CAP_PROP_FRAME_WIDTH, video_frame_width);
+        m_videoDev.set(CAP_PROP_FRAME_HEIGHT, video_frame_height);
+
+        Mat frame;
+        m_videoDev >> frame;
+        m_videoParam.cameraWidth = frame.cols;  //m_videoDev.get(CAP_PROP_FRAME_WIDTH);
+        m_videoParam.cameraHeight = frame.rows; //m_videoDev.get(CAP_PROP_FRAME_HEIGHT);
         m_videoParam.cameraFps = m_videoDev.get(CAP_PROP_FPS);
-        std::cout << "video parameter: width " << m_videoParam.cameraWidth << " height "
-                  << m_videoParam.cameraHeight << " Fps " << m_videoParam.cameraFps << std::endl;
+        std::cout << "frame width=" << frame.cols << " height=" << frame.rows
+                  << " fps=" << m_videoParam.cameraFps << std::endl;
     }
 }
 
