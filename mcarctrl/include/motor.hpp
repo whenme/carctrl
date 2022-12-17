@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifndef __MOTOR_HPP__
-#define __MOTOR_HPP__
 
+#pragma once
 #include <vector>
 #include "gpio.hpp"
 
@@ -55,5 +54,3 @@ private:
     static constexpr int32_t m_maxPwm { 100 };
     int32_t m_ctrlPwm { 50 };
 };
-
-#endif

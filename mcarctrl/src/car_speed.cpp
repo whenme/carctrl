@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 
+#include <spdlog/easylog.hpp>
 #include <ioapi/cmn_singleton.hpp>
 #include <ioapi/param_json.hpp>
 #include "car_speed.hpp"
@@ -53,7 +54,7 @@ void CarSpeed::initJsonParam()
             port.push_back(inputPort);
             m_motor.push_back(new Motor(port));
         } else {
-            std::cout << "CarSpeed::initParam: json parameter error: " << outputRet << "," << inputRet << std::endl;
+            easylog::warn("json parameter error: {}, {}", outputRet, inputRet);
         }
     };
 
@@ -63,15 +64,15 @@ void CarSpeed::initJsonParam()
         if (ret)
             m_pwmVect.push_back(vectVal);
         else
-            std::cout << "CarSpeed::initParam: json pwm param error" << std::endl;
+            easylog::warn("initParam: json pwm param error");
     };
 
     bool ret = param.getJsonParam(jsonItem + "motor_num", m_motorNum);
     if (!ret || !m_motorNum) {
-        std::cout << "CarSpeed::initParam: error motor number " << m_motorNum << "..." << std::endl;
+        easylog::error("initParam: error motor number {}...", m_motorNum);
         return;
     }
-    std::cout << "CarSpeed::initParam: motor number " << m_motorNum << std::endl;
+    easylog::info("initParam: motor number {}", m_motorNum);
 
     // motor defines
     createMotorObject("motor_front_left", "ir_front_left");
@@ -195,12 +196,12 @@ void CarSpeed::threadFun(void *ctxt)
         for (int32_t i = 0; i < obj->m_motorNum; i++) {
             if (fds[i].revents & POLLPRI) {
                 if (lseek(fds[i].fd, 0, SEEK_SET) < 0) {
-                    std::cout << "CarSpeed: seek failed" << std::endl;
+                    easylog::warn("threadFun: seek failed");
                     continue;
                 }
                 int len = read(fds[i].fd, buffer, sizeof(buffer));
                 if (len < 0) {
-                    std::cout << "CarSpeed: read failed" << std::endl;
+                    easylog::warn("threadFun: read failed");
                     continue;
                 }
                 obj->m_motor[i]->m_swCounter++;

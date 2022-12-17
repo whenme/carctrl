@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <iostream>
 #include <linux/input.h>
+#include <spdlog/easylog.hpp>
 #include <ioapi/cmn_singleton.hpp>
 #include <video/sound_intf.hpp>
 #include "remote_key.hpp"
@@ -42,7 +43,7 @@ int32_t RemoteKey::initIrKey()
         if (!fileName.empty()) {
             m_keyfd = open(fileName.c_str(), O_RDONLY | O_NONBLOCK);
             if (m_keyfd < 0)
-                std::cout << "RemoteKey: fail to open " << fileName << std::endl;
+                easylog::warn("fail to open {}", fileName);
         }
         pclose(ptr);
         ptr = NULL;
@@ -66,7 +67,7 @@ void RemoteKey::timerCallback(const asio::error_code &e, void *ctxt)
         return;
 
     if (evsize < sizeof(struct input_event)) {
-        std::cout << "RemoteKey: no event" << std::endl;
+        easylog::info("no event");
         return;
     }
 
@@ -111,7 +112,8 @@ void RemoteKey::handleKeyPress()
     }
 
     oldKey = keyEvent;
-    std::cout << "RemoteKey: key " << std::hex << keyEvent << " pressed" << std::dec << std::endl;
+    easylog::info(" key {} is pressed", keyEvent);
+    //std::cout << "RemoteKey: key " << std::hex << keyEvent << " pressed" << std::dec << std::endl;
 
     switch(keyEvent) {
     case RC_KEY_0:
@@ -187,7 +189,7 @@ void RemoteKey::handleKeyPress()
         break;
     case RC_KEY_OK:
         carCtrl.setMotorSpeedLevel(input);
-        std::cout << "RemoteKey: set motor speed level " << input << std::endl;
+        easylog::info("set motor speed level {}", input);
         sprintf(sound, "设置速度等级%d", input);
         soundIntf.speak(sound);
         input = 0;
@@ -208,7 +210,7 @@ void RemoteKey::handleKeyPress()
         input = 0;
         break;
     default:
-        std::cout << "RemoteKey: not handled key " << std::hex << keyEvent << std::dec << std::endl;
+        easylog::warn("not handled key {}", keyEvent);
         break;
     }
 }

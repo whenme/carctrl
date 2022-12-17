@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifndef __VIDEO_DEVICE_HPP__
-#define __VIDEO_DEVICE_HPP__
 
+#pragma once
 #include <opencv2/opencv.hpp>
 
 using namespace cv;
@@ -32,5 +31,3 @@ private:
     static constexpr int32_t video_frame_height = 720;
     static constexpr int32_t video_frame_width  = 1280;
 };
-
-#endif

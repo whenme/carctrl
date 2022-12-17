@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifndef __IO_THREAD_POOL_HPP__
-#define __IO_THREAD_POOL_HPP__
 
+#pragma once
 #include <condition_variable>
 #include <cstdlib>
 #include <functional>
@@ -144,5 +143,3 @@ protected:
     // flag indicate the pool is stoped
     bool m_stop = false;
 };
-
-#endif // __IO_THREAD_POOL_HPP__

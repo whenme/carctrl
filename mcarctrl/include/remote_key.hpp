@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 
-#ifndef __REMOTE_KEY_HPP__
-#define __REMOTE_KEY_HPP__
-
+#pragma once
 #include <ioapi/iotimer.hpp>
 #include <list>
 
@@ -39,5 +38,3 @@ private:
     IoTimer m_timer;
     std::list<int32_t> m_keyList;
 };
-
-#endif

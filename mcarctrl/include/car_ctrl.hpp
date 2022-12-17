@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifndef __CAR_CTRL_HPP__
-#define __CAR_CTRL_HPP__
 
+#pragma once
 #include <ioapi/iotimer.hpp>
 #include "gpio.hpp"
 #include "car_speed.hpp"
@@ -44,5 +43,3 @@ private:
     int32_t m_ctrlMode {CTRL_MODE_STEP};
     bool    m_straight { false };
 };
-
-#endif

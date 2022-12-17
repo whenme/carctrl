@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <spdlog/easylog.hpp>
 #include <video/video_device.hpp>
 #include <opencv2/videoio/legacy/constants_c.h>
 
@@ -8,13 +9,13 @@ VideoDevice::VideoDevice()
     for (int32_t i = 0; i < 2; i++) {
         bool ret = m_videoDev.open(i);
         if (ret) {
-            std::cout << "video capture " << i << " exist!" <<std::endl;
+            easylog::info("video capture {} exist!", i);
             break;
         }
     }
 
     if (!m_videoDev.isOpened()) {
-        std::cout << "Cannot find video device..." << std::endl;
+        easylog::warn("Cannot find video device...");
     } else {
         m_state = true;
 
@@ -29,8 +30,7 @@ VideoDevice::VideoDevice()
         m_videoParam.cameraWidth = frame.cols;  //m_videoDev.get(CAP_PROP_FRAME_WIDTH);
         m_videoParam.cameraHeight = frame.rows; //m_videoDev.get(CAP_PROP_FRAME_HEIGHT);
         m_videoParam.cameraFps = m_videoDev.get(CAP_PROP_FPS);
-        std::cout << "frame width=" << frame.cols << " height=" << frame.rows
-                  << " fps=" << m_videoParam.cameraFps << std::endl;
+        easylog::info("frame width={} height={} fps={}", frame.cols, frame.rows, m_videoParam.cameraFps);
     }
 }
 
@@ -57,7 +57,7 @@ CameraParam& VideoDevice::getDeviceParam()
 int32_t VideoDevice::setDeviceParam(CameraParam param)
 {
     if (!m_state) {
-        std::cout << "video device error..." << std::endl;
+        easylog::warn("video device error...");
         return -1;
     }
 
@@ -65,7 +65,7 @@ int32_t VideoDevice::setDeviceParam(CameraParam param)
     if (!ret)
         m_videoParam.cameraWidth = param.cameraWidth;
     else {
-        std::cout << "fail to set video width..." << std::endl;
+        easylog::warn("fail to set video width...");
         return ret;
     }
 
@@ -73,7 +73,7 @@ int32_t VideoDevice::setDeviceParam(CameraParam param)
     if (!ret)
         m_videoParam.cameraHeight = param.cameraHeight;
     else {
-        std::cout << "fail to set video height..." << std::endl;
+        easylog::warn("fail to set video height...");
         return ret;
     }
 
@@ -81,7 +81,7 @@ int32_t VideoDevice::setDeviceParam(CameraParam param)
     if (!ret)
         m_videoParam.cameraFps = param.cameraFps;
     else
-        std::cout << "fail to set video fps..." << std::endl;
+        easylog::warn("fail to set video fps...");
 
     return ret;
 }

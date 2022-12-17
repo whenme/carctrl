@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifndef __IO_THREAD_HPP__
-#define __IO_THREAD_HPP__
 
+#pragma once
 #include <functional>
 #include <string>
 #include <thread>
@@ -41,6 +40,3 @@ private:
     void*       m_usrContext;
     std::function<void(void *ctxt)> m_threadFun;
 };
-
-
-#endif

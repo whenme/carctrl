@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifndef __IO_SIGNAL_HPP__
-#define __IO_SIGNAL_HPP__
 
+#pragma once
 #include <vector>
 #include <functional>
 
@@ -22,5 +21,3 @@ private:
     std::function<void(const asio::error_code &e, void *ctxt)> m_signalHandler;
     void *m_usrContext;
 };
-
-#endif

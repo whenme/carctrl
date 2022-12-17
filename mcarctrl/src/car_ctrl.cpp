@@ -2,6 +2,7 @@
 #include <iostream>
 #include <poll.h>
 
+#include <spdlog/easylog.hpp>
 #include <ioapi/cmn_singleton.hpp>
 #include <ioapi/param_json.hpp>
 #include "car_ctrl.hpp"
@@ -21,7 +22,7 @@ CarCtrl::~CarCtrl()
 int32_t CarCtrl::getActualSpeed(int32_t motor)
 {
     if (motor >= m_carSpeed.getMotorNum()) {
-        std::cout << "CarCtrl::getActualSpeed: error motor " << motor << std::endl;
+        easylog::warn("error motor {}", motor);
         return 0;
     } else {
         return m_carSpeed.getActualSpeed(motor);
@@ -31,7 +32,7 @@ int32_t CarCtrl::getActualSpeed(int32_t motor)
 int32_t CarCtrl::setCtrlSteps(int32_t motor, int32_t steps)
 {
     if (motor > m_carSpeed.getMotorNum()) {
-        std::cout << "CarCtrl: error motor " << motor << std::endl;
+        easylog::warn("error motor {}", motor);
         return -1;
     }
 
@@ -52,7 +53,7 @@ int32_t CarCtrl::setCtrlSteps(int32_t motor, int32_t steps)
 int32_t CarCtrl::getCtrlSteps(int32_t motor)
 {
     if (motor >= m_carSpeed.getMotorNum()) {
-        std::cout << "CarCtrl::getCtrlSteps: error motor " << motor << std::endl;
+        easylog::warn("error motor {}", motor);
         return 0;
     }
 
@@ -72,7 +73,7 @@ int32_t CarCtrl::getMotorNum()
 int32_t CarCtrl::getActualSteps(int32_t motor)
 {
     if (motor >= m_carSpeed.getMotorNum()) {
-        std::cout << "CarCtrl::getActualSteps: error motor " << motor << std::endl;
+        easylog::warn("error motor {}", motor);
         return 0;
     }
 
@@ -102,7 +103,7 @@ int32_t CarCtrl::setRunTime(int32_t time)
 void CarCtrl::setMotorPwm(int32_t motor, int32_t pwm)
 {
     if (motor >= m_carSpeed.getMotorNum() || pwm > Motor::getMaxPwm()) {
-        std::cout << "CarCtrl::setMotorPwm: error param. motor=" << motor << " pwm=" << pwm << std::endl;
+        easylog::warn("error param: motor={} pwm={}", motor, pwm);
         return;
     }
 
@@ -112,7 +113,7 @@ void CarCtrl::setMotorPwm(int32_t motor, int32_t pwm)
 int32_t CarCtrl::getMotorPwm(int32_t motor)
 {
     if (motor >= m_carSpeed.getMotorNum()) {
-        std::cout << "CarCtrl::getMotorPwm: error motor " << motor << std::endl;
+        easylog::warn("error motor {}", motor);
         return -1;
     }
 
@@ -122,7 +123,7 @@ int32_t CarCtrl::getMotorPwm(int32_t motor)
 int32_t CarCtrl::setMotorSpeedLevel(int32_t level)
 {
     if ((level < 1) || (level > 9)) {
-        std::cout << "CarCtrl::setMotorSpeedLevel: level error. level <1-9>" << std::endl;
+        easylog::warn("speed level error. level <1-9>");
         return -1;
     }
 

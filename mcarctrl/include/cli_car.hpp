@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#ifndef __CLI_CLI_CAR_H_INCLUDE__
-#define __CLI_CLI_CAR_H_INCLUDE__
-
+#pragma once
 #include <cli/cli.h>
 #include <cli/cli_impl.h>
 #include <memory>
@@ -29,5 +27,3 @@ private:
 };
 
 }  // namespace cli
-
-#endif  // __CLI_CLI_CAR_H_INCLUDE__

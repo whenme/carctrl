@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 
-#ifndef __GPIO_HPP__
-#define __GPIO_HPP__
-
+#pragma once
 #include <stdint.h>
 
 #define GPIO_DIR_IN         0
@@ -36,7 +35,3 @@ private:
     int32_t  exportPin();
     int32_t  unexportPin();
 };
-
-
-#endif
-

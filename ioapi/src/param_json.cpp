@@ -1,4 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 
+#include <spdlog/easylog.hpp>
 #include <ioapi/param_json.hpp>
 #include <fstream>
 
@@ -6,13 +8,13 @@ ParamJson::ParamJson(std::string fileName)
 {
     std::ifstream jsonFile(fileName);
     if (!jsonFile.is_open()) {
-        std::cout << "open json file " << fileName << " failed..." << std::endl;
+        easylog::warn("open json file {} failed...", fileName);
         return;
     }
 
     jsonFile >> m_jsonObj;
     if (m_jsonObj.is_discarded()) {
-        std::cout << "parse " << fileName << " data failed..." << std::endl;
+        easylog::warn("parse {} data failed...", fileName);
         return;
     }
 

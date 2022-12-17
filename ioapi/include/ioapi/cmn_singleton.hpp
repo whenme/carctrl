@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#ifndef __CMN_SINGLETON_ACCESS_HPP_INCLUDED__
-#define __CMN_SINGLETON_ACCESS_HPP_INCLUDED__
-
+#pragma once
 #include <cassert>
 #include <memory>
 #include <ioapi/cmn_attribute.hpp>
@@ -99,5 +97,3 @@ template<typename T>
 std::unique_ptr<T> Singleton<T>::s_m_instance = nullptr;
 
 }  //namespace cmn
-
-#endif

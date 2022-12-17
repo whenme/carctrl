@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifndef __IO_TIMER_HPP__
-#define __IO_TIMER_HPP__
 
+#pragma once
 #include <functional>
 #include <atomic>
 #include <asio.hpp>
@@ -30,5 +29,3 @@ private:
     std::function<void(const asio::error_code &e, void *ctxt)> m_timeoutHandler;
     void *m_usrContext;
 };
-
-#endif

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifndef __CAR_SPEED_HPP__
-#define __CAR_SPEED_HPP__
 
+#pragma once
 #include <vector>
 #include <ioapi/iotimer.hpp>
 #include <ioapi/iothread.hpp>
@@ -48,5 +47,3 @@ private:
     std::vector<Motor*> m_motor;
     std::vector<std::vector<int32_t>> m_pwmVect;
 };
-
-#endif

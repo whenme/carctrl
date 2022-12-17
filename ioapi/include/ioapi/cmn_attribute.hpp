@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#ifndef __CMN_ATTRIBUTE_HPP__
-#define __CMN_ATTRIBUTE_HPP__
-
+#pragma once
 #include <type_traits>
 #include <utility>
 
@@ -82,6 +80,3 @@
     {                                                                             \
         std::declval<TypeName>().functionName();                                  \
     }
-
-#endif  // __CMN_ATTRIBUTE_HPP__
-

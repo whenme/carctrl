@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <spdlog/easylog.hpp>
 #include <opencv2/opencv.hpp>
 #include <video/video_ctrl.hpp>
 #include <vector>
@@ -41,7 +42,7 @@ void VideoCtrl::videoThreadFun(void *ctxt)
         auto& video = obj->m_videoDev.getVideoCapture();
         video >> frame;
         if (frame.empty()) {
-            std::cout << "device read video error..." << std::endl;
+            easylog::warn("device read video error...");
             continue;
         }
 

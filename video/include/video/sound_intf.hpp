@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifndef __SOUND_INTF_HPP__
-#define __SOUND_INTF_HPP__
 
+#pragma once
 #include <string>
 #include <ioapi/iothread.hpp>
 #include "asio.hpp"
@@ -25,5 +24,3 @@ private:
     void showWelcome();
     static void soundThreadFun(void *ctxt);
 };
-
-#endif

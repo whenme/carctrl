@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifndef __VIDEO_CTRL_HPP__
-#define __VIDEO_CTRL_HPP__
 
+#pragma once
 #include <opencv2/opencv.hpp>
 #include <ioapi/iotimer.hpp>
 #include <ioapi/iothread.hpp>
@@ -21,5 +20,3 @@ private:
     void        showImage(std::string title, Mat& mat);
     static void videoThreadFun(void *ctxt);
 };
-
-#endif
