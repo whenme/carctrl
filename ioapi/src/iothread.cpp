@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <iostream>
 #include <pthread.h>
-#include <spdlog/easylog.hpp>
+#include <ioapi/easylog.hpp>
 #include <ioapi/iothread.hpp>
 
 IoThread::IoThread(std::string name, int32_t priority,

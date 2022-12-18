@@ -20,15 +20,15 @@
 #include <spdlog/spdlog.h>
 
 #include <filesystem>
-
+#include <iostream>
 #include "spdlog/common.h"
 
 struct easylog_options {
   spdlog::level::level_enum log_level = spdlog::level::debug;
   std::string app_log_name = "easylog";
-  std::string log_dir;
-  bool always_flush = false;
-  int flush_interval = 3;
+  std::string log_dir = "/var/log/";
+  bool always_flush = true;
+  int flush_interval = 5;
   int max_size = 5 * 1024 * 1024;
   int max_files = 5;
 };
@@ -49,26 +49,22 @@ struct source_location {
   const char *function_name_;
   const unsigned int line_;
 };
+
 namespace easylog {
 [[nodiscard]] inline constexpr auto get_log_source_location(
-    const source_location &location) {
+    const source_location &location)
+{
   return spdlog::source_loc{location.file_name(),
                             static_cast<std::int32_t>(location.line()),
                             location.function_name()};
 }
 namespace {
-inline bool has_init_ = false;
 inline bool always_flush_ = false;
 
-inline std::vector<spdlog::sink_ptr> get_sinks(const easylog_options &options) {
-  std::vector<spdlog::sink_ptr> sinks;
+inline std::vector<spdlog::sink_ptr> get_sinks(const easylog_options &options)
+{
+    std::vector<spdlog::sink_ptr> sinks;
 
-  if (options.log_dir.empty()) {
-    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    console_sink->set_level(options.log_level);
-    sinks.push_back(console_sink);
-  }
-  else {
 #ifdef _WIN32
     int pid = _getpid();
 #else
@@ -82,20 +78,18 @@ inline std::vector<spdlog::sink_ptr> get_sinks(const easylog_options &options) {
     auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
         filename, options.max_size, options.max_files);
     sinks.push_back(file_sink);
-  }
 
-  auto err_sink = std::make_shared<spdlog::sinks::stderr_color_sink_mt>();
-  err_sink->set_level(spdlog::level::err);
-  sinks.push_back(err_sink);
+    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    console_sink->set_level(options.log_level);
+    sinks.push_back(console_sink);
 
-  return sinks;
+    return sinks;
 }
 
 template <typename... Args>
 inline void log(spdlog::level::level_enum level, source_location location,
-                fmt::format_string<Args...> fmt, Args &&...args) {
-  std::filesystem::path p{location.file_name()};
-
+                fmt::format_string<Args...> fmt, Args &&...args)
+{
   switch (level) {
     case spdlog::level::trace:
       spdlog::default_logger_raw()->log(get_log_source_location(location),
@@ -143,15 +137,16 @@ inline void log(spdlog::level::level_enum level, source_location location,
 }
 
 }  // namespace
-inline void init_log(easylog_options options = {}, bool over_write = false) {
+
+inline void init_log(easylog_options options = {}, bool over_write = false)
+{
+  static bool has_init_ = false;
   if (has_init_ && !over_write) {
     return;
   }
 
   auto sinks = get_sinks(options);
-
-  auto logger = std::make_shared<spdlog::logger>(options.app_log_name,
-                                                 sinks.begin(), sinks.end());
+  auto logger = std::make_shared<spdlog::logger>("", sinks.begin(), sinks.end());
 
   logger->set_level(options.log_level);
   spdlog::set_level(options.log_level);
@@ -165,14 +160,16 @@ inline void init_log(easylog_options options = {}, bool over_write = false) {
   has_init_ = true;
 }
 
-inline void enable_always_flush(bool always_flush) {
+inline void enable_always_flush(bool always_flush)
+{
   always_flush_ = always_flush;
 }
 
 template <typename... Args>
 struct trace {
   constexpr trace(fmt::format_string<Args...> fmt, Args &&...args,
-                  source_location location = {}) {
+                  source_location location = {})
+  {
     log(spdlog::level::trace, location, fmt, std::forward<Args>(args)...);
   }
 };
@@ -183,7 +180,8 @@ trace(fmt::format_string<Args...> fmt, Args &&...args) -> trace<Args...>;
 template <typename... Args>
 struct debug {
   constexpr debug(fmt::format_string<Args...> fmt, Args &&...args,
-                  source_location location = {}) {
+                  source_location location = {})
+  {
     log(spdlog::level::debug, location, fmt, std::forward<Args>(args)...);
   }
 };
@@ -194,12 +192,14 @@ debug(fmt::format_string<Args...> fmt, Args &&...args) -> debug<Args...>;
 template <typename... Args>
 struct info {
   constexpr info(fmt::format_string<Args...> fmt, Args &&...args,
-                 source_location location = {}) {
+                 source_location location = {})
+  {
     log(spdlog::level::info, location, fmt, std::forward<Args>(args)...);
   }
 
   constexpr info(source_location location, fmt::format_string<Args...> fmt,
-                 Args &&...args) {
+                 Args &&...args)
+  {
     log(spdlog::level::info, location, fmt, std::forward<Args>(args)...);
   }
 };
@@ -214,7 +214,8 @@ info(source_location location, fmt::format_string<Args...> fmt, Args &&...args)
 template <typename... Args>
 struct warn {
   constexpr warn(fmt::format_string<Args...> fmt, Args &&...args,
-                 source_location location = {}) {
+                 source_location location = {})
+  {
     log(spdlog::level::warn, location, fmt, std::forward<Args>(args)...);
   }
 };
@@ -225,7 +226,8 @@ warn(fmt::format_string<Args...> fmt, Args &&...args) -> warn<Args...>;
 template <typename... Args>
 struct error {
   constexpr error(fmt::format_string<Args...> fmt, Args &&...args,
-                  source_location location = {}) {
+                  source_location location = {})
+  {
     log(spdlog::level::err, location, fmt, std::forward<Args>(args)...);
   }
 };
@@ -236,7 +238,8 @@ error(fmt::format_string<Args...> fmt, Args &&...args) -> error<Args...>;
 template <typename... Args>
 struct critical {
   constexpr critical(fmt::format_string<Args...> fmt, Args &&...args,
-                     source_location location = {}) {
+                     source_location location = {})
+  {
     log(spdlog::level::critical, location, fmt, std::forward<Args>(args)...);
   }
 };

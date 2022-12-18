@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <iostream>
 #include <linux/input.h>
-#include <spdlog/easylog.hpp>
 #include <ioapi/cmn_singleton.hpp>
+#include <ioapi/easylog.hpp>
 #include <video/sound_intf.hpp>
 #include "remote_key.hpp"
 #include "car_ctrl.hpp"

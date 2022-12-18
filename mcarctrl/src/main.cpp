@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <sys/stat.h>
 #include <ioapi/cmn_singleton.hpp>
+#include <ioapi/easylog.hpp>
 #include <ioapi/iotimer.hpp>
 #include <cli/cli_impl.h>
 #include <video/sound_intf.hpp>
@@ -11,6 +12,8 @@
 
 int32_t main(int argc, char **argv)
 {
+    easylog::init_log();
+
     SoundIntf soundIntf;
     cmn::setSingletonInstance(&soundIntf);
 

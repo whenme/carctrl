@@ -1,9 +1,9 @@
 
 #include <fcntl.h>
 #include <unistd.h>
-#include <spdlog/easylog.hpp>
 #include <cstring>
 #include <iostream>
+#include <ioapi/easylog.hpp>
 #include "gpio.hpp"
 
 Gpio::Gpio(int32_t pin, int32_t direction, int32_t edge) :

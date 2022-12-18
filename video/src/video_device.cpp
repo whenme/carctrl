@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <spdlog/easylog.hpp>
+#include <ioapi/easylog.hpp>
 #include <video/video_device.hpp>
 #include <opencv2/videoio/legacy/constants_c.h>
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <spdlog/easylog.hpp>
+#include <ioapi/easylog.hpp>
 #include <ioapi/param_json.hpp>
 #include <fstream>
 

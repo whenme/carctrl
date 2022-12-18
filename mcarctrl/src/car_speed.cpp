@@ -2,8 +2,8 @@
 #include <iostream>
 #include <fstream>
 
-#include <spdlog/easylog.hpp>
 #include <ioapi/cmn_singleton.hpp>
+#include <ioapi/easylog.hpp>
 #include <ioapi/param_json.hpp>
 #include "car_speed.hpp"
 #include "car_ctrl.hpp"
