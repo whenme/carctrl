@@ -42,7 +42,7 @@ void VideoCtrl::videoThreadFun(void *ctxt)
         auto& video = obj->m_videoDev.getVideoCapture();
         video >> frame;
         if (frame.empty()) {
-            easylog::warn("device read video error...");
+            ctrllog::warn("device read video error...");
             continue;
         }
 

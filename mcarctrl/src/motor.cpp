@@ -6,7 +6,7 @@
 Motor::Motor(std::vector<uint32_t> port)
 {
     if (port.size() != 3) {
-        easylog::error("gpio number error {}", port.size());
+        ctrllog::error("gpio number error {}", port.size());
         return;
     }
 
@@ -15,7 +15,7 @@ Motor::Motor(std::vector<uint32_t> port)
     m_inputGpio = new Gpio(port.at(2), GPIO_DIR_IN, GPIO_EDGE_RISING);
 
     if ((m_outputGpio[0] == nullptr) || (m_outputGpio[1] == nullptr) || (m_inputGpio == nullptr)) {
-        easylog::warn("fail to create motor from output gpio {},{} input gpio {}", port.at(0), port.at(1), port.at(2));
+        ctrllog::warn("fail to create motor from output gpio {},{} input gpio {}", port.at(0), port.at(1), port.at(2));
     }
 
     setNowState(MOTOR_STATE_STOP);

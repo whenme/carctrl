@@ -9,13 +9,13 @@ VideoDevice::VideoDevice()
     for (int32_t i = 0; i < 2; i++) {
         bool ret = m_videoDev.open(i);
         if (ret) {
-            easylog::info("video capture {} exist!", i);
+            ctrllog::info("video capture {} exist!", i);
             break;
         }
     }
 
     if (!m_videoDev.isOpened()) {
-        easylog::warn("Cannot find video device...");
+        ctrllog::warn("Cannot find video device...");
     } else {
         m_state = true;
 
@@ -30,7 +30,7 @@ VideoDevice::VideoDevice()
         m_videoParam.cameraWidth = frame.cols;  //m_videoDev.get(CAP_PROP_FRAME_WIDTH);
         m_videoParam.cameraHeight = frame.rows; //m_videoDev.get(CAP_PROP_FRAME_HEIGHT);
         m_videoParam.cameraFps = m_videoDev.get(CAP_PROP_FPS);
-        easylog::info("frame width={} height={} fps={}", frame.cols, frame.rows, m_videoParam.cameraFps);
+        ctrllog::info("frame width={} height={} fps={}", frame.cols, frame.rows, m_videoParam.cameraFps);
     }
 }
 
@@ -57,7 +57,7 @@ CameraParam& VideoDevice::getDeviceParam()
 int32_t VideoDevice::setDeviceParam(CameraParam param)
 {
     if (!m_state) {
-        easylog::warn("video device error...");
+        ctrllog::warn("video device error...");
         return -1;
     }
 
@@ -65,7 +65,7 @@ int32_t VideoDevice::setDeviceParam(CameraParam param)
     if (!ret)
         m_videoParam.cameraWidth = param.cameraWidth;
     else {
-        easylog::warn("fail to set video width...");
+        ctrllog::warn("fail to set video width...");
         return ret;
     }
 
@@ -73,7 +73,7 @@ int32_t VideoDevice::setDeviceParam(CameraParam param)
     if (!ret)
         m_videoParam.cameraHeight = param.cameraHeight;
     else {
-        easylog::warn("fail to set video height...");
+        ctrllog::warn("fail to set video height...");
         return ret;
     }
 
@@ -81,7 +81,7 @@ int32_t VideoDevice::setDeviceParam(CameraParam param)
     if (!ret)
         m_videoParam.cameraFps = param.cameraFps;
     else
-        easylog::warn("fail to set video fps...");
+        ctrllog::warn("fail to set video fps...");
 
     return ret;
 }

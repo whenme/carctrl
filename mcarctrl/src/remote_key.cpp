@@ -43,7 +43,7 @@ int32_t RemoteKey::initIrKey()
         if (!fileName.empty()) {
             m_keyfd = open(fileName.c_str(), O_RDONLY | O_NONBLOCK);
             if (m_keyfd < 0)
-                easylog::warn("fail to open {}", fileName);
+                ctrllog::warn("fail to open {}", fileName);
         }
         pclose(ptr);
         ptr = NULL;
@@ -67,7 +67,7 @@ void RemoteKey::timerCallback(const asio::error_code &e, void *ctxt)
         return;
 
     if (evsize < sizeof(struct input_event)) {
-        easylog::info("no event");
+        ctrllog::info("no event");
         return;
     }
 
@@ -112,7 +112,7 @@ void RemoteKey::handleKeyPress()
     }
 
     oldKey = keyEvent;
-    easylog::info(" key {} is pressed", keyEvent);
+    ctrllog::info(" key {} is pressed", keyEvent);
     //std::cout << "RemoteKey: key " << std::hex << keyEvent << " pressed" << std::dec << std::endl;
 
     switch(keyEvent) {
@@ -189,7 +189,7 @@ void RemoteKey::handleKeyPress()
         break;
     case RC_KEY_OK:
         carCtrl.setMotorSpeedLevel(input);
-        easylog::info("set motor speed level {}", input);
+        ctrllog::info("set motor speed level {}", input);
         sprintf(sound, "设置速度等级%d", input);
         soundIntf.speak(sound);
         input = 0;
@@ -210,7 +210,7 @@ void RemoteKey::handleKeyPress()
         input = 0;
         break;
     default:
-        easylog::warn("not handled key {}", keyEvent);
+        ctrllog::warn("not handled key {}", keyEvent);
         break;
     }
 }

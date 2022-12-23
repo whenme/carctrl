@@ -22,7 +22,7 @@ CarCtrl::~CarCtrl()
 int32_t CarCtrl::getActualSpeed(int32_t motor)
 {
     if (motor >= m_carSpeed.getMotorNum()) {
-        easylog::warn("error motor {}", motor);
+        ctrllog::warn("error motor {}", motor);
         return 0;
     } else {
         return m_carSpeed.getActualSpeed(motor);
@@ -32,7 +32,7 @@ int32_t CarCtrl::getActualSpeed(int32_t motor)
 int32_t CarCtrl::setCtrlSteps(int32_t motor, int32_t steps)
 {
     if (motor > m_carSpeed.getMotorNum()) {
-        easylog::warn("error motor {}", motor);
+        ctrllog::warn("error motor {}", motor);
         return -1;
     }
 
@@ -53,7 +53,7 @@ int32_t CarCtrl::setCtrlSteps(int32_t motor, int32_t steps)
 int32_t CarCtrl::getCtrlSteps(int32_t motor)
 {
     if (motor >= m_carSpeed.getMotorNum()) {
-        easylog::warn("error motor {}", motor);
+        ctrllog::warn("error motor {}", motor);
         return 0;
     }
 
@@ -73,7 +73,7 @@ int32_t CarCtrl::getMotorNum()
 int32_t CarCtrl::getActualSteps(int32_t motor)
 {
     if (motor >= m_carSpeed.getMotorNum()) {
-        easylog::warn("error motor {}", motor);
+        ctrllog::warn("error motor {}", motor);
         return 0;
     }
 
@@ -103,7 +103,7 @@ int32_t CarCtrl::setRunTime(int32_t time)
 void CarCtrl::setMotorPwm(int32_t motor, int32_t pwm)
 {
     if (motor >= m_carSpeed.getMotorNum() || pwm > Motor::getMaxPwm()) {
-        easylog::warn("error param: motor={} pwm={}", motor, pwm);
+        ctrllog::warn("error param: motor={} pwm={}", motor, pwm);
         return;
     }
 
@@ -113,7 +113,7 @@ void CarCtrl::setMotorPwm(int32_t motor, int32_t pwm)
 int32_t CarCtrl::getMotorPwm(int32_t motor)
 {
     if (motor >= m_carSpeed.getMotorNum()) {
-        easylog::warn("error motor {}", motor);
+        ctrllog::warn("error motor {}", motor);
         return -1;
     }
 
@@ -123,7 +123,7 @@ int32_t CarCtrl::getMotorPwm(int32_t motor)
 int32_t CarCtrl::setMotorSpeedLevel(int32_t level)
 {
     if ((level < 1) || (level > 9)) {
-        easylog::warn("speed level error. level <1-9>");
+        ctrllog::warn("speed level error. level <1-9>");
         return -1;
     }
 

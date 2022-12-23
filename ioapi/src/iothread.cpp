@@ -60,14 +60,14 @@ int32_t IoThread::setThreadPriority(int32_t priority)
     struct sched_param param;
     ret = pthread_getschedparam(m_threadId, &policy, &param);
     if (ret) {
-        easylog::warn("fail to get param");
+        apilog::warn("fail to get param");
         return -1;
     }
 
     param.sched_priority = priority;
     ret = pthread_setschedparam(m_threadId, policy, &param);
     if (ret) {
-        easylog::warn("fail to set param {}", ret);
+        apilog::warn("fail to set param {}", ret);
         return -1;
     }
 
@@ -81,7 +81,7 @@ int32_t IoThread::getThreadPriority()
     struct sched_param param;
     ret = pthread_getschedparam(m_threadId, &policy, &param);
     if (ret) {
-        easylog::warn("fail to get param");
+        apilog::warn("fail to get param");
         return m_priority;
     }
 
@@ -97,7 +97,7 @@ int32_t IoThread::setCpuAffinity(size_t cpu_id)
     CPU_SET(cpu_id % std::thread::hardware_concurrency(), &cpuset);
     int32_t ret = pthread_setaffinity_np(m_threadId, sizeof(cpu_set_t), &cpuset);
     if (ret)
-        easylog::warn("setCpuAffinity failed");
+        apilog::warn("setCpuAffinity failed");
 
     return ret;
 }
@@ -106,7 +106,7 @@ int32_t IoThread::getCpuAffinity(cpu_set_t *cpuset)
 {
     int32_t ret = pthread_setaffinity_np(m_threadId, sizeof(cpu_set_t), cpuset);
     if (ret)
-        easylog::warn("getCpuAffinity failed");
+        apilog::warn("getCpuAffinity failed");
 
     return ret;
 }

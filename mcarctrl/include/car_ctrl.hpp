@@ -39,7 +39,7 @@ private:
     static void runTimeCallback(const asio::error_code &e, void *ctxt);
 
     CarSpeed m_carSpeed;
-    IoTimer m_runTimer;
-    int32_t m_ctrlMode {CTRL_MODE_STEP};
-    bool    m_straight { false };
+    IoTimer  m_runTimer;
+    int32_t  m_ctrlMode {CTRL_MODE_STEP};
+    bool     m_straight { false };
 };

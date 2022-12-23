@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
+#include <ioapi/easylog.hpp>
 
 using Json = nlohmann::json;
 
@@ -37,7 +38,7 @@ public:
             }
         }
         catch (std::exception &) {
-            std::cout << "no json item for " << item << "..." << std::endl;
+            apilog::warn("no json item for {}", item);
             return false;
         }
 
@@ -45,7 +46,7 @@ public:
             obj.get_to(param);
         }
         catch (std::exception &) {
-            std::cout << "json param or output type error for " << item << "..." << std::endl;
+            apilog::warn("json param or output type error for {}", item);
             return false;
         }
 

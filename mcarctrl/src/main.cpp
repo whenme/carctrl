@@ -12,7 +12,7 @@
 
 int32_t main(int argc, char **argv)
 {
-    easylog::init_log();
+    init_log();
 
     SoundIntf soundIntf;
     cmn::setSingletonInstance(&soundIntf);

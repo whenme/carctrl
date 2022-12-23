@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -20,7 +21,7 @@ Gpio::Gpio(int32_t pin, int32_t direction, int32_t edge) :
     snprintf(path, sizeof(path), "/sys/class/gpio/gpio%d/value", m_pin);
     m_gpioFd = open(path, O_RDWR);
     if (m_gpioFd < 0)
-        easylog::error("fail to open gpio {}", m_pin);
+        ctrllog::error("fail to open gpio {}", m_pin);
 
     if (m_direction == GPIO_DIR_IN) {
         // input pin need to setEdge
@@ -47,7 +48,7 @@ int32_t Gpio::setValue(int32_t value)
         return -1;
 
     if (write(m_gpioFd, &str[value==0?0:1], 1) < 0) {
-        easylog::warn("fail to write gpio {}", m_pin);
+        ctrllog::warn("fail to write gpio {}", m_pin);
         return -1;
     }
 
@@ -58,12 +59,12 @@ int32_t Gpio::getValue(int32_t *pValue)
 {
     char value[8] {0};
     if (m_gpioFd <= 0) {
-        easylog::warn("gpio fd error {}", m_gpioFd);
+        ctrllog::warn("gpio fd error {}", m_gpioFd);
         return -1;
     }
 
     if (read(m_gpioFd, value, 3) < 0) {
-        easylog::warn("fail to read gpio {}", m_pin);
+        ctrllog::warn("fail to read gpio {}", m_pin);
         return -1;
     }
 
@@ -85,14 +86,14 @@ int32_t Gpio::exportPin()
 
     fd = open("/sys/class/gpio/export", O_WRONLY);
     if (fd < 0) {
-        easylog::warn("fail to open export for writing gpio {}", m_pin);
+        ctrllog::warn("fail to open export for writing gpio {}", m_pin);
         return -1;
     }
     
     memset(buffer, 0, sizeof(buffer));
     len = snprintf(buffer, sizeof(buffer), "%d", m_pin);
     if (write(fd, buffer, len) < 0) {
-        easylog::warn("fail to open export gpio {}", m_pin);
+        ctrllog::warn("fail to open export gpio {}", m_pin);
         ret = -1;
     }
     
@@ -107,13 +108,13 @@ int32_t Gpio::unexportPin()
 
     fd = open("/sys/class/gpio/unexport", O_WRONLY);
     if (fd < 0) {
-        easylog::warn("fail to open unexport for writing for gpio {}", m_pin);
+        ctrllog::warn("fail to open unexport for writing for gpio {}", m_pin);
         return -1;
     }
 
     len = snprintf(buffer, sizeof(buffer), "%d", m_pin);
     if (write(fd, buffer, len) < 0) {
-        easylog::warn("fail to unport gpio {}", m_pin);
+        ctrllog::warn("fail to unport gpio {}", m_pin);
         return -1;
     }
 
@@ -129,18 +130,18 @@ int32_t Gpio::setDirection(int32_t direct)
     snprintf(path, sizeof(path), "/sys/class/gpio/gpio%d/direction", m_pin);
     fd = open(path, O_WRONLY);
     if (fd < 0) {
-        easylog::warn("fail to open gpio {} direction for writing", m_pin);
+        ctrllog::warn("fail to open gpio {} direction for writing", m_pin);
         return -1;
     }
 
     if (direct == GPIO_DIR_OUT) {
         if (write(fd, "out", 3) < 0) {
-            easylog::warn("fail to set direction out for gpio {}", m_pin);
+            ctrllog::warn("fail to set direction out for gpio {}", m_pin);
             ret = -1;
         }
     } else {
         if (write(fd, "in", 2) < 0) {
-            easylog::warn("fail to set direction in for gpio {}", m_pin);
+            ctrllog::warn("fail to set direction in for gpio {}", m_pin);
             ret = -1;
         }
     }
@@ -156,12 +157,12 @@ int32_t Gpio::setEdge()
     snprintf(path, sizeof(path), "/sys/class/gpio/gpio%d/edge", m_pin); 
     int32_t fd = open(path, O_WRONLY);
     if (fd < 0) {
-        easylog::warn("fail to open edge for write gpio {}", m_pin);
+        ctrllog::warn("fail to open edge for write gpio {}", m_pin);
         return -1;
     }
 
     if (write(fd, edgeStr[m_edge], strlen(edgeStr[m_edge])) < 0) {
-        easylog::warn("fail to set edge for gpio {}", m_pin);
+        ctrllog::warn("fail to set edge for gpio {}", m_pin);
         close(fd);
         return -1;
     }
