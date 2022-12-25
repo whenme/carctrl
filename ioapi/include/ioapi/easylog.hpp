@@ -86,9 +86,12 @@ inline void log(const std::string &name, spdlog::level::level_enum level, source
     spdlog::default_logger()->flush();
   }
 
-  if (level == spdlog::level::critical) {
+  //critical or off level
+  if (level > spdlog::level::err) {
     spdlog::default_logger()->flush();
-    //std::exit(EXIT_FAILURE);
+    if (level == spdlog::level::off) {
+      std::exit(EXIT_FAILURE);
+    }
   }
 }
 }  // namespace
@@ -104,6 +107,8 @@ inline void init_log(easylog_options options = {}, bool over_write = false)
   auto sinks = get_sinks(options);
   auto ctrlLogger = std::make_shared<spdlog::logger>("ctrl", sinks.begin(), sinks.end());
   auto apiLogger = std::make_shared<spdlog::logger>("api", sinks.begin(), sinks.end());
+
+  // log pattern: [time] [module name] color begin [log level] [file:line] content / color end
   spdlog::set_pattern("[%H:%M:%S.%e] [%n] %^[%l] [%s:%#] %v%$");
   spdlog::initialize_logger(ctrlLogger);
 

@@ -31,8 +31,9 @@ public:
     void setCtrlSteps(int32_t steps);
     inline int32_t& getCtrlSteps()  { return m_ctrlSteps; }
 
-    inline void setActualSteps(int32_t steps) { m_actualSteps = steps; }
-    inline int32_t getActualSteps()           { return m_actualSteps; }
+    inline void moveActualSteps(int32_t steps) { m_actualSteps += steps; }
+    inline void setActualSteps(int32_t steps)  { m_actualSteps = steps; }
+    inline int32_t getActualSteps()            { return m_actualSteps; }
 
     inline void setRunPwm(int32_t pwm) { m_ctrlPwm = pwm; }
     inline int32_t getRunPwm()         { return m_ctrlPwm; }

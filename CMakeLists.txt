@@ -12,3 +12,5 @@ add_subdirectory (ioapi)
 add_subdirectory (mcarctrl)
 add_subdirectory (cli)
 add_subdirectory (video)
+
+install (PROGRAMS tools/start.sh DESTINATION ${PROJECT_BINARY_DIR})

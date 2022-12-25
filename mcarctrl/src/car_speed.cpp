@@ -58,7 +58,7 @@ void CarSpeed::initJsonParam()
         }
     };
 
-    auto getPwmParam = [&](int32_t ii, std::string item) {
+    auto getPwmParam = [&](std::string item) {
         std::vector<int32_t> vectVal;
         bool ret = param.getJsonParam(jsonItem + "pwm." + item, vectVal);
         if (ret)
@@ -82,15 +82,15 @@ void CarSpeed::initJsonParam()
         createMotorObject("motor_back_right", "ir_back_right");
     }
 
-    getPwmParam(0, "one");
-    getPwmParam(1, "two");
-    getPwmParam(2, "three");
-    getPwmParam(3, "four");
-    getPwmParam(4, "five");
-    getPwmParam(5, "six");
-    getPwmParam(6, "seven");
-    getPwmParam(7, "eight");
-    getPwmParam(8, "nine");
+    getPwmParam("one");
+    getPwmParam("two");
+    getPwmParam("three");
+    getPwmParam("four");
+    getPwmParam("five");
+    getPwmParam("six");
+    getPwmParam("seven");
+    getPwmParam("eight");
+    getPwmParam("nine");
     /*for (int32_t i = 0; i < m_pwmVect.size(); i++) {
         for (int32_t j = 0; j < m_pwmVect[0].size(); j++)
             std::cout << m_pwmVect[i][j] << " ";
@@ -207,9 +207,9 @@ void CarSpeed::threadFun(void *ctxt)
                 obj->m_motor[i]->m_swCounter++;
 
                 if (obj->m_motor[i]->getCtrlSteps() >= 0)
-                    obj->m_motor[i]->setActualSteps(obj->m_motor[i]->getActualSteps() + 1);
+                    obj->m_motor[i]->moveActualSteps(1);
                 else
-                    obj->m_motor[i]->setActualSteps(obj->m_motor[i]->getActualSteps() - 1);
+                    obj->m_motor[i]->moveActualSteps(-1);
             }
         }
     }
