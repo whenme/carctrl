@@ -91,11 +91,6 @@ void CarSpeed::initJsonParam()
     getPwmParam("seven");
     getPwmParam("eight");
     getPwmParam("nine");
-    /*for (int32_t i = 0; i < m_pwmVect.size(); i++) {
-        for (int32_t j = 0; j < m_pwmVect[0].size(); j++)
-            std::cout << m_pwmVect[i][j] << " ";
-        std::cout << std::endl;
-    }*/
 
     //set default speed
     setMotorSpeedLevel(2);
@@ -206,7 +201,8 @@ void CarSpeed::threadFun(void *ctxt)
                 }
                 obj->m_motor[i]->m_swCounter++;
 
-                if (obj->m_motor[i]->getCtrlSteps() >= 0)
+                if ((obj->m_motor[i]->getCtrlSteps() >= 0)
+                    || (obj->m_carCtrl->getCtrlMode() == CTRL_MODE_TIME))
                     obj->m_motor[i]->moveActualSteps(1);
                 else
                     obj->m_motor[i]->moveActualSteps(-1);

@@ -64,6 +64,13 @@ int32_t IoThread::setThreadPriority(int32_t priority)
         return -1;
     }
 
+    int32_t maxPrio = sched_get_priority_max(policy);
+    int32_t minPrio = sched_get_priority_min(policy);
+    if (priority > maxPrio) {
+        priority = maxPrio;
+    } else if (priority < minPrio) {
+        priority = minPrio;
+    }
     param.sched_priority = priority;
     ret = pthread_setschedparam(m_threadId, policy, &param);
     if (ret) {
