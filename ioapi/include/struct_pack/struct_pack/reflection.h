@@ -16,12 +16,14 @@
 #pragma once
 #include <cstddef>
 #include <cstring>
+#include <limits>
 #include <set>
 #include <string>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <variant>
+#include <vector>
 
 #if __has_include(<span>)
 #include <span>
@@ -36,6 +38,12 @@
 #else
 #define STRUCT_PACK_INLINE __attribute__((always_inline)) inline
 #define CONSTEXPR_INLINE_LAMBDA constexpr __attribute__((always_inline))
+#endif
+
+#if defined STRUCT_PACK_OPTIMIZE
+#define STRUCT_PACK_MAY_INLINE STRUCT_PACK_INLINE
+#else
+#define STRUCT_PACK_MAY_INLINE inline
 #endif
 
 namespace struct_pack {
@@ -119,13 +127,28 @@ namespace detail {
     container.resize(std::size_t{});
   };
 
+
+  template <typename Type>
+  concept span = container<Type> && requires(Type t) {
+    t=Type{(typename Type::value_type*)nullptr ,std::size_t{} };
+    t.subspan(std::size_t{},std::size_t{});
+  };
+
+
+
+  template <typename Type>
+  concept dynamic_span = span<Type> && std::is_same_v<std::integral_constant<std::size_t,Type::extent>,std::integral_constant<std::size_t,SIZE_MAX>>;
+
+  template <typename Type>
+  concept static_span = span<Type> && !dynamic_span<Type>;
+
+
 #if __cpp_lib_span >= 202002L
 
   template <typename Type>
   concept continuous_container =
-      string<Type> ||(container<Type> && requires(Type container) {
+      string<Type> || (container<Type> && requires(Type container) {
         std::span{container};
-        container.resize(std::size_t{});
       });
 
 #else
@@ -246,6 +269,11 @@ namespace detail {
   template <typename T>
   concept is_compatible = is_compatible_v<T>;
 
+  struct UniversalVectorType {
+    template <typename T>
+    operator std::vector<T>();
+  };
+
   struct UniversalType {
     template <typename T>
     operator T();
@@ -275,7 +303,10 @@ namespace detail {
 
   template <typename T, typename... Args>
   consteval std::size_t member_count_impl() {
-    if constexpr (requires { T{{Args{}}..., {UniversalType{}}}; } == true) {
+    if constexpr (requires { T{{Args{}}..., {UniversalVectorType{}}}; } == true) {
+      return member_count_impl<T, Args..., UniversalVectorType>();
+    }
+    else if constexpr (requires { T{{Args{}}..., {UniversalType{}}}; } == true) {
       return member_count_impl<T, Args..., UniversalType>();
     }
     else if constexpr (requires {
