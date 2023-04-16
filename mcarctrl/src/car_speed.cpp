@@ -8,9 +8,8 @@
 #include "car_speed.hpp"
 #include "car_ctrl.hpp"
 
-CarSpeed::CarSpeed(asio::io_service& io_service, CarCtrl *carCtrl) :
-    m_ioService(io_service),
-    m_timerSpeed(m_ioService, timerSpeedCallback, this, true),
+CarSpeed::CarSpeed(asio2::rpc_server& ioServer, CarCtrl *carCtrl) :
+    m_server(ioServer),
     m_speedThread("speed thread", IoThread::ThreadPriorityNormal, CarSpeed::threadFun, this),
     m_carCtrl(carCtrl)
 {
@@ -19,13 +18,12 @@ CarSpeed::CarSpeed(asio::io_service& io_service, CarCtrl *carCtrl) :
     // start thread in cpu1
     //m_speedThread.setCpuAffinity(1);
 
-    m_timerSpeed.start(1000);
     m_speedThread.start();
 }
 
 CarSpeed::~CarSpeed()
 {
-    m_timerSpeed.stop();
+    m_timer.stop();
     m_speedThread.stop();
 
     for (auto& item : m_motor) {

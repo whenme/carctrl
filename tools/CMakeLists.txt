@@ -1,4 +1,5 @@
 
-add_executable(${PROJECT_BINARY_DIR}/calamares calamares_bin.c)
+add_executable(calamares calamares_bin.c)
 
 install (PROGRAMS start.sh DESTINATION ${PROJECT_BINARY_DIR})
+install (PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/calamares DESTINATION ${PROJECT_BINARY_DIR})

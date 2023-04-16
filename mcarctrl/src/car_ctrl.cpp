@@ -7,15 +7,15 @@
 #include <ioapi/param_json.hpp>
 #include "car_ctrl.hpp"
 
-CarCtrl::CarCtrl(asio::io_service& io_service) :
-    m_carSpeed(io_service, this),
-    m_runTimer(io_service, runTimeCallback, this, false)
+CarCtrl::CarCtrl(asio2::rpc_server& ioServer) :
+    m_server(ioServer),
+    m_carSpeed(m_server, this)
 {
 }
 
 CarCtrl::~CarCtrl()
 {
-    m_runTimer.stop();
+    m_timer.stop();
 }
 
 
@@ -80,14 +80,6 @@ int32_t CarCtrl::getActualSteps(int32_t motor)
     return m_carSpeed.getActualSteps(motor);
 }
 
-
-void CarCtrl::runTimeCallback(const asio::error_code &e, void *ctxt)
-{
-    CarCtrl *pCtrl = static_cast<CarCtrl *>(ctxt);
-
-    pCtrl->setAllMotorState(MOTOR_STATE_STOP);
-}
-
 int32_t CarCtrl::setRunTime(int32_t time)
 {
     m_ctrlMode = CTRL_MODE_TIME;
@@ -96,7 +88,11 @@ int32_t CarCtrl::setRunTime(int32_t time)
         m_carSpeed.setActualSteps(i, 0);
     }
     setAllMotorState(MOTOR_STATE_FORWARD);
-    m_runTimer.start(time * 1000);
+
+    m_server.start_timer("runtimer", time, 1, [&]() {
+                             ctrllog::warn("setRunTime timer callback...");
+                             setAllMotorState(MOTOR_STATE_STOP);
+                         });
     return 0;
 }
 
@@ -126,7 +122,7 @@ int32_t CarCtrl::setMotorSpeedLevel(int32_t level)
         ctrllog::warn("speed level error. level <1-9>");
         return -1;
     }
-
+    ctrllog::warn("CarCtrl::setMotorSpeedLevel {}", level);
     m_carSpeed.setMotorSpeedLevel(level - 1);
     return 0;
 }

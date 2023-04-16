@@ -3,6 +3,7 @@
 #ifndef __CLI_CLI_EXAMPLE_H_INCLUDE__
 #define __CLI_CLI_EXAMPLE_H_INCLUDE__
 
+#pragma once
 #include <cli/cli.h>
 #include <cli/cli_impl.h>
 #include <memory>

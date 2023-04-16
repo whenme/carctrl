@@ -4,6 +4,7 @@
 #include <vector>
 #include <ioapi/iotimer.hpp>
 #include <ioapi/iothread.hpp>
+#include <asio2/asio2.hpp>
 #include "motor.hpp"
 
 class CarCtrl;
@@ -11,7 +12,7 @@ class CarCtrl;
 class CarSpeed
 {
 public:
-    CarSpeed(asio::io_service& io_service, CarCtrl *carCtrl);
+    CarSpeed(asio2::rpc_server& ioServer, CarCtrl *carCtrl);
     virtual ~CarSpeed();
 
     int32_t getActualSpeed(int32_t motor);
@@ -38,8 +39,8 @@ private:
     void        initJsonParam();
     void        motorPwmCtrl();
 
-    asio::io_service& m_ioService;
-    IoTimer  m_timerSpeed;
+    asio2::rpc_server& m_server;
+    asio2::timer       m_timer;
     IoThread m_speedThread;
     CarCtrl* m_carCtrl;
     int32_t  m_motorNum { 0 };

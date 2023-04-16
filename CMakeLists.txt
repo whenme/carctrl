@@ -1,12 +1,19 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.0)
 
-set (execute_name carctrl)
-project(${execute_name})
+set (car_app_name carctrl)
+set (cli_app_name interface)
+project(${car_app_name})
+
 set(CMAKE_CXX_FLAGS "-std=c++20")
 SET(CMAKE_BUILD_TYPE "Debug")
 
-add_executable(${execute_name} mcarctrl)
-target_link_libraries (${execute_name} ioapi mcarctrl cli video)
+find_package(FMT REQUIRED)
+
+add_executable(${car_app_name} mcarctrl)
+target_link_libraries (${car_app_name} ioapi mcarctrl)
+
+add_executable(${cli_app_name} cli)
+target_link_libraries(${cli_app_name} cli ioapi video)
 
 add_subdirectory (ioapi)
 add_subdirectory (mcarctrl)

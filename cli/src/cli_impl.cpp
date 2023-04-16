@@ -2,8 +2,8 @@
 
 #include <cli/cli_impl.h>
 #include <cli/cli_example.h>
-#include <cli_car.hpp>
-#include <video/cli_video.hpp>
+#include <cli/cli_car.hpp>
+#include <cli/cli_video.hpp>
 
 #include <algorithm>
 #include <vector>
@@ -17,33 +17,30 @@ CliImpl::~CliImpl()
 
 void CliImpl::initCliCommand()
 {
-    CliExample cliExample;
-    CliCar     cliCar;
-    CliVideo   cliVideo;
+    static CliExample cliExample;
+    static CliCar     cliCar;
+    static CliVideo   cliVideo;
 
-    addCommandGroup(&cliExample);
-    addCommandGroup(&cliCar);
-    addCommandGroup(&cliVideo);
+    addCommandGroup(cliExample);
+    addCommandGroup(cliCar);
+    addCommandGroup(cliVideo);
 
     // setup cli
-    for (auto& it : m_cliGroup)
-    {
+    for (auto& it : m_cliGroup) {
         it->initCliCommand(m_rootMenu);
     }
 }
 
-bool CliImpl::addCommandGroup(CliCommandGroup* cmd)
+bool CliImpl::addCommandGroup(CliCommandGroup& cmd)
 {
-    for (auto& it : m_cliGroup)
-    {
+    for (auto& it : m_cliGroup) {
         // already added
-        if (it->getGroupName() == cmd->getGroupName())
-        {
+        if (it->getGroupName() == cmd.getGroupName()) {
             return true;
         }
     }
 
-    m_cliGroup.push_back(cmd);
+    m_cliGroup.push_back(&cmd);
     return true;
 }
 
@@ -60,8 +57,7 @@ void CliImpl::runCliImpl()
     });
 
     detail::CliLocalTerminalSession localSession(*m_cli, m_scheduler, std::cout, k_MLocalHistorySize);
-    localSession.exitAction([&](auto& out)  // session exit action
-                            {
+    localSession.exitAction([&](auto& out) { // session exit action
                                 out << "Closing App...\n";
                                 m_scheduler.stop();
                             });

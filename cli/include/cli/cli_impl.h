@@ -3,6 +3,7 @@
 #ifndef __CLI_CLI_IMPL_H_INCLUDE__
 #define __CLI_CLI_IMPL_H_INCLUDE__
 
+#pragma once
 #include "cli.h"
 
 namespace cli
@@ -39,10 +40,10 @@ public:
     CliImpl() = default;
     virtual ~CliImpl();
 
-        //class are neither copyable nor movable
+    //class are neither copyable nor movable
     CMN_UNCOPYABLE_IMMOVABLE(CliImpl)
 
-    bool addCommandGroup(CliCommandGroup* cmd);
+    bool addCommandGroup(CliCommandGroup& cmd);
     void initCliCommand();
     void runCliImpl();
     asio::io_context& getIoContext();
