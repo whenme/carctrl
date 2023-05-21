@@ -1,0 +1,55 @@
+#!/bin/sh
+# Wrapper to ensure start-stop-daemon is used to start calamares. This tool
+# will create and check the pidfile to prevent two calamares instances to
+# run simultaneously.
+# To stop the running instance, run 'calamares stop'
+# You can specify a specific tty with '-t'.
+
+# The default tty is specified here to make sure that the pidfile is named
+# correctly when no specific tty is given. Otherwise, a calamares started
+# without parameters could run at the same time as one started with
+# '-t <default_tty>', even though they both use the same tty.
+tty="/isam/slot_default/run/tty1_ext"
+
+do_wait=0
+
+# Parse -t option to create a per-tty pidfile, allowing multiple calamares
+# instances on different ttys at the same time
+orig_args="$@"
+TEMP=`getopt -q -o t:w -n '$0' -- "$@"`
+eval set -- "$TEMP"
+while true ; do
+    case "$1" in
+        -t) tty="$2"; shift 2 ;;
+        -w) do_wait=1; shift 1 ;;
+        *) break ;;
+    esac
+done
+shift
+action=$1
+eval set -- "$orig_args"
+
+pidfile_suffix="$(readlink -f "$tty" | tr / _)"
+
+pidfile=/var/run/calamares${pidfile_suffix}.pid
+case "$action" in
+    stop)
+        /sbin/start-stop-daemon -K -p $pidfile
+        ;;
+    *)
+        if [ $do_wait -eq 1 ]; then
+            echo "[calamares] waiting for tty $tty..."
+            while true; do
+                if [ -e $tty ]; then
+                    break
+                else
+                    echo -n .
+                    sleep 1
+                fi
+            done
+        fi
+
+        currentPath=$(pwd)
+        /sbin/start-stop-daemon -S -m -p $pidfile --exec $currentPath/calamares_bin -- "$@"
+        ;;
+esac

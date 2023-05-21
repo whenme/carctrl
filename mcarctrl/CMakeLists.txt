@@ -10,6 +10,6 @@ add_library (${library_name} src/car_ctrl.cpp
 
 target_include_directories (${library_name} PUBLIC include ${PROJECT_SOURCE_DIR}/include)
 
-target_link_libraries (${library_name} ioapi)
+target_link_libraries (${library_name} ioapi fmt)
 
 install (FILES ${param_file} DESTINATION ${PROJECT_BINARY_DIR})

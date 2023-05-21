@@ -33,3 +33,15 @@ IoSignal::~IoSignal()
     m_signalVect.clear();
     m_sigset.clear();
 }
+
+bool IoSignal::addSignal(int32_t signalNum)
+{
+    m_sigset.add(signalNum);
+    return true;
+}
+
+bool IoSignal::removeSignal(int32_t signalNum)
+{
+    m_sigset.remove(signalNum);
+    return true;
+}

@@ -4,6 +4,7 @@
 #include <ioapi/cmn_singleton.hpp>
 #include <ioapi/easylog.hpp>
 #include <ioapi/iotimer.hpp>
+#include <ioapi/pty_shell.hpp>
 
 #include "car_ctrl.hpp"
 
@@ -31,6 +32,8 @@ void initRpcServer(asio2::rpc_server& server, CarCtrl& ctrl)
 
 int32_t main(int argc, char **argv)
 {
+    pty_shell_init(2);
+
     asio2::rpc_server server(512,  // the initialize recv buffer size
 		                     1024, // the max recv buffer size
 		                     4);   // the thread count
@@ -41,7 +44,7 @@ int32_t main(int argc, char **argv)
     cmn::setSingletonInstance(&carCtrl);
 
     initRpcServer(server, carCtrl);
-
+    //auto& context=server.get_io_context();
     server.start_timer("led", 1, [&]() {
         static int state = 0;
         struct stat buffer;

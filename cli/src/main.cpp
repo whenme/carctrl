@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <ioapi/cmn_singleton.hpp>
 #include <ioapi/easylog.hpp>
-#include <ioapi/iotimer.hpp>
+#include <ioapi/pty_shell.hpp>
 #include <cli/cli_impl.h>
 #include <cli/remote_key.hpp>
 #include <video/sound_intf.hpp>
@@ -9,6 +9,7 @@
 
 int32_t main(int argc, char **argv)
 {
+    pty_shell_init(2);
     init_log();
 
     SoundIntf soundIntf;
@@ -25,5 +26,6 @@ int32_t main(int argc, char **argv)
 
     cliImpl.initCliCommand();
     cliImpl.runCliImpl();
+
     return 0;
 }

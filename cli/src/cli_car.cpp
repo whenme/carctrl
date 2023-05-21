@@ -38,14 +38,14 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                     [&](std::ostream& out) {
                         int32_t motorNum = m_client.call<int32_t>(std::chrono::seconds(3), "getMotorNum");
                         int32_t speedLevel = m_client.call<int32_t>(std::chrono::seconds(3), "getMotorSpeedLevel");
-                        out << "speed level: " << speedLevel << "  ";
+                        out << "speed level: " << speedLevel << "\n";
                         out << "motor number: " << motorNum << "\n";
 
                         for (int32_t i = 0; i < motorNum; i++) {
                             int32_t actualSpeed = m_client.call<int32_t>("getActualSpeed", i);
                             int32_t actualStep = m_client.call<int32_t>("getActualSteps", i);
                             int32_t motorPwm = m_client.call<int32_t>("getMotorPwm", i);
-                            out << "motor " << i+1 << " actual speed=" << actualSpeed << " pwm=" << motorPwm
+                            out << "motor " << i+1 << " speed=" << actualSpeed << " pwm=" << motorPwm
                                 << " step=" << actualStep << "\n";
                         }
                     },

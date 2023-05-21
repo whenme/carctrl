@@ -14,6 +14,9 @@ public:
              void *ctxt = nullptr);
     virtual ~IoSignal();
 
+    bool addSignal(int32_t signalNum);
+    bool removeSignal(int32_t signalNum);
+
 private:
     std::vector<int32_t> m_signalVect;
     asio::io_service&    m_ioService;
