@@ -5,9 +5,9 @@ function help_usage()
 {
     echo "command guide:"
     echo "execute.sh --start --stop -h"
-    echo "    --start:   start all application"
-    echo "    --stop:    stop all application"
-    echo "    -h|--help: help"
+    echo "    -r|--run:   run all applications"
+    echo "    -s|--stop:  stop all applications"
+    echo "    -h|--help:  help"
 }
 
 app_list="carctrl interface"
@@ -37,7 +37,7 @@ function set_application_state()
 while [[ $# -gt 0 ]]; do
     key=$1
     case $key in
-        --stop) #stop application
+        -s|--stop) #stop application
             set_application_state 0
             exit 0
             ;;
@@ -45,7 +45,7 @@ while [[ $# -gt 0 ]]; do
             help_usage
             exit 0
             ;;
-        *) #default to start application
+        *) #default to run application
             set_application_state 1
             exit 0
             ;;

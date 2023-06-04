@@ -25,15 +25,6 @@
 #include <iostream>
 #include <exception>
 
-//#include <OS/gltd_basic_types.h>
-//#include <tx_exp/isam_exception.h>
-//#include <tx_exp/exception_handling.h>
-//#include <reborn_safe_system_calls/safe_system_calls.h>
-//#include <reborn/scc_debug.h>
-//#include <tx_exp/utime.h>
-//#include <reborn/isam_exit.h>
-//#include <tx_exp/constant.h>
-
 #include <ioapi/pty_shell.hpp>
 
 static int master_fd[] = {-1, -1, -1, -1, -1};
@@ -189,7 +180,6 @@ static int ptym_open (int *p_master, int *p_aux, char *p_slave_name)
 }
 
 #define MAX_TTY_DEV_NAME_LEN   64
-#define TTY_DEV_EXT_FMT        "_ext" // "%ld_ext"
 static const char *preferred_directory = "../run.volatile";
 static char tty_name_to_cleanup[MAX_TTY_DEV_NAME_LEN];
 
@@ -216,7 +206,7 @@ static int setup_pseudo_tty_link(uint32_t dev_num, int *return_fd, int *return_a
   else {
     /* Failed to open as slave ; create master */
     extern char *__progname;
-    sprintf(devname, "tty_%s%s", __progname, TTY_DEV_EXT_FMT);
+    sprintf(devname, "tty_%s", __progname);
     strcpy(localname, devname);
 
     int32_t retVal = ptym_open (&master_fd[dev_num], &aux_fd, slavename);
@@ -225,6 +215,13 @@ static int setup_pseudo_tty_link(uint32_t dev_num, int *return_fd, int *return_a
       return -1;
     }
     filetype = FT_MASTER;
+
+    if (master_fd[dev_num] != STDIN_FILENO) {
+        /* re-direct stdio,stdout,stderr */
+        dup2(master_fd[dev_num], STDIN_FILENO);
+        dup2(master_fd[dev_num], STDOUT_FILENO);
+        dup2(master_fd[dev_num], STDERR_FILENO);
+    }
   }
 
   /* tell fd which process to signal */
@@ -306,7 +303,7 @@ static int setup_pseudo_tty_link(uint32_t dev_num, int *return_fd, int *return_a
  * sent to a pseudo tty, that can be opened using an octopus-like tool
  */
 static uint32_t use_stdio=0;
-static uint32_t debug_io=1;
+static uint32_t debug_io=0;
 static uint32_t debug_tty=1;
 static struct scc_stats_reborn scc_stats;
 static std::mutex scc_stats_mutex;
@@ -375,9 +372,9 @@ static ssize_t safe_write(int fd, const uint8_t *buf, size_t count, const char *
 static uint32_t scc_psos_send_buf_real_serial (uint32_t channel, uint8_t *buf, short buf_len)
 {
   int fd = master_fd[channel];
-  int wres = safe_write(fd, buf, buf_len, "[isam] scc_psos_send_buf_real_serial: write to fd failed");
+  int wres = safe_write(fd, buf, buf_len, "scc_psos_send_buf_real_serial: write to fd failed");
   if (debug_tty == 1)
-    fprintf(stderr, "[isam] %d = safe_write(%d,%d)\r\n", wres, fd, buf_len);
+    fprintf(stderr, "%d = safe_write(%d,%d)\r\n", wres, fd, buf_len);
 
   if (wres != buf_len)
       return -1;
@@ -396,10 +393,10 @@ static uint32_t scc_psos_send_buf (uint32_t channel,
   int32_t retval = 0;
 
   if (debug_io == 1) {
-      fprintf(stderr, "[isam] writing %d bytes:", buf_len);
+      fprintf(stderr, "scc_psos_send_buf: writing %d bytes:", buf_len);
       for (int i = 0; i < buf_len; i++)
           fprintf(stderr, " %1$02x|%1$c", buf[i]);
-      fprintf(stderr, "\n");
+      fprintf(stderr, "\r\n");
   }
 
   // All calls with non rs_shell_channel are redirected to a simple function.
@@ -483,7 +480,7 @@ static uint32_t scc_psos_send_buf (uint32_t channel,
   FD_SET(fd, &fdset);
   int32_t fdrdy = select(fd+1, NULL, &fdset, NULL, &timeout);
   if (debug_tty == 1) {
-    fprintf(stderr, "[isam] %d = select(%d) %ld:%ld\r\n", fdrdy, fd, timeout.tv_sec, timeout.tv_usec);
+    fprintf(stderr, "scc_psos_send_buf: %d = select(%d) %ld:%ld\r\n", fdrdy, fd, timeout.tv_sec, timeout.tv_usec);
   }
 
   /* lock again */
@@ -502,11 +499,11 @@ static uint32_t scc_psos_send_buf (uint32_t channel,
   }
 
   if (scc_stats.pipe_continuously_full < PIPE_FULL_COUNT_MAX) {
-    ssize_t wres = safe_write(fd, buf, buf_len, "[isam] scc_psos_send_buf: write to fd failed");
+    ssize_t wres = safe_write(fd, buf, buf_len, "scc_psos_send_buf: write to fd failed");
     if (debug_tty == 1) {
-      fprintf(stderr, "[isam] %ld = safe_write(%d,%d)\r\n", wres, fd, buf_len);
+      fprintf(stderr, "scc_psos_send_buf: %ld = safe_write(%d,%d)\r\n", wres, fd, buf_len);
       if (wres != buf_len)
-        fprintf(stderr, "[isam] %ld bytes dropped on fd %d)\r\n", buf_len-wres, fd);
+        fprintf(stderr, "scc_psos_send_buf: %ld bytes dropped on fd %d)\r\n", buf_len-wres, fd);
     }
 
     /* write failed for some reason, update statistics. */
@@ -553,15 +550,15 @@ static uint32_t scc_psos_recv_buf(uint32_t channel, uint8_t *buf,
   } while ((ret < 0) && (errno == EINTR));
 
   if(ret > 0)
-    *rcv_len = safe_read_available(filedesc, buf, buf_len, "[isam] scc_psos_recv_buf: read after select failed");
+    *rcv_len = safe_read_available(filedesc, buf, buf_len, "scc_psos_recv_buf: read after select failed");
   else  /* select timeout */
     *rcv_len = 0;
 
   if (debug_io == 1) {
-    fprintf(stderr, "[isam] received %hd bytes:", *rcv_len);
+    fprintf(stderr, "scc_psos_recv_buf: received %hd bytes:", *rcv_len);
     for (int i = 0; i < *rcv_len; i++)
       fprintf(stderr, " %1$02x|%1$c", buf[i]);
-    fprintf(stderr, "\n");
+    fprintf(stderr, "\r\n");
   }
 
   if (*rcv_len > 0)
@@ -594,8 +591,9 @@ void pty_shell_init(uint32_t channel)
     if (setup_pseudo_tty_link(channel, &master_fd[channel], &real_aux_fd, &filetype) == 0) {
       std::set_terminate(cleanup_tty_link);
       std::atexit(cleanup_tty_link);
-    } else
+    } else {
       std::cout << "pty_shell_init: fail to setup_pseudo_tty_link..." << std::endl;
+    }
   }
 
   rs_shell_channel = channel;

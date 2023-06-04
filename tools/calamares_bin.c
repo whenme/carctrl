@@ -14,9 +14,7 @@
 #include <sys/stat.h>
 
 #define DEFAULT_TTY "./tty1_ext"
-#define VERSION "1.8"
 
-static int debug = 0;
 static int nlcr = 0;
 static int raw = 1;
 static int wait_tty = 0;
@@ -90,7 +88,7 @@ static ssize_t safe_write(int fd, const void *buf, size_t count, char *errstr)
 
 static int forward_data(int from, int to)
 {
-    char buffer[64];
+    char buffer[64], bufWrite[80];
     int num_read, num_write;
 
     num_read = safe_read_available(from, buffer, sizeof(buffer), "reading data failed");
@@ -102,14 +100,19 @@ static int forward_data(int from, int to)
         return -1;
     }
 
-    if (debug) {
-        fprintf(stderr, "[debug] read %d bytes from %d:", num_read, from);
-        for (int i = 0; i < num_read; i++)
-            fprintf(stderr, " %1$02x|%1$c", buffer[i]);
-        fprintf(stderr, "\n");
+    // change \n to \r\n for windows
+    num_write = 0;
+    for (int i = 0; i < num_read; i++) {
+        if (buffer[i] == '\n') {
+            bufWrite[num_write] = '\r';
+            bufWrite[num_write + 1] = '\n';
+            num_write += 2;
+        } else {
+            bufWrite[num_write++] = buffer[i];
+        }
     }
 
-    num_write = safe_write(to, buffer, num_read, "writing data failed");
+    num_write = safe_write(to, bufWrite, num_write, "writing data failed");
     if (num_write < 0) {
         return -1;
     }
@@ -153,9 +156,8 @@ static int tty_setup(int fd)
      * shell continues to work as expected.)
      * The tty settings of the external tty are set in the ISAM build.
      */
-
     if(tcgetattr(fd, &orig_termios) < 0) {
-        error_printf("tcgetattr failed: %s\n", strerror(errno));
+        error_printf("tcgetattr failed: %s\r\n", strerror(errno));
         return EXIT_FAILURE;
     }
     new_termios = orig_termios;
@@ -186,7 +188,7 @@ static int tty_setup(int fd)
     }
 
     if (tcsetattr (fd, TCSANOW, &new_termios) < 0) {
-        error_printf("tcsetattr failed: %s\n", strerror(errno));
+        error_printf("tcsetattr failed: %s\r\n", strerror(errno));
         return EXIT_FAILURE;
     }
 
@@ -196,7 +198,7 @@ static int tty_setup(int fd)
 static int tty_restore(int fd)
 {
     if (tcsetattr (fd, TCSAFLUSH, &orig_termios) < 0) {
-        error_printf("tcsetattr failed: %s\n", strerror(errno));
+        error_printf("tcsetattr failed: %s\r\n", strerror(errno));
         return EXIT_FAILURE;
     }
 
@@ -277,14 +279,14 @@ static void install_signal_handler(void)
 static int verify_tty_file(char *ttyname)
 {
     if (wait_tty == 0 && access(ttyname, F_OK) == -1) {
-        error_printf("tty not available [%s]\n", ttyname);
+        error_printf("tty not available [%s]\r\n", ttyname);
         return -1;
     } else {
         error_printf("waiting for tty [%s] ...", ttyname);
         fflush(stdout);
         while (1) {
             if (access(ttyname, F_OK) != -1) {
-                fprintf(stderr,". ok\n");
+                fprintf(stderr,". ok\r\n");
                 break;
             } else {
                 fprintf(stderr,".");
@@ -304,7 +306,7 @@ static int create_pid_file()
 
     pid_fd = open(pid_file_name, O_RDWR | O_CREAT | O_CLOEXEC, S_IRUSR | S_IWUSR);
     if (pid_fd < 0) {
-        error_printf("could not open pidfile %s: %s\n", pid_file_name, strerror(errno));
+        error_printf("could not open pidfile %s: %s\r\n", pid_file_name, strerror(errno));
         return -1;
     }
 
@@ -317,9 +319,9 @@ static int create_pid_file()
     if (ret < 0) {
         /* could not take lock on pid_file_name */
         if (errno == EAGAIN || errno == EACCES)
-            error_printf("could not lock pidfile %s\n", pid_file_name);
+            error_printf("could not lock pidfile %s\r\n", pid_file_name);
         else
-            error_printf("error lock file: %s\n", strerror(errno));
+            error_printf("error lock file: %s\r\n", strerror(errno));
         close(pid_fd);
         return -1;
     } else {
@@ -329,11 +331,11 @@ static int create_pid_file()
             return -1;
         ret = write(pid_fd,pid_str,strlen(pid_str));
         if (ret != strlen(pid_str)) {
-            error_printf("could not write to pidfile %s: %s\n", pid_file_name, strerror(errno));
+            error_printf("could not write to pidfile %s: %s\r\n", pid_file_name, strerror(errno));
             close(pid_fd);
             return -1;
         } else {
-            error_printf("pid file locked, pid [%s]\n", pid_str);
+            error_printf("pid file locked, pid [%s]\r\n", pid_str);
             return 0;
         }
     }
@@ -349,8 +351,6 @@ static void cleanup_pid_file()
 
 static int compose_tty_filename(char *ttyname)
 {
-    int i = 0;
-    int len = 0;
     char location[512] = "";
     char *tmp = NULL;
 
@@ -360,16 +360,16 @@ static int compose_tty_filename(char *ttyname)
 
     /* get location of pty by tty symlink */
     if ((tmp = realpath(ttyname, NULL)) == NULL) {
-        error_printf("error symlink %s: %s\n", ttyname, strerror(errno));
+        error_printf("error symlink %s: %s\r\n", ttyname, strerror(errno));
         return -1;
     }
 
-    len = strlen(tmp);
+    int len = strlen(tmp);
     snprintf(location, 512, "%s", tmp);
     free(tmp);
 
     /* replace '/' with '-' for file name */
-    for (i = 0; i < len; i++)
+    for (int i = 0; i < len; i++)
         if (location[i] == '/')
             location[i] = '-';
 
@@ -403,10 +403,10 @@ static int kill_existing_session(int waittime)
             sleep(1);
             waittime--;
         }
-        error_printf("timeout waiting for removal pidfile %s\n", pid_file_name);
+        error_printf("timeout waiting for removal pidfile %s\r\n", pid_file_name);
         return -1;
     } else {
-        error_printf("parsing pidfile %s failed\n", pid_file_name);
+        error_printf("parsing pidfile %s failed\r\n", pid_file_name);
         return -1;
     }
 }
@@ -418,8 +418,6 @@ int main(int argc, char *argv[])
     char *ttyname = DEFAULT_TTY;
     int c;
     char *flush_filename = NULL;
-
-    printf("calamares version %s\n", VERSION);
 
     opterr = 0;
     while ((c = getopt (argc, argv, "t:wdnchf:k")) != -1) {
@@ -433,9 +431,6 @@ int main(int argc, char *argv[])
         case 'f':
           flush_filename = optarg;
           break;
-        case 'd':
-          debug = 1;
-          break;
         case 'n':
           nlcr = 1;
           break;
@@ -448,24 +443,23 @@ int main(int argc, char *argv[])
         case 'h':
           printf("Usage: %s [options]\n", argv[0]);
           printf("Options:\n"
-                 "    -h        : help (this text)\n"
-                 "    -t tty    : specify tty (default: %s)\n"
-                 "    -w        : wait for the tty to become available\n"
-                 "    -n        : set NL to CR-NL on output\n"
-                 "    -c        : use tty in canonical mode (default raw mode)\n"
-                 "    -f file   : flush initial data to <file>\n"
-                 "    -k        : kill other calamares instance using this tty\n"
-                 "    -d        : enable debug output\n", DEFAULT_TTY);
+                 "    -h      : help (this text)\n"
+                 "    -t tty  : specify tty (default: %s)\n"
+                 "    -w      : wait for the tty to become available\n"
+                 "    -n      : set NL to CR-NL on output\n"
+                 "    -c      : use tty in canonical mode (default raw mode)\n"
+                 "    -f file : flush initial data to <file>\n"
+                 "    -k      : kill other calamares instance using this tty\n", DEFAULT_TTY);
           exit(EXIT_SUCCESS);
           break;
         case '?':
           if (optopt == 't')
-            fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+            fprintf (stderr, "Option -%c requires an argument.\r\n", optopt);
           else if (isprint (optopt))
-            fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+            fprintf (stderr, "Unknown option `-%c'.\r\n", optopt);
           else
             fprintf (stderr,
-                     "Unknown option character `\\x%x'.\n",
+                     "Unknown option character `\\x%x'.\r\n",
                      optopt);
           return 1;
         default:
@@ -484,7 +478,7 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
 
     if ((ttyfd = open(ttyname, O_RDWR)) == -1) {
-        error_printf("could not open tty %s: %s\n", ttyname, strerror(errno));
+        error_printf("could not open tty %s: %s\r\n", ttyname, strerror(errno));
         return EXIT_FAILURE;
     }
 
@@ -498,9 +492,9 @@ int main(int argc, char *argv[])
             error_printf("flushing data to [%s] ... ", flush_filename);
             flush_data(ttyfd, flush_fd);
             close(flush_fd);
-            fprintf(stderr, "done.\n");
+            fprintf(stderr, "done.\r\n");
         } else {
-            error_printf("flushing data to [%s] failed (%s).\n", flush_filename, strerror(errno));
+            error_printf("flushing data to [%s] failed (%s).\r\n", flush_filename, strerror(errno));
         }
     }
 
