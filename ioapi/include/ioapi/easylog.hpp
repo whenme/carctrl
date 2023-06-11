@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #pragma once
-#include <spdlog/sinks/rotating_file_sink.h>
+#include <spdlog/sinks/basic_file_sink.h>
+//#include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
 #include <filesystem>
 #include <iostream>
 
+#include <cstdlib>
+
+extern char *__progname;
 namespace {
 struct easylog_options {
   spdlog::level::level_enum log_level = spdlog::level::debug;
-  std::string app_log_name = "easylog";
+  std::string app_log_name = __progname;
   std::string log_dir = "/var/log/";
   bool always_flush = true;
   int flush_interval = 5;
@@ -52,8 +56,9 @@ inline std::vector<spdlog::sink_ptr> get_sinks(const easylog_options &options)
     std::vector<spdlog::sink_ptr> sinks;
 
     std::string filename = options.log_dir + options.app_log_name + ".log";
-    auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-        filename, options.max_size, options.max_files);
+    //auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
+    //    filename, options.max_size, options.max_files);
+    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(filename, true);
     file_sink->set_level(spdlog::level::trace);
     sinks.push_back(file_sink);
 
@@ -97,7 +102,7 @@ inline void log(const std::string &name, spdlog::level::level_enum level, source
 }  // namespace
 
 
-inline void init_log(easylog_options options = {}, bool over_write = false)
+inline void init_log(easylog_options options = {}, bool over_write = true)
 {
   static bool has_init_ = false;
   if (has_init_ && !over_write) {
