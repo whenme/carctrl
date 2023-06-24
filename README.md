@@ -32,6 +32,7 @@
 # Build options
 ### 1) install required package
 >   apt-get install libasio-dev nlohmann-json3-dev libspdlog-dev
+>   apt-get install libcereal-dev libopencv-dev
 
 ### 2) clone code
 >   git clone https://github.com/whenme/carctrl.git

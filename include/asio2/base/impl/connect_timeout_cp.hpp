@@ -50,7 +50,11 @@ namespace asio2::detail
 		template<class Rep, class Period>
 		inline derived_t& set_connect_timeout(std::chrono::duration<Rep, Period> timeout) noexcept
 		{
-			this->connect_timeout_ = timeout;
+			if (timeout > std::chrono::duration_cast<
+				std::chrono::duration<Rep, Period>>((std::chrono::steady_clock::duration::max)()))
+				this->connect_timeout_ = (std::chrono::steady_clock::duration::max)();
+			else
+				this->connect_timeout_ = timeout;
 			return static_cast<derived_t&>(*this);
 		}
 
@@ -159,6 +163,7 @@ namespace asio2::detail
 					// with operation_aborted.
 					error_code ec_ignore{};
 
+					derive.socket().shutdown(asio::socket_base::shutdown_both, ec_ignore);
 					derive.socket().cancel(ec_ignore);
 					derive.socket().close(ec_ignore);
 
@@ -199,7 +204,7 @@ namespace asio2::detail
 		/// to reduce memory space occupied when running
 		std::shared_ptr<safe_timer>                 connect_timeout_timer_;
 
-		std::chrono::steady_clock::duration         connect_timeout_         = std::chrono::seconds(5);
+		std::chrono::steady_clock::duration         connect_timeout_         = std::chrono::seconds(30);
 
 	#if defined(_DEBUG) || defined(DEBUG)
 		bool                                        is_stop_connect_timeout_timer_called_ = false;

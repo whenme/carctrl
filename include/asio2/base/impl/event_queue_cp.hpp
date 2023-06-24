@@ -64,17 +64,10 @@ namespace asio2::detail
 		{
 			o.valid_ = false;
 		}
-		inline void operator=(event_queue_guard&& o) noexcept
-		{
-			derive = o.derive;
-			derive_ptr_ = std::move(o.derive_ptr_);
-			valid_ = o.valid_;
-
-			o.valid_ = false;
-		}
 
 		event_queue_guard(const event_queue_guard&) = delete;
 		event_queue_guard& operator=(const event_queue_guard&) = delete;
+		event_queue_guard& operator=(event_queue_guard&&) = delete;
 
 		~event_queue_guard() noexcept
 		{
@@ -120,15 +113,10 @@ namespace asio2::detail
 		{
 			o.valid_ = false;
 		};
-		inline void operator=(defer_event&& o) noexcept
-		{
-			fn_ = std::move(o.fn_);
-			valid_ = o.valid_;
-			o.valid_ = false;
-		};
 
 		defer_event(const defer_event&) = delete;
 		defer_event& operator=(const defer_event&) = delete;
+		defer_event& operator=(defer_event&&) = delete;
 
 		~defer_event() noexcept
 		{
@@ -141,6 +129,8 @@ namespace asio2::detail
 
 		inline bool    empty() const noexcept { return (!valid_); }
 		inline bool is_empty() const noexcept { return (!valid_); }
+
+		inline constexpr bool is_event_queue_guard_empty() const noexcept { return true; }
 
 	protected:
 		Function fn_;
@@ -164,6 +154,8 @@ namespace asio2::detail
 
 		inline constexpr bool    empty() const noexcept { return true; }
 		inline constexpr bool is_empty() const noexcept { return true; }
+
+		inline constexpr bool is_event_queue_guard_empty() const noexcept { return true; }
 	};
 
 	// defer event with event queue guard dummy
@@ -190,16 +182,10 @@ namespace asio2::detail
 		{
 			o.valid_ = false;
 		};
-		inline void operator=(defer_event&& o) noexcept
-		{
-			fn_      = std::move(o.fn_);
-			valid_   = o.valid_;
-
-			o.valid_ = false;
-		};
 
 		defer_event(const defer_event&) = delete;
 		defer_event& operator=(const defer_event&) = delete;
+		defer_event& operator=(defer_event&&) = delete;
 
 		~defer_event() noexcept
 		{
@@ -212,6 +198,8 @@ namespace asio2::detail
 
 		inline bool    empty() const noexcept { return (!valid_); }
 		inline bool is_empty() const noexcept { return (!valid_); }
+
+		inline constexpr bool is_event_queue_guard_empty() const noexcept { return true; }
 
 		inline defer_event<Function, derived_t, std::false_type> move_event() noexcept
 		{
@@ -255,17 +243,10 @@ namespace asio2::detail
 		{
 			o.valid_ = false;
 		};
-		inline void operator=(defer_event&& o) noexcept
-		{
-			fn_    = std::move(o.fn_   );
-			valid_ =           o.valid_ ;
-			guard_ = std::move(o.guard_);
-
-			o.valid_ = false;
-		};
 
 		defer_event(const defer_event&) = delete;
 		defer_event& operator=(const defer_event&) = delete;
+		defer_event& operator=(defer_event&&) = delete;
 
 		~defer_event() noexcept
 		{
@@ -280,6 +261,8 @@ namespace asio2::detail
 
 		inline bool    empty() const noexcept { return (!valid_); }
 		inline bool is_empty() const noexcept { return (!valid_); }
+
+		inline bool is_event_queue_guard_empty() const noexcept { return guard_.empty(); }
 
 		inline defer_event<Function, derived_t, std::false_type> move_event() noexcept
 		{
@@ -320,9 +303,9 @@ namespace asio2::detail
 		}
 
 		defer_event(defer_event&& o) noexcept = default;
-		defer_event& operator=(defer_event&& o) noexcept = default;
 		defer_event(const defer_event&) = delete;
 		defer_event& operator=(const defer_event&) = delete;
+		defer_event& operator=(defer_event&&) = delete;
 
 		~defer_event() noexcept
 		{
@@ -331,6 +314,8 @@ namespace asio2::detail
 
 		inline constexpr bool    empty() const noexcept { return true; }
 		inline constexpr bool is_empty() const noexcept { return true; }
+
+		inline bool is_event_queue_guard_empty() const noexcept { return guard_.empty(); }
 
 		inline defer_event<defer_eqg_dummy<derived_t>, derived_t, std::false_type> move_event() noexcept
 		{
@@ -396,11 +381,93 @@ namespace asio2::detail
 			return this->events_.size();
 		}
 
+		/**
+		 * post a task to the tail of the event queue
+		 * Callback signature : void()
+		 */
+		template<class Callback>
+		inline derived_t& post_queued_event(Callback&& f)
+		{
+			using return_type = std::invoke_result_t<Callback>;
+
+			derived_t& derive = static_cast<derived_t&>(*this);
+
+			std::packaged_task<return_type()> task(std::forward<Callback>(f));
+
+			auto fn = [p = derive.selfptr(), t = std::move(task)](event_queue_guard<derived_t> g) mutable
+			{
+				detail::ignore_unused(p, g);
+
+				t();
+			};
+
+			// Make sure we run on the io_context thread
+			// beacuse the callback "f" hold the derived_ptr already,
+			// so this callback for asio::dispatch don't need hold the derived_ptr again.
+			asio::post(derive.io().context(), make_allocator(derive.wallocator(),
+			[this, fn = std::move(fn)]() mutable
+			{
+				ASIO2_ASSERT(this->events_.size() < std::size_t(32767));
+
+				bool empty = this->events_.empty();
+				this->events_.emplace(std::move(fn));
+				if (empty)
+				{
+					(this->events_.front())(event_queue_guard<derived_t>{static_cast<derived_t&>(*this)});
+				}
+			}));
+
+			return (derive);
+		}
+
+		/**
+		 * post a task to the tail of the event queue
+		 * Callback signature : void()
+		 */
+		template<class Callback, typename Allocator>
+		inline auto post_queued_event(Callback&& f, asio::use_future_t<Allocator>) ->
+			std::future<std::invoke_result_t<Callback>>
+		{
+			using return_type = std::invoke_result_t<Callback>;
+
+			derived_t& derive = static_cast<derived_t&>(*this);
+
+			std::packaged_task<return_type()> task(std::forward<Callback>(f));
+
+			std::future<return_type> future = task.get_future();
+
+			auto fn = [p = derive.selfptr(), t = std::move(task)](event_queue_guard<derived_t> g) mutable
+			{
+				detail::ignore_unused(p, g);
+
+				t();
+			};
+
+			// Make sure we run on the io_context thread
+			// beacuse the callback "f" hold the derived_ptr already,
+			// so this callback for asio::dispatch don't need hold the derived_ptr again.
+			asio::post(derive.io().context(), make_allocator(derive.wallocator(),
+			[this, fn = std::move(fn)]() mutable
+			{
+				ASIO2_ASSERT(this->events_.size() < std::size_t(32767));
+
+				bool empty = this->events_.empty();
+				this->events_.emplace(std::move(fn));
+				if (empty)
+				{
+					(this->events_.front())(event_queue_guard<derived_t>{static_cast<derived_t&>(*this)});
+				}
+			}));
+
+			return future;
+		}
+
 	protected:
 		/**
 		 * push a task to the tail of the event queue
 		 * Callback signature : void(event_queue_guard<derived_t> g)
 		 * note : the callback must hold the derived_ptr itself
+		 * note : the callback must can't be hold the event_queue_guard, otherwise maybe cause deadlock.
 		 */
 		template<class Callback>
 		inline derived_t& push_event(Callback&& f)
@@ -454,6 +521,7 @@ namespace asio2::detail
 		 * post a task to the tail of the event queue
 		 * Callback signature : void(event_queue_guard<derived_t> g)
 		 * note : the callback must hold the derived_ptr itself
+		 * note : the callback must can't be hold the event_queue_guard, otherwise maybe cause deadlock.
 		 */
 		template<class Callback>
 		inline derived_t& post_event(Callback&& f)
@@ -485,6 +553,7 @@ namespace asio2::detail
 		 * otherwise the task will be executed directly.
 		 * Callback signature : void(event_queue_guard<derived_t> g)
 		 * note : the callback must hold the derived_ptr itself
+		 * note : the callback must can't be hold the event_queue_guard, otherwise maybe cause deadlock.
 		 */
 		template<class Callback>
 		inline derived_t& disp_event(Callback&& f, event_queue_guard<derived_t> guard)

@@ -100,6 +100,10 @@ namespace asio2::detail
 		template<typename C>
 		inline void start(std::shared_ptr<ecs_t<C>> ecs)
 		{
+			derived_t& derive = this->derived();
+
+			error_code ec = get_last_error();
+
 		#if defined(ASIO2_ENABLE_LOG)
 			// Used to test whether the behavior of different compilers is consistent
 			static_assert(tcp_send_op<derived_t, args_t>::template has_member_dgram<self>::value,
@@ -115,32 +119,57 @@ namespace asio2::detail
 			this->is_disconnect_called_ = false;
 		#endif
 
-			std::shared_ptr<derived_t> this_ptr = this->derived().selfptr();
+			std::shared_ptr<derived_t> this_ptr = derive.selfptr();
+
+			try
+			{
+				this->remote_endpoint_copy_ = this->socket_.lowest_layer().remote_endpoint();
+			}
+			catch (const system_error&)
+			{
+			}
 
 			state_t expected = state_t::stopped;
 			if (!this->state_.compare_exchange_strong(expected, state_t::starting))
 			{
-				this->derived()._do_disconnect(asio::error::already_started, std::move(this_ptr));
+				derive._do_disconnect(asio::error::already_started, std::move(this_ptr));
 				return;
 			}
 
 			// must read/write ecs in the io_context thread.
-			this->derived().ecs_ = ecs;
+			derive.ecs_ = ecs;
 
-			this->derived()._do_init(this_ptr, ecs);
+			// init function maybe change the last error.
+			derive._do_init(this_ptr, ecs);
 
-			this->derived()._fire_accept(this_ptr);
-
-			expected = state_t::starting;
-			if (!this->state_.compare_exchange_strong(expected, state_t::starting))
+			// if the accept function has error, reset the last error to it.
+			if (ec)
 			{
-				this->derived()._do_disconnect(asio::error::operation_aborted, std::move(this_ptr));
+				set_last_error(ec);
+			}
+
+			// now, the fire accept maybe has error, so the user should check it.
+			derive._fire_accept(this_ptr);
+
+			// if the accept has error, disconnect this session.
+			if (ec)
+			{
+				derive._do_disconnect(ec, std::move(this_ptr));
 				return;
 			}
 
-			if (!this->derived().socket().is_open())
+			// user maybe called the session stop in the accept callbak, so we need check it.
+			expected = state_t::starting;
+			if (!this->state_.compare_exchange_strong(expected, state_t::starting))
 			{
-				this->derived()._do_disconnect(asio::error::operation_aborted, std::move(this_ptr));
+				derive._do_disconnect(asio::error::operation_aborted, std::move(this_ptr));
+				return;
+			}
+
+			// user maybe closed the socket in the accept callbak, so we need check it.
+			if (!derive.socket().is_open())
+			{
+				derive._do_disconnect(asio::error::operation_aborted, std::move(this_ptr));
 				return;
 			}
 
@@ -148,10 +177,25 @@ namespace asio2::detail
 			super::start();
 
 			// if the ecs has remote data call mode,do some thing.
-			this->derived()._rdc_init(ecs);
+			derive._rdc_init(ecs);
 
-			this->derived()._handle_connect(
-				error_code{}, std::move(this_ptr), std::move(ecs), defer_event<void, derived_t>{});
+			// use push event to avoid this problem in ssl session: 
+			// 1. _post_handshake not completed, this means the handshake callback hasn't been called.
+			// 2. call session stop, then the ssl async shutdown will be called. 
+			// 3. then "ASIO2_ASSERT(derive.post_send_counter_.load() == 0);" will be failed.
+
+			derive.push_event(
+			[&derive, this_ptr = std::move(this_ptr), ecs = std::move(ecs)]
+			(event_queue_guard<derived_t> g) mutable
+			{
+				derive.sessions().dispatch(
+				[&derive, this_ptr, ecs = std::move(ecs), g = std::move(g)]
+				() mutable
+				{
+					derive._handle_connect(
+						error_code{}, std::move(this_ptr), std::move(ecs), defer_event(std::move(g)));
+				});
+			});
 		}
 
 	public:
@@ -180,6 +224,22 @@ namespace asio2::detail
 			if (this->state_.compare_exchange_strong(expected, state_t::stopping))
 				return;
 
+			// if user call session stop in the bind accept callback, we close the connection with RST.
+			// after test, if close the connection with RST, no timewait will be generated.
+			if (derive.sessions().io().running_in_this_thread())
+			{
+				if (this->state_ == state_t::starting)
+				{
+					// How to close the socket with RST instead of FIN/ACK/FIN/ACK ?
+					// set the linger with 1,0 
+					derive.set_linger(true, 0);
+
+					// close the socket directly.
+					error_code ec_ignore;
+					derive.socket().close(ec_ignore);
+				}
+			}
+
 			// use promise to get the result of stop
 			std::promise<state_t> promise;
 			std::future<state_t> future = promise.get_future();
@@ -187,35 +247,53 @@ namespace asio2::detail
 			// use derfer to ensure the promise's value must be seted.
 			detail::defer_event pg
 			{
-				[this, p = std::move(promise)]() mutable { p.set_value(this->state().load()); }
+				[this, p = std::move(promise)]() mutable
+				{
+					p.set_value(this->state().load());
+				}
 			};
 
 			derive.post_event([&derive, this_ptr = derive.selfptr(), pg = std::move(pg)]
 			(event_queue_guard<derived_t> g) mutable
 			{
-				derive._do_disconnect(asio::error::operation_aborted, derive.selfptr(),
-					defer_event
+				derive._do_disconnect(asio::error::operation_aborted, derive.selfptr(), defer_event
+				{
+					[&derive, this_ptr = std::move(this_ptr), pg = std::move(pg)]
+					(event_queue_guard<derived_t> g) mutable
 					{
-						[&derive, this_ptr = std::move(this_ptr), pg = std::move(pg)]
-						(event_queue_guard<derived_t> g) mutable
-						{
-							detail::ignore_unused(derive, pg, g);
+						detail::ignore_unused(derive, pg, g);
 
-							// the "pg" should destroyed before the "g", otherwise if the "g"
-							// is destroyed before "pg", the next event maybe called, then the
-							// state maybe change to not stopped.
-							{
-								detail::defer_event{ std::move(pg) };
-							}
-						}, std::move(g)
-					});
+						// the "pg" should destroyed before the "g", otherwise if the "g"
+						// is destroyed before "pg", the next event maybe called, then the
+						// state maybe change to not stopped.
+						{
+							[[maybe_unused]] detail::defer_event t{ std::move(pg) };
+						}
+					}, std::move(g)
+				});
 			});
 
 			// use this to ensure the client is stopped completed when the stop is called not in the io_context thread
-			if (!derive.running_in_this_thread() && !derive.sessions().io().running_in_this_thread())
+			while (!derive.running_in_this_thread() && !derive.sessions().io().running_in_this_thread())
 			{
-				[[maybe_unused]] state_t state = future.get();
-				ASIO2_ASSERT(state == state_t::stopped);
+				std::future_status status = future.wait_for(std::chrono::milliseconds(100));
+
+				if (status == std::future_status::ready)
+				{
+					ASIO2_ASSERT(future.get() == state_t::stopped);
+					break;
+				}
+				else
+				{
+					if (derive.get_thread_id() == std::thread::id{})
+						break;
+
+					if (derive.sessions().io().get_thread_id() == std::thread::id{})
+						break;
+
+					if (derive.io().context().stopped())
+						break;
+				}
 			}
 		}
 
@@ -281,15 +359,18 @@ namespace asio2::detail
 			// Beacuse we ensured that the session::_do_disconnect must be called in the session's
 			// io_context thread, so if the session::stop is called in the server's bind_connect 
 			// callback, the session's disconnect event maybe still be called, However, in this case,
-			// we do not want the disconnect event to be called, so at here, we need use asio::post
+			// we do not want the disconnect event to be called, so at here, we need use post_event
 			// to ensure the join session is must be executed after the disconnect event, otherwise,
 			// the join session maybe executed before the disconnect event(the bind_disconnect callback).
 			// if the join session is executed before the disconnect event, the bind_disconnect will
 			// be called.
-			asio::post(derive.io().context(), make_allocator(derive.wallocator(),
-			[&derive, this_ptr = std::move(this_ptr), ecs = std::move(ecs), chain = std::move(chain)]
-			() mutable
+
+			derive.post_event(
+			[&derive, this_ptr = std::move(this_ptr), ecs = std::move(ecs), e = chain.move_event()]
+			(event_queue_guard<derived_t> g) mutable
 			{
+				defer_event chain(std::move(e), std::move(g));
+
 				if (!derive.is_started())
 				{
 					derive._do_disconnect(asio::error::operation_aborted, std::move(this_ptr), std::move(chain));
@@ -297,7 +378,7 @@ namespace asio2::detail
 				}
 
 				derive._join_session(std::move(this_ptr), std::move(ecs), std::move(chain));
-			}));
+			});
 		}
 
 		template<typename DeferEvent>
@@ -306,38 +387,42 @@ namespace asio2::detail
 			ASIO2_ASSERT(this->derived().io().running_in_this_thread());
 			ASIO2_ASSERT(this->state_ == state_t::stopped);
 
+			ASIO2_LOG_DEBUG("tcp_session::_handle_disconnect: {} {}", ec.value(), ec.message());
+
 			set_last_error(ec);
 
 			this->derived()._rdc_stop();
 
-			error_code ec_ignore{};
-
+			// call shutdown again, beacuse the do shutdown maybe not called, eg: when
+			// protocol error is checked in the mqtt or http, then the do disconnect 
+			// maybe called directly.
 			// the socket maybe closed already somewhere else.
 			if (this->socket().is_open())
 			{
-				asio::socket_base::linger linger = this->derived().get_linger();
+				error_code ec_linger{}, ec_ignore{};
 
-				// the get_linger maybe change the last error value.
-				set_last_error(ec);
+				asio::socket_base::linger lnger{};
 
-				// call socket's close function to notify the _handle_recv function response with error > 0 ,
-				// then the socket can get notify to exit
+				this->socket().lowest_layer().get_option(lnger, ec_linger);
+
+				// call socket's close function to notify the _handle_recv function response with 
+				// error > 0 ,then the socket can get notify to exit
 				// Call shutdown() to indicate that you will not write any more data to the socket.
-				if (!(linger.enabled() == true && linger.timeout() == 0))
+				if (!ec_linger && !(lnger.enabled() == true && lnger.timeout() == 0))
 				{
 					this->socket().shutdown(asio::socket_base::shutdown_both, ec_ignore);
 				}
+
+				// if the socket is basic_stream with rate limit, we should call the cancel,
+				// otherwise the rate timer maybe can't canceled, and cause the io_context
+				// can't stopped forever, even if the socket is closed already.
+				this->socket().cancel(ec_ignore);
+
+				// Call close,otherwise the _handle_recv will never return
+				this->socket().close(ec_ignore);
 			}
 
-			// if the socket is basic_stream with rate limit, we should call the cancel,
-			// otherwise the rate timer maybe can't canceled, and cause the io_context
-			// can't stopped forever, even if the socket is closed already.
-			this->socket().cancel(ec_ignore);
-
-			// Call close,otherwise the _handle_recv will never return
-			this->socket().close(ec_ignore);
-
-			this->derived()._do_stop(ec, std::move(this_ptr), std::move(chain));
+			super::_handle_disconnect(ec, std::move(this_ptr), std::move(chain));
 		}
 
 		template<typename DeferEvent>

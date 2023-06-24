@@ -153,14 +153,14 @@ namespace asio2::detail
 		/**
 		 * @brief check whether the server is started
 		 */
-		inline bool is_started() const { return (super::is_started() && this->acceptor_.is_open()); }
+		inline bool is_started() { return (super::is_started() && this->acceptor_.is_open()); }
 
 		/**
 		 * @brief check whether the server is stopped
 		 */
-		inline bool is_stopped() const
+		inline bool is_stopped()
 		{
-			return (this->state_ == state_t::stopped && !this->acceptor_.is_open() && this->is_iopool_stopped());
+			return (this->state_ == state_t::stopped && !this->acceptor_.is_open());
 		}
 
 	public:
@@ -303,9 +303,15 @@ namespace asio2::detail
 		{
 			derived_t& derive = this->derived();
 
+			// if log is enabled, init the log first, otherwise when "Too many open files" error occurs,
+			// the log file will be created failed too.
+		#if defined(ASIO2_ENABLE_LOG)
+			asio2::detail::get_logger();
+		#endif
+
 			this->start_iopool();
 
-			if (this->is_iopool_stopped())
+			if (!this->is_iopool_started())
 			{
 				set_last_error(asio::error::operation_aborted);
 				return false;
@@ -326,7 +332,10 @@ namespace asio2::detail
 			// use derfer to ensure the promise's value must be seted.
 			detail::defer_event pg
 			{
-				[promise = std::move(promise)]() mutable { promise.set_value(get_last_error()); }
+				[promise = std::move(promise)]() mutable
+				{
+					promise.set_value(get_last_error());
+				}
 			};
 
 			derive.post(
@@ -520,8 +529,14 @@ namespace asio2::detail
 				ASIO2_ASSERT(this->state_ == state_t::stopping);
 
 				// start timer to hold the acceptor io_context
+				// should hold the server shared ptr too, if server is constructed with iopool, and 
+				// server is a tmp local variable, then the server maybe destroyed before sessions.
+				// so we need hold this ptr to ensure server must be destroyed after sessions.
 				this->counter_timer_.expires_after((std::chrono::nanoseconds::max)());
-				this->counter_timer_.async_wait([](const error_code&) {});
+				this->counter_timer_.async_wait([this_ptr](const error_code&)
+				{
+					detail::ignore_unused(this_ptr);
+				});
 
 				// stop all the sessions, the session::stop must be no blocking,
 				// otherwise it may be cause loop lock.
@@ -555,19 +570,20 @@ namespace asio2::detail
 					}
 				});
 
-				if (iots.size() > std::size_t(1))
+				if (iots.size() > std::size_t(2) && this->get_session_count() > ((iots.size() - 1) * 5))
 				{
 					ASIO2_ASSERT(session_counter[0] == 0);
 
-					int count1 = session_counter[1];
+					int count_diff = (std::max)(int(this->get_session_count() / (iots.size() - 1) / 10), 10);
 
 					for (std::size_t i = 1; i < iots.size(); ++i)
 					{
-						ASIO2_ASSERT(std::abs(count1 - session_counter[i]) < 2);
+						ASIO2_ASSERT(std::abs(session_counter[1] - session_counter[i]) < count_diff);
 					}
 				}
 
 				asio2::ignore_unused(iots, session_counter);
+				asio2::ignore_unused(this->sessions_.empty()); // used to test ThreadSafetyAnalysis
 			#endif
 
 			#if defined(_DEBUG) || defined(DEBUG)
@@ -633,6 +649,7 @@ namespace asio2::detail
 		inline std::shared_ptr<session_t> _make_session(Args&&... args)
 		{
 			// skip zero io, the 0 io is used for acceptor.
+			// but if the iopool size is 1, this io will be the zero io forever.
 			io_t* iot = std::addressof(this->_get_io());
 
 			if (iot == std::addressof(this->_get_io(0)))
@@ -685,16 +702,18 @@ namespace asio2::detail
 			if (ec == asio::error::operation_aborted)
 				return;
 
-			if (this->derived().is_started() && session_ptr->socket().is_open())
-			{
-				session_ptr->counter_ptr_ = this->counter_ptr_;
-				session_ptr->start(detail::to_shared_ptr(ecs->clone()));
-			}
+			if (!this->derived().is_started())
+				return;
+
+			session_ptr->counter_ptr_ = this->counter_ptr_;
+			session_ptr->start(detail::to_shared_ptr(ecs->clone()));
 
 			// handle exception, may be is the exception "Too many open files" (exception code : 24)
 			// asio::error::no_descriptors - Too many open files
 			if (ec)
 			{
+				ASIO2_LOG_ERROR("Error occurred when accept:{} {}", ec.value(), ec.message());
+
 				this->acceptor_timer_.expires_after(std::chrono::seconds(1));
 				this->acceptor_timer_.async_wait(
 				[this, this_ptr = std::move(this_ptr), ecs = std::move(ecs)]

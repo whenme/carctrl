@@ -22,6 +22,7 @@
 #include <string>
 
 #include <asio2/external/predef.h>
+#include <asio2/external/assert.hpp>
 
 #include <asio2/base/detail/filesystem.hpp>
 
@@ -49,6 +50,7 @@
 
 		#include <spdlog/spdlog.h>
 		#include <spdlog/sinks/basic_file_sink.h>
+		#include <spdlog/fmt/bundled/chrono.h>
 	#else
 		#undef ASIO2_ENABLE_LOG
 	#endif
@@ -60,51 +62,59 @@ namespace asio2::detail
 	static std::shared_ptr<spdlog::logger>& get_logger()
 	{
 		static std::shared_ptr<spdlog::logger> logger;
-		static std::mutex mutex;
+		static std::mutex mtx;
 
 		if (!logger)
 		{
-			std::lock_guard guard(mutex);
+			std::lock_guard guard(mtx);
 
 			if (!logger)
 			{
 				std::string filepath;
+				std::shared_ptr<spdlog::logger> loger;
 
-			#if ASIO2_OS_LINUX || ASIO2_OS_UNIX
-				filepath.resize(PATH_MAX);
-				auto r = readlink("/proc/self/exe", (char *)filepath.data(), PATH_MAX);
-				std::ignore = r; // gcc 7 warning: ignoring return value of ... [-Wunused-result]
-			#elif ASIO2_OS_WINDOWS
-				filepath.resize(MAX_PATH);
-				filepath.resize(::GetModuleFileNameA(NULL, (LPSTR)filepath.data(), MAX_PATH));
-			#elif ASIO2_OS_MACOS
-				filepath.resize(PATH_MAX);
-				std::uint32_t bufsize = std::uint32_t(PATH_MAX);
-				_NSGetExecutablePath(filepath.data(), std::addressof(bufsize));
-			#endif
+				try
+				{
+				#if ASIO2_OS_LINUX || ASIO2_OS_UNIX
+					filepath.resize(PATH_MAX);
+					auto r = readlink("/proc/self/exe", (char *)filepath.data(), PATH_MAX);
+					std::ignore = r; // gcc 7 warning: ignoring return value of ... [-Wunused-result]
+				#elif ASIO2_OS_WINDOWS
+					filepath.resize(MAX_PATH);
+					filepath.resize(::GetModuleFileNameA(NULL, (LPSTR)filepath.data(), MAX_PATH));
+				#elif ASIO2_OS_MACOS
+					filepath.resize(PATH_MAX);
+					std::uint32_t bufsize = std::uint32_t(PATH_MAX);
+					_NSGetExecutablePath(filepath.data(), std::addressof(bufsize));
+				#endif
 
-				if (std::string::size_type pos = filepath.find('\0'); pos != std::string::npos)
-					filepath.resize(pos);
+					if (std::string::size_type pos = filepath.find('\0'); pos != std::string::npos)
+						filepath.resize(pos);
 
-			#if defined(_DEBUG) || defined(DEBUG)
-				assert(!filepath.empty());
-			#endif
+					ASIO2_ASSERT(!filepath.empty());
 
-				std::filesystem::path path{ filepath };
+					std::filesystem::path path{ filepath };
 
-				std::string name = path.filename().string();
+					std::string name = path.filename().string();
 
-				std::string ext = path.extension().string();
+					std::string ext = path.extension().string();
 
-				name.resize(name.size() - ext.size());
+					name.resize(name.size() - ext.size());
 
-				filepath = path.parent_path().append(name).string() + ".asio2.log";
+					filepath = path.parent_path().append(name).string() + ".asio2.log";
 
-				auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(filepath, true);
-				file_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
-				auto loger = std::make_shared<spdlog::logger>("ASIO2_LOG", std::move(file_sink));
-				loger->set_level(spdlog::level::debug);
-				loger->flush_on(spdlog::level::err);
+					auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(filepath, true);
+					file_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
+
+					loger = std::make_shared<spdlog::logger>("ASIO2_LOG", std::move(file_sink));
+
+					loger->set_level(spdlog::level::debug);
+					loger->flush_on(spdlog::level::err);
+				}
+				catch (const std::exception&)
+				{
+					loger.reset();
+				}
 
 				logger = std::move(loger);
 			}
@@ -159,9 +169,21 @@ namespace asio2::detail
 #endif
 
 #if defined(ASIO2_ENABLE_LOG)
-	#define ASIO2_LOG(...) asio2::detail::log(__VA_ARGS__)
+	#define ASIO2_LOG(...)       asio2::detail::log(__VA_ARGS__)
+	#define ASIO2_LOG_TRACE(...) asio2::detail::log(spdlog::level::trace   , __VA_ARGS__)
+	#define ASIO2_LOG_DEBUG(...) asio2::detail::log(spdlog::level::debug   , __VA_ARGS__)
+	#define ASIO2_LOG_INFOR(...) asio2::detail::log(spdlog::level::info    , __VA_ARGS__)
+	#define ASIO2_LOG_WARNS(...) asio2::detail::log(spdlog::level::warn    , __VA_ARGS__)
+	#define ASIO2_LOG_ERROR(...) asio2::detail::log(spdlog::level::err     , __VA_ARGS__)
+	#define ASIO2_LOG_FATAL(...) asio2::detail::log(spdlog::level::critical, __VA_ARGS__)
 #else
-	#define ASIO2_LOG(...) ((void)0)
+	#define ASIO2_LOG(...)       ((void)0)
+	#define ASIO2_LOG_TRACE(...) ((void)0)
+	#define ASIO2_LOG_DEBUG(...) ((void)0)
+	#define ASIO2_LOG_INFOR(...) ((void)0)
+	#define ASIO2_LOG_WARNS(...) ((void)0)
+	#define ASIO2_LOG_ERROR(...) ((void)0)
+	#define ASIO2_LOG_FATAL(...) ((void)0)
 #endif
 
 #include <asio2/base/detail/pop_options.hpp>

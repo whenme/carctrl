@@ -15,6 +15,11 @@
 #pragma once
 #endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
 
+#if defined(__GNUC__) || defined(__GNUG__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
+
 #include <cstring>
 #include <cctype>
 #include <cstdarg>
@@ -125,22 +130,29 @@ namespace std {
 // there is hasn't shared_mutex
 #ifndef ASIO2_HAS_SHARED_MUTEX
 	#if defined(_MSC_VER)
-		#if _HAS_SHARED_MUTEX
-			#define ASIO2_HAS_SHARED_MUTEX 1
-			#define asio2_shared_mutex std::shared_mutex
-			#define asio2_shared_lock  std::shared_lock
-			#define asio2_unique_lock  std::unique_lock
+		#if defined(_HAS_SHARED_MUTEX)
+			#if _HAS_SHARED_MUTEX
+				#define ASIO2_HAS_SHARED_MUTEX 1
+				#define asio2_shared_mutex std::shared_mutex
+				#define asio2_shared_lock  std::shared_lock
+				#define asio2_unique_lock  std::unique_lock
+			#else
+				#define ASIO2_HAS_SHARED_MUTEX 0
+				#define asio2_shared_mutex std::mutex
+				#define asio2_shared_lock  std::lock_guard
+				#define asio2_unique_lock  std::lock_guard
+			#endif
 		#else
-			#define ASIO2_HAS_SHARED_MUTEX 0
-			#define asio2_shared_mutex std::mutex
-			#define asio2_shared_lock  std::lock_guard
-			#define asio2_unique_lock  std::lock_guard
+				#define ASIO2_HAS_SHARED_MUTEX 1
+				#define asio2_shared_mutex std::shared_mutex
+				#define asio2_shared_lock  std::shared_lock
+				#define asio2_unique_lock  std::unique_lock
 		#endif
 	#else
-			#define ASIO2_HAS_SHARED_MUTEX 1
-			#define asio2_shared_mutex std::shared_mutex
-			#define asio2_shared_lock  std::shared_lock
-			#define asio2_unique_lock  std::unique_lock
+				#define ASIO2_HAS_SHARED_MUTEX 1
+				#define asio2_shared_mutex std::shared_mutex
+				#define asio2_shared_lock  std::shared_lock
+				#define asio2_unique_lock  std::unique_lock
 	#endif
 #endif
 
@@ -195,12 +207,6 @@ namespace asio2
 	template<>
 	struct convert<bool>
 	{
-		template<typename = void>
-		inline static char ascii_tolower(char c) noexcept
-		{
-			return char(((static_cast<unsigned>(c) - 65U) < 26) ? c + 'a' - 'A' : c);
-		}
-
 		/**
 		 * @brief Returns `true` if two strings are equal, using a case-insensitive comparison.
 		 */
@@ -225,7 +231,7 @@ namespace asio2
 		slow:
 			do
 			{
-				if (ascii_tolower(a) != ascii_tolower(b))
+				if (std::tolower(a) != std::tolower(b))
 					return false;
 				a = *p1++;
 				b = *p2++;
@@ -519,6 +525,9 @@ namespace asio2
 			(
 				std::is_same_v<std::remove_cv_t<std::remove_pointer_t<std::remove_cv_t<std::remove_reference_t<T>>>>, char    > ||
 				std::is_same_v<std::remove_cv_t<std::remove_pointer_t<std::remove_cv_t<std::remove_reference_t<T>>>>, wchar_t > ||
+			#if defined(__cpp_lib_char8_t)
+				std::is_same_v<std::remove_cv_t<std::remove_pointer_t<std::remove_cv_t<std::remove_reference_t<T>>>>, char8_t > ||
+			#endif
 				std::is_same_v<std::remove_cv_t<std::remove_pointer_t<std::remove_cv_t<std::remove_reference_t<T>>>>, char16_t> ||
 				std::is_same_v<std::remove_cv_t<std::remove_pointer_t<std::remove_cv_t<std::remove_reference_t<T>>>>, char32_t>
 			)
@@ -537,6 +546,9 @@ namespace asio2
 			(
 				std::is_same_v<std::remove_cv_t<std::remove_all_extents_t<std::remove_cv_t<std::remove_reference_t<T>>>>, char    > ||
 				std::is_same_v<std::remove_cv_t<std::remove_all_extents_t<std::remove_cv_t<std::remove_reference_t<T>>>>, wchar_t > ||
+			#if defined(__cpp_lib_char8_t)
+				std::is_same_v<std::remove_cv_t<std::remove_all_extents_t<std::remove_cv_t<std::remove_reference_t<T>>>>, char8_t > ||
+			#endif
 				std::is_same_v<std::remove_cv_t<std::remove_all_extents_t<std::remove_cv_t<std::remove_reference_t<T>>>>, char16_t> ||
 				std::is_same_v<std::remove_cv_t<std::remove_all_extents_t<std::remove_cv_t<std::remove_reference_t<T>>>>, char32_t>
 			)
@@ -1252,5 +1264,9 @@ namespace asio2
 
 	using ini     = basic_ini<std::fstream>;
 }
+
+#if defined(__GNUC__) || defined(__GNUG__)
+#  pragma GCC diagnostic pop
+#endif
 
 #endif // !__ASIO2_INI_HPP__

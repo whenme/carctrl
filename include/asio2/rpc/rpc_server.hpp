@@ -21,6 +21,7 @@
 
 #include <asio2/config.hpp>
 
+#include <asio2/udp/udp_server.hpp>
 #include <asio2/tcp/tcp_server.hpp>
 #include <asio2/tcp/tcps_server.hpp>
 #include <asio2/http/ws_server.hpp>
@@ -31,6 +32,10 @@
 namespace asio2::detail
 {
 	ASIO2_CLASS_FORWARD_DECLARE_BASE;
+
+	ASIO2_CLASS_FORWARD_DECLARE_UDP_BASE;
+	ASIO2_CLASS_FORWARD_DECLARE_UDP_SERVER;
+
 	ASIO2_CLASS_FORWARD_DECLARE_TCP_BASE;
 	ASIO2_CLASS_FORWARD_DECLARE_TCP_SERVER;
 
@@ -42,6 +47,10 @@ namespace asio2::detail
 		friend executor_t;
 
 		ASIO2_CLASS_FRIEND_DECLARE_BASE;
+
+		ASIO2_CLASS_FRIEND_DECLARE_UDP_BASE;
+		ASIO2_CLASS_FRIEND_DECLARE_UDP_SERVER;
+
 		ASIO2_CLASS_FRIEND_DECLARE_TCP_BASE;
 		ASIO2_CLASS_FRIEND_DECLARE_TCP_SERVER;
 
@@ -92,6 +101,12 @@ namespace asio2::detail
 					std::forward<String>(host), std::forward<StrOrInt>(service),
 					std::forward<Args>(args)...);
 			}
+			else if constexpr (session_type::net_protocol == asio2::net_protocol::udp)
+			{
+				return executor_t::template start(
+					std::forward<String>(host), std::forward<StrOrInt>(service),
+					asio2::use_kcp, std::forward<Args>(args)...);
+			}
 			else
 			{
 				return executor_t::template start(
@@ -116,19 +131,6 @@ namespace asio2::detail
 		/**
 		 * @brief call a rpc function for each session
 		 */
-		template<class return_t, class Rep, class Period, class ...Args>
-		inline void call(error_code& ec, std::chrono::duration<Rep, Period> timeout,
-			const std::string& name, const Args&... args)
-		{
-			this->sessions_.for_each([&](std::shared_ptr<session_type>& session_ptr) mutable
-			{
-				session_ptr->template call<return_t>(ec, timeout, name, args...);
-			});
-		}
-
-		/**
-		 * @brief call a rpc function for each session
-		 */
 		template<class return_t, class ...Args>
 		inline void call(const std::string& name, const Args&... args)
 		{
@@ -139,21 +141,9 @@ namespace asio2::detail
 		}
 
 		/**
-		 * @brief call a rpc function for each session
-		 */
-		template<class return_t, class ...Args>
-		inline void call(error_code& ec, const std::string& name, const Args&... args)
-		{
-			this->sessions_.for_each([&](std::shared_ptr<session_type>& session_ptr) mutable
-			{
-				session_ptr->template call<return_t>(ec, name, args...);
-			});
-		}
-
-		/**
 		 * @brief asynchronous call a rpc function for each session
-		 * Callback signature : void(asio::error_code ec, int result)
-		 * if result type is void, the Callback signature is : void(asio::error_code ec)
+		 * Callback signature : void(return_t result)
+		 * if result type is void, the Callback signature is : void()
 		 * Because the result value type is not specified in the first template parameter,
 		 * so the result value type must be specified in the Callback lambda.
 		 */
@@ -169,8 +159,8 @@ namespace asio2::detail
 
 		/**
 		 * @brief asynchronous call a rpc function for each session
-		 * Callback signature : void(asio::error_code ec, int result)
-		 * if result type is void, the Callback signature is : void(asio::error_code ec)
+		 * Callback signature : void(return_t result)
+		 * if result type is void, the Callback signature is : void()
 		 * Because the result value type is not specified in the first template parameter,
 		 * so the result value type must be specified in the Callback lambda
 		 */
@@ -187,9 +177,9 @@ namespace asio2::detail
 
 		/**
 		 * @brief asynchronous call a rpc function for each session
-		 * Callback signature : void(asio::error_code ec, return_t result) the return_t
+		 * Callback signature : void(return_t result) the return_t
 		 * is the first template parameter.
-		 * if result type is void, the Callback signature is : void(asio::error_code ec)
+		 * if result type is void, the Callback signature is : void()
 		 */
 		template<class return_t, class Callback, class ...Args>
 		inline void async_call(const Callback& fn, const std::string& name, const Args&... args)
@@ -202,9 +192,9 @@ namespace asio2::detail
 
 		/**
 		 * @brief asynchronous call a rpc function for each session
-		 * Callback signature : void(asio::error_code ec, return_t result) the return_t
+		 * Callback signature : void(return_t result) the return_t
 		 * is the first template parameter.
-		 * if result type is void, the Callback signature is : void(asio::error_code ec)
+		 * if result type is void, the Callback signature is : void()
 		 */
 		template<class return_t, class Callback, class Rep, class Period, class ...Args>
 		inline void async_call(const Callback& fn, std::chrono::duration<Rep, Period> timeout,
@@ -246,6 +236,15 @@ namespace asio2
 	class rpc_server_impl_t;
 
 	template<class derived_t, class session_t>
+	class rpc_server_impl_t<derived_t, session_t, asio2::net_protocol::udp>
+		: public detail::rpc_server_impl_t<derived_t, detail::udp_server_impl_t<derived_t, session_t>>
+	{
+	public:
+		using detail::rpc_server_impl_t<derived_t, detail::udp_server_impl_t<derived_t, session_t>>::
+			rpc_server_impl_t;
+	};
+
+	template<class derived_t, class session_t>
 	class rpc_server_impl_t<derived_t, session_t, asio2::net_protocol::tcp>
 		: public detail::rpc_server_impl_t<derived_t, detail::tcp_server_impl_t<derived_t, session_t>>
 	{
@@ -277,6 +276,7 @@ namespace asio2
 		using rpc_server_t<rpc_session_use<np>>::rpc_server_t;
 	};
 
+	using rpc_kcp_server = rpc_server_use<asio2::net_protocol::udp>;
 #if !defined(ASIO2_USE_WEBSOCKET_RPC)
 	/// Using tcp dgram mode as the underlying communication support
 	using rpc_server = rpc_server_use<asio2::net_protocol::tcp>;

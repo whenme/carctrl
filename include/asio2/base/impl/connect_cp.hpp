@@ -68,6 +68,22 @@ namespace asio2::detail
 			return (static_cast<derived_t&>(*this));
 		}
 
+		/**
+		 * @brief Get the host of the connected server.
+		 */
+		inline const std::string& get_host() noexcept
+		{
+			return this->host_;
+		}
+
+		/**
+		 * @brief Get the port of the connected server.
+		 */
+		inline const std::string& get_port() noexcept
+		{
+			return this->port_;
+		}
+
 	protected:
 		/// Save the host and port of the server
 		std::string                     host_, port_;
@@ -285,11 +301,18 @@ namespace asio2::detail
 				// fire init function, the get_last_error will be not 0.
 				clear_last_error();
 
+				// every time the socket is recreated, we should call the _do_init function, then
+				// the ssl stream will recreated too, otherwise when client disconnected and 
+				// reconnect to the ssl server, this will happen: ssl handshake will failed, and
+				// next time reconnect again, ssl handshake will successed.
+				derive._do_init(ecs);
+
+				// call the user callback which setted by bind_init
 				derive._fire_init();
 			}
 			else
 			{
-				ASIO2_LOG(spdlog::level::err, "The client socket is opened already.");
+				ASIO2_LOG_ERROR("The client socket is opened already.");
 			}
 
 			// Start the asynchronous connect operation.
@@ -317,6 +340,14 @@ namespace asio2::detail
 			derived_t& derive = static_cast<derived_t&>(*this);
 
 			ASIO2_ASSERT(derive.io().running_in_this_thread());
+
+			try
+			{
+				derive.remote_endpoint_copy_ = derive.socket_.lowest_layer().remote_endpoint();
+			}
+			catch (const system_error&)
+			{
+			}
 
 			state_t expected = state_t::starting;
 			if (!derive.state_.compare_exchange_strong(expected, state_t::starting))
@@ -480,16 +511,18 @@ namespace asio2::detail
 
 			if (ec)
 			{
-				if constexpr (args_t::is_session)
+				// The connect process has finished, call the callback at here directly,
+				// otherwise the callback maybe passed to other event queue chain, and the 
+				// last error maybe changed by other event.
+
+				// can't pass the whole chain to the client _do_disconnect, it will cause
+				// the auto reconnect has no effect.
+
 				{
-					derive._do_disconnect(ec, std::move(this_ptr), std::move(chain));
+					[[maybe_unused]] detail::defer_event t{ chain.move_event() };
 				}
-				else
-				{
-					// can't pass the whole chain to the _do_disconnect, it will cause the auto
-					// reconnect has no effect.
-					derive._do_disconnect(ec, std::move(this_ptr), defer_event(chain.move_guard()));
-				}
+
+				derive._do_disconnect(ec, std::move(this_ptr), defer_event(chain.move_guard()));
 
 				return;
 			}

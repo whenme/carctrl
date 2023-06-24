@@ -80,7 +80,13 @@ namespace asio2::detail
 		inline derived_t& set_auto_reconnect(bool enable, std::chrono::duration<Rep, Period> delay) noexcept
 		{
 			this->reconnect_enable_ = enable;
-			this->reconnect_delay_  = delay;
+
+			if (delay > std::chrono::duration_cast<
+				std::chrono::duration<Rep, Period>>((std::chrono::steady_clock::duration::max)()))
+				this->reconnect_delay_ = (std::chrono::steady_clock::duration::max)();
+			else
+				this->reconnect_delay_ = delay;
+
 			return static_cast<derived_t&>(*this);
 		}
 
@@ -202,8 +208,8 @@ namespace asio2::detail
 						state_t expected = state_t::stopped;
 						if (derive.state_.compare_exchange_strong(expected, state_t::starting))
 						{
-							derive.template _start_connect<true>(std::move(this_ptr), std::move(ecs),
-								defer_event(std::move(g)));
+							derive.template _start_connect<true>(
+								std::move(this_ptr), std::move(ecs), defer_event(std::move(g)));
 						}
 					});
 				}

@@ -214,7 +214,7 @@ namespace asio2::detail
 		/**
 		 * @brief check whether the client is started
 		 */
-		inline bool is_started() const
+		inline bool is_started()
 		{
 			return (this->state_ == state_t::started && this->socket().is_open());
 		}
@@ -222,9 +222,9 @@ namespace asio2::detail
 		/**
 		 * @brief check whether the client is stopped
 		 */
-		inline bool is_stopped() const
+		inline bool is_stopped()
 		{
-			return (this->state_ == state_t::stopped && !this->socket().is_open() && this->is_iopool_stopped());
+			return (this->state_ == state_t::stopped && !this->socket().is_open());
 		}
 
 	public:
@@ -683,9 +683,15 @@ namespace asio2::detail
 		{
 			derived_t& derive = this->derived();
 
+			// if log is enabled, init the log first, otherwise when "Too many open files" error occurs,
+			// the log file will be created failed too.
+		#if defined(ASIO2_ENABLE_LOG)
+			asio2::detail::get_logger();
+		#endif
+
 			this->start_iopool();
 
-			if (this->is_iopool_stopped())
+			if (!this->is_iopool_started())
 			{
 				set_last_error(asio::error::operation_aborted);
 				return false;
@@ -706,7 +712,10 @@ namespace asio2::detail
 			// use derfer to ensure the promise's value must be seted.
 			detail::defer_event pg
 			{
-				[promise = std::move(promise)]() mutable { promise.set_value(get_last_error()); }
+				[promise = std::move(promise)]() mutable
+				{
+					promise.set_value(get_last_error());
+				}
 			};
 
 			derive.post(

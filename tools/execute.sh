@@ -4,7 +4,7 @@
 function help_usage()
 {
     echo "command guide:"
-    echo "execute.sh --start --stop -h"
+    echo "execute.sh -r -s -h"
     echo "    -r|--run:   run all applications"
     echo "    -s|--stop:  stop all applications"
     echo "    -h|--help:  help"

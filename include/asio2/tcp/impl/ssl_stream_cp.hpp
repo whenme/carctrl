@@ -33,11 +33,11 @@ namespace asio2::detail
 	class ssl_stream_cp
 	{
 	public:
-		using socket_type    = typename args_t::socket_t;
-		using stream_type    = asio::ssl::stream<socket_type&>;
-		using handshake_type = typename asio::ssl::stream_base::handshake_type;
+		using ssl_socket_type    = typename args_t::socket_t;
+		using ssl_stream_type    = asio::ssl::stream<ssl_socket_type&>;
+		using ssl_handshake_type = typename asio::ssl::stream_base::handshake_type;
 
-		ssl_stream_cp(io_t& ssl_io, asio::ssl::context& ctx, handshake_type type) noexcept
+		ssl_stream_cp(io_t& ssl_io, asio::ssl::context& ctx, ssl_handshake_type type) noexcept
 			: ssl_ctx_(ctx)
 			, ssl_type_(type)
 		{
@@ -49,7 +49,7 @@ namespace asio2::detail
 		/**
 		 * @brief get the ssl socket object refrence
 		 */
-		inline stream_type & ssl_stream() noexcept
+		inline ssl_stream_type & ssl_stream() noexcept
 		{
 			ASIO2_ASSERT(bool(this->ssl_stream_));
 			return (*(this->ssl_stream_));
@@ -57,7 +57,7 @@ namespace asio2::detail
 
 	protected:
 		template<typename C>
-		inline void _ssl_init(std::shared_ptr<ecs_t<C>>& ecs, socket_type& socket, asio::ssl::context& ctx)
+		inline void _ssl_init(std::shared_ptr<ecs_t<C>>& ecs, ssl_socket_type& socket, asio::ssl::context& ctx)
 		{
 			derived_t& derive = static_cast<derived_t&>(*this);
 
@@ -81,12 +81,12 @@ namespace asio2::detail
 			// When construct a tcps_client object, beacuse the tcps_client is derived
 			// from ssl_stream_cp, so the ssl_stream_cp's constructor will be called,
 			// but at this time, the SSL_CTX_... function has not been called.
-			this->ssl_stream_ = std::make_unique<stream_type>(socket, ctx);
+			this->ssl_stream_ = std::make_unique<ssl_stream_type>(socket, ctx);
 		}
 
 		template<typename C>
 		inline void _ssl_start(
-			std::shared_ptr<derived_t>& this_ptr, std::shared_ptr<ecs_t<C>>& ecs, socket_type& socket,
+			std::shared_ptr<derived_t>& this_ptr, std::shared_ptr<ecs_t<C>>& ecs, ssl_socket_type& socket,
 			asio::ssl::context& ctx) noexcept
 		{
 			derived_t& derive = static_cast<derived_t&>(*this);
@@ -114,7 +114,7 @@ namespace asio2::detail
 
 				struct SSL_clear_op
 				{
-					stream_type* s{};
+					ssl_stream_type* s{};
 
 					// SSL_clear : 
 					// Reset ssl to allow another connection. All settings (method, ciphers, BIOs) are kept.
@@ -122,8 +122,15 @@ namespace asio2::detail
 					// When the client auto reconnect, SSL_clear must be called,
 					// otherwise the SSL handshake will failed.
 
-					SSL_clear_op(stream_type* p) : s(p) {}
-					~SSL_clear_op() { if (s) SSL_clear(s->native_handle()); }
+					SSL_clear_op(ssl_stream_type* p) : s(p)
+					{
+					}
+
+					~SSL_clear_op()
+					{
+						if (s)
+							SSL_clear(s->native_handle());
+					}
 				};
 
 				// use "std::shared_ptr<SSL_clear_op>" to enusre that the SSL_clear(...) function is 
@@ -137,7 +144,7 @@ namespace asio2::detail
 				// be called.
 				std::shared_ptr<asio::steady_timer> timer = 
 					std::make_shared<asio::steady_timer>(derive.io().context());
-				timer->expires_after(std::chrono::milliseconds(ssl_shutdown_timeout));
+				timer->expires_after(derive.get_disconnect_timeout());
 				timer->async_wait(
 				[this_ptr, chain = std::move(chain), SSL_clear_ptr]
 				(const error_code& ec) mutable
@@ -156,6 +163,12 @@ namespace asio2::detail
 				derive.post_send_counter_++;
 			#endif
 
+				// https://stackoverflow.com/questions/52990455/boost-asio-ssl-stream-shutdownec-always-had-error-which-is-boostasiossl
+				error_code ec_ignore{};
+				derive.socket().cancel(ec_ignore);
+
+				ASIO2_LOG_DEBUG("ssl_stream_cp enter async_shutdown");
+
 				// when server call ssl stream sync shutdown first,if the client socket is
 				// not closed forever,then here shutdowm will blocking forever.
 				this->ssl_stream_->async_shutdown(
@@ -167,6 +180,8 @@ namespace asio2::detail
 				#endif
 
 					detail::ignore_unused(derive, p, clear_ptr);
+
+					ASIO2_LOG_DEBUG("ssl_stream_cp leave async_shutdown: {} {}", ec.value(), ec.message());
 
 					set_last_error(ec);
 
@@ -191,7 +206,7 @@ namespace asio2::detail
 
 			std::shared_ptr<asio::steady_timer> timer =
 				std::make_shared<asio::steady_timer>(derive.io().context());
-			timer->expires_after(std::chrono::milliseconds(ssl_handshake_timeout));
+			timer->expires_after(derive.get_connect_timeout());
 			timer->async_wait(
 			[&derive, this_ptr, flag_ptr](const error_code& ec) mutable
 			{
@@ -271,6 +286,7 @@ namespace asio2::detail
 
 				if (ec)
 				{
+					ASIO2_LOG_DEBUG("ssl_stream_cp::handle_handshake {} {}", ec.value(), ec.message());
 					derive._do_disconnect(ec, std::move(this_ptr), std::move(chain));
 					return;
 				}
@@ -311,11 +327,11 @@ namespace asio2::detail
 		}
 
 	protected:
-		asio::ssl::context           & ssl_ctx_;
+		asio::ssl::context               & ssl_ctx_;
 
-		handshake_type                 ssl_type_;
+		ssl_handshake_type                 ssl_type_;
 
-		std::unique_ptr<stream_type>   ssl_stream_;
+		std::unique_ptr<ssl_stream_type>   ssl_stream_;
 	};
 }
 

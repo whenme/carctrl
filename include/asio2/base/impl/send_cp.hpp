@@ -82,13 +82,6 @@ namespace asio2::detail
 
 			// We must ensure that there is only one operation to send data
 			// at the same time,otherwise may be cause crash.
-			if (!derive.is_started())
-			{
-				set_last_error(asio::error::not_connected);
-				return;
-			}
-
-			clear_last_error();
 
 			// # issue x:
 			// 1. user call "async_send" function in some worker thread (not io_context thread)
@@ -102,9 +95,24 @@ namespace asio2::detail
 			//    "derive._do_send(..." will can't be executed.
 
 			derive.push_event(
-			[&derive, p = derive.selfptr(), data = derive._data_persistence(std::forward<DataT>(data))]
+			[&derive, p = derive.selfptr(), id = derive.life_id(),
+				data = derive._data_persistence(std::forward<DataT>(data))]
 			(event_queue_guard<derived_t> g) mutable
 			{
+				if (!derive.is_started())
+				{
+					set_last_error(asio::error::not_connected);
+					return;
+				}
+
+				if (id != derive.life_id())
+				{
+					set_last_error(asio::error::operation_aborted);
+					return;
+				}
+
+				clear_last_error();
+
 				derive._do_send(data, [g = std::move(g)](const error_code&, std::size_t) mutable {});
 			});
 		}
@@ -115,11 +123,7 @@ namespace asio2::detail
 		 * PodType * : async_send("abc");
 		 */
 		template<class CharT, class Traits = std::char_traits<CharT>>
-		inline typename std::enable_if_t<
-			std::is_same_v<detail::remove_cvref_t<CharT>, char> ||
-			std::is_same_v<detail::remove_cvref_t<CharT>, wchar_t> ||
-			std::is_same_v<detail::remove_cvref_t<CharT>, char16_t> ||
-			std::is_same_v<detail::remove_cvref_t<CharT>, char32_t>, void> async_send(CharT * s) noexcept
+		inline typename std::enable_if_t<detail::is_char_v<CharT>, void> async_send(CharT * s) noexcept
 		{
 			derived_t& derive = static_cast<derived_t&>(*this);
 
@@ -147,17 +151,25 @@ namespace asio2::detail
 
 			// We must ensure that there is only one operation to send data
 			// at the same time,otherwise may be cause crash.
-			if (!derive.is_started())
-			{
-				set_last_error(asio::error::not_connected);
-				return;
-			}
 
-			clear_last_error();
-
-			derive.push_event([&derive, p = derive.selfptr(), data = derive._data_persistence(s, count)]
+			derive.push_event(
+			[&derive, p = derive.selfptr(), id = derive.life_id(), data = derive._data_persistence(s, count)]
 			(event_queue_guard<derived_t> g) mutable
 			{
+				if (!derive.is_started())
+				{
+					set_last_error(asio::error::not_connected);
+					return;
+				}
+
+				if (id != derive.life_id())
+				{
+					set_last_error(asio::error::operation_aborted);
+					return;
+				}
+
+				clear_last_error();
+
 				derive._do_send(data, [g = std::move(g)](const error_code&, std::size_t) mutable {});
 			});
 		}
@@ -197,19 +209,27 @@ namespace asio2::detail
 			std::promise<std::pair<error_code, std::size_t>> promise;
 			std::future<std::pair<error_code, std::size_t>> future = promise.get_future();
 
-			if (!derive.is_started())
-			{
-				set_last_error(asio::error::not_connected);
-				promise.set_value(std::pair<error_code, std::size_t>(asio::error::not_connected, 0));
-				return future;
-			}
-
-			clear_last_error();
-
-			derive.push_event([&derive, p = derive.selfptr(), promise = std::move(promise),
+			derive.push_event(
+			[&derive, p = derive.selfptr(), id = derive.life_id(), promise = std::move(promise),
 				data = derive._data_persistence(std::forward<DataT>(data))]
 			(event_queue_guard<derived_t> g) mutable
 			{
+				if (!derive.is_started())
+				{
+					set_last_error(asio::error::not_connected);
+					promise.set_value(std::pair<error_code, std::size_t>(asio::error::not_connected, 0));
+					return;
+				}
+
+				if (id != derive.life_id())
+				{
+					set_last_error(asio::error::operation_aborted);
+					promise.set_value(std::pair<error_code, std::size_t>(asio::error::operation_aborted, 0));
+					return;
+				}
+
+				clear_last_error();
+
 				derive._do_send(data, [&promise, g = std::move(g)]
 				(const error_code& ec, std::size_t bytes_sent) mutable
 				{
@@ -229,12 +249,7 @@ namespace asio2::detail
 		 * PodType * : async_send("abc");
 		 */
 		template<class CharT, class Traits = std::char_traits<CharT>>
-		inline typename std::enable_if_t<
-			std::is_same_v<detail::remove_cvref_t<CharT>, char> ||
-			std::is_same_v<detail::remove_cvref_t<CharT>, wchar_t> ||
-			std::is_same_v<detail::remove_cvref_t<CharT>, char16_t> ||
-			std::is_same_v<detail::remove_cvref_t<CharT>, char32_t>,
-			std::future<std::pair<error_code, std::size_t>>>
+		inline typename std::enable_if_t<detail::is_char_v<CharT>, std::future<std::pair<error_code, std::size_t>>>
 			async_send(CharT * s, asio::use_future_t<> flag)
 		{
 			derived_t& derive = static_cast<derived_t&>(*this);
@@ -262,13 +277,6 @@ namespace asio2::detail
 			std::promise<std::pair<error_code, std::size_t>> promise;
 			std::future<std::pair<error_code, std::size_t>> future = promise.get_future();
 
-			if (!derive.is_started())
-			{
-				set_last_error(asio::error::not_connected);
-				promise.set_value(std::pair<error_code, std::size_t>(asio::error::not_connected, 0));
-				return future;
-			}
-
 			if (!s)
 			{
 				set_last_error(asio::error::invalid_argument);
@@ -276,11 +284,27 @@ namespace asio2::detail
 				return future;
 			}
 
-			clear_last_error();
-
-			derive.push_event([&derive, p = derive.selfptr(), data = derive._data_persistence(s, count),
-				promise = std::move(promise)](event_queue_guard<derived_t> g) mutable
+			derive.push_event(
+			[&derive, p = derive.selfptr(), id = derive.life_id(), promise = std::move(promise),
+				data = derive._data_persistence(s, count)]
+			(event_queue_guard<derived_t> g) mutable
 			{
+				if (!derive.is_started())
+				{
+					set_last_error(asio::error::not_connected);
+					promise.set_value(std::pair<error_code, std::size_t>(asio::error::not_connected, 0));
+					return;
+				}
+
+				if (id != derive.life_id())
+				{
+					set_last_error(asio::error::operation_aborted);
+					promise.set_value(std::pair<error_code, std::size_t>(asio::error::operation_aborted, 0));
+					return;
+				}
+
+				clear_last_error();
+
 				derive._do_send(data, [&promise, g = std::move(g)]
 				(const error_code& ec, std::size_t bytes_sent) mutable
 				{
@@ -312,18 +336,26 @@ namespace asio2::detail
 
 			// We must ensure that there is only one operation to send data
 			// at the same time,otherwise may be cause crash.
-			if (!derive.is_started())
+
+			derive.push_event(
+			[&derive, p = derive.selfptr(), id = derive.life_id(), fn = std::forward<Callback>(fn),
+				data = derive._data_persistence(std::forward<DataT>(data))]
+			(event_queue_guard<derived_t> g) mutable
 			{
-				derive._send_cp_invoke_callback(asio::error::not_connected, std::forward<Callback>(fn));
+				if (!derive.is_started())
+				{
+					derive._send_cp_invoke_callback(asio::error::not_connected, std::forward<Callback>(fn));
+					return;
+				}
 
-				return;
-			}
+				if (id != derive.life_id())
+				{
+					derive._send_cp_invoke_callback(asio::error::operation_aborted, std::forward<Callback>(fn));
+					return;
+				}
 
-			clear_last_error();
+				clear_last_error();
 
-			derive.push_event([&derive, p = derive.selfptr(), data = derive._data_persistence(std::forward<DataT>(data)),
-				fn = std::forward<Callback>(fn)](event_queue_guard<derived_t> g) mutable
-			{
 				derive._do_send(data, [&fn, g = std::move(g)]
 				(const error_code&, std::size_t bytes_sent) mutable
 				{
@@ -340,11 +372,7 @@ namespace asio2::detail
 		 * Callback signature : void() or void(std::size_t bytes_sent)
 		 */
 		template<class Callback, class CharT, class Traits = std::char_traits<CharT>>
-		inline typename std::enable_if_t<is_callable_v<Callback> && (
-			std::is_same_v<detail::remove_cvref_t<CharT>, char> ||
-			std::is_same_v<detail::remove_cvref_t<CharT>, wchar_t> ||
-			std::is_same_v<detail::remove_cvref_t<CharT>, char16_t> ||
-			std::is_same_v<detail::remove_cvref_t<CharT>, char32_t>), void>
+		inline typename std::enable_if_t<is_callable_v<Callback> && detail::is_char_v<CharT>, void>
 			async_send(CharT * s, Callback&& fn)
 		{
 			derived_t& derive = static_cast<derived_t&>(*this);
@@ -376,18 +404,26 @@ namespace asio2::detail
 
 			// We must ensure that there is only one operation to send data
 			// at the same time,otherwise may be cause crash.
-			if (!derive.is_started())
+
+			derive.push_event(
+			[&derive, p = derive.selfptr(), id = derive.life_id(), fn = std::forward<Callback>(fn),
+				data = derive._data_persistence(s, count)]
+			(event_queue_guard<derived_t> g) mutable
 			{
-				derive._send_cp_invoke_callback(asio::error::not_connected, std::forward<Callback>(fn));
+				if (!derive.is_started())
+				{
+					derive._send_cp_invoke_callback(asio::error::not_connected, std::forward<Callback>(fn));
+					return;
+				}
 
-				return;
-			}
+				if (id != derive.life_id())
+				{
+					derive._send_cp_invoke_callback(asio::error::operation_aborted, std::forward<Callback>(fn));
+					return;
+				}
 
-			clear_last_error();
+				clear_last_error();
 
-			derive.push_event([&derive, p = derive.selfptr(), data = derive._data_persistence(s, count),
-				fn = std::forward<Callback>(fn)](event_queue_guard<derived_t> g) mutable
-			{
 				derive._do_send(data, [&fn, g = std::move(g)]
 				(const error_code&, std::size_t bytes_sent) mutable
 				{
@@ -462,11 +498,7 @@ namespace asio2::detail
 		 * PodType * : send("abc");
 		 */
 		template<class CharT, class Traits = std::char_traits<CharT>>
-		inline typename std::enable_if_t<
-			std::is_same_v<detail::remove_cvref_t<CharT>, char> ||
-			std::is_same_v<detail::remove_cvref_t<CharT>, wchar_t> ||
-			std::is_same_v<detail::remove_cvref_t<CharT>, char16_t> ||
-			std::is_same_v<detail::remove_cvref_t<CharT>, char32_t>, std::size_t> send(CharT * s)
+		inline typename std::enable_if_t<detail::is_char_v<CharT>, std::size_t> send(CharT * s)
 		{
 			derived_t& derive = static_cast<derived_t&>(*this);
 

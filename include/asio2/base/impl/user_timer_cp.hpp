@@ -285,6 +285,16 @@ namespace asio2::detail
 				return;
 			}
 
+			if (interval > std::chrono::duration_cast<
+				std::chrono::duration<Rep1, Period1>>((asio::steady_timer::duration::max)()))
+				interval = std::chrono::duration_cast<std::chrono::duration<Rep1, Period1>>(
+					(asio::steady_timer::duration::max)());
+
+			if (first_delay > std::chrono::duration_cast<
+				std::chrono::duration<Rep2, Period2>>((asio::steady_timer::duration::max)()))
+				first_delay = std::chrono::duration_cast<std::chrono::duration<Rep2, Period2>>(
+					(asio::steady_timer::duration::max)());
+
 			derived_t& derive = static_cast<derived_t&>(*this);
 
 			std::function<void()> t = std::bind(std::forward<Fun>(fun), std::forward<Args>(args)...);
@@ -453,6 +463,68 @@ namespace asio2::detail
 			}));
 
 			return f.get();
+		}
+
+		/**
+		 * @brief Set the interval for the specified timer.
+		 */
+		template<class TimerId, class Rep, class Period>
+		inline void set_timer_interval(TimerId&& timer_id, std::chrono::duration<Rep, Period> interval)
+		{
+			derived_t& derive = static_cast<derived_t&>(*this);
+
+			if (interval > std::chrono::duration_cast<
+				std::chrono::duration<Rep, Period>>((asio::steady_timer::duration::max)()))
+				interval = std::chrono::duration_cast<std::chrono::duration<Rep, Period>>(
+					(asio::steady_timer::duration::max)());
+
+			asio::dispatch(derive.io().context(), make_allocator(derive.wallocator(),
+			[this, this_ptr = derive.selfptr(), timer_id = std::forward<TimerId>(timer_id), interval]
+			() mutable
+			{
+				detail::ignore_unused(this_ptr);
+
+				auto iter = this->user_timers_.find(timer_id);
+				if (iter != this->user_timers_.end())
+				{
+					iter->second->interval = interval;
+				}
+			}));
+		}
+
+		/**
+		 * @brief Set the interval for the specified timer.
+		 */
+		template<class TimerId, class IntegerMilliseconds>
+		inline typename std::enable_if_t<std::is_integral_v<detail::remove_cvref_t<IntegerMilliseconds>>, void>
+		set_timer_interval(TimerId&& timer_id, IntegerMilliseconds interval)
+		{
+			derived_t& derive = static_cast<derived_t&>(*this);
+
+			return derive.set_timer_interval(std::forward<TimerId>(timer_id), std::chrono::milliseconds(interval));
+		}
+
+		/**
+		 * @brief Reset the interval for the specified timer.
+		 */
+		template<class TimerId, class Rep, class Period>
+		inline void reset_timer_interval(TimerId&& timer_id, std::chrono::duration<Rep, Period> interval)
+		{
+			derived_t& derive = static_cast<derived_t&>(*this);
+
+			return derive.set_timer_interval(std::forward<TimerId>(timer_id), interval);
+		}
+
+		/**
+		 * @brief Reset the interval for the specified timer.
+		 */
+		template<class TimerId, class IntegerMilliseconds>
+		inline typename std::enable_if_t<std::is_integral_v<detail::remove_cvref_t<IntegerMilliseconds>>, void>
+		reset_timer_interval(TimerId&& timer_id, IntegerMilliseconds interval)
+		{
+			derived_t& derive = static_cast<derived_t&>(*this);
+
+			return derive.set_timer_interval(std::forward<TimerId>(timer_id), interval);
 		}
 
 	protected:

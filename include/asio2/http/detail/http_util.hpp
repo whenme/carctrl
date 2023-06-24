@@ -521,7 +521,7 @@ namespace boost::beast::http
 		/**
 		 * @brief Get the "multipart/form-data" body content.
 		 */
-		template<class HttpMessage, class String = std::string_view>
+		template<class HttpMessage, class String = std::string>
 		inline basic_multipart_fields<String> get_multipart(const HttpMessage& msg)
 		{
 			return multipart_parser_execute(msg);
@@ -530,7 +530,7 @@ namespace boost::beast::http
 		/**
 		 * @brief Get the "multipart/form-data" body content. same as get_multipart
 		 */
-		template<class HttpMessage, class String = std::string_view>
+		template<class HttpMessage, class String = std::string>
 		inline basic_multipart_fields<String> multipart(const HttpMessage& msg)
 		{
 			return get_multipart(msg);
@@ -561,6 +561,13 @@ namespace boost::beast::http
 		//	ec = http::error::bad_status;
 		//	return;
 		//}
+
+		// if the http response has no body, returned with error.
+		if (hp.is_done())
+		{
+			ec = http::error::end_of_stream;
+			return;
+		}
 
 		http::parser<isRequest, http::buffer_body> p(std::move(hp));
 

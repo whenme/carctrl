@@ -42,6 +42,8 @@
 #include <asio2/base/impl/user_data_cp.hpp>
 #include <asio2/base/impl/socket_cp.hpp>
 #include <asio2/base/impl/connect_cp.hpp>
+#include <asio2/base/impl/shutdown_cp.hpp>
+#include <asio2/base/impl/close_cp.hpp>
 #include <asio2/base/impl/disconnect_cp.hpp>
 #include <asio2/base/impl/user_timer_cp.hpp>
 #include <asio2/base/impl/silence_timer_cp.hpp>
@@ -53,13 +55,25 @@
 
 #include <asio2/component/rdc/rdc_call_cp.hpp>
 
+namespace asio2
+{
+	class session
+	{
+	public:
+		inline constexpr static bool is_session() noexcept { return true ; }
+		inline constexpr static bool is_client () noexcept { return false; }
+		inline constexpr static bool is_server () noexcept { return false; }
+	};
+}
+
 namespace asio2::detail
 {
 	ASIO2_CLASS_FORWARD_DECLARE_BASE;
 
 	template<class derived_t, class args_t>
 	class session_impl_t
-		: public object_t              <derived_t        >
+		: public asio2::session
+		, public object_t              <derived_t        >
 		, public thread_id_cp          <derived_t, args_t>
 		, public event_queue_cp        <derived_t, args_t>
 		, public user_data_cp          <derived_t, args_t>
@@ -67,6 +81,8 @@ namespace asio2::detail
 		, public alive_time_cp         <derived_t, args_t>
 		, public socket_cp             <derived_t, args_t>
 		, public connect_cp            <derived_t, args_t>
+		, public shutdown_cp           <derived_t, args_t>
+		, public close_cp              <derived_t, args_t>
 		, public disconnect_cp         <derived_t, args_t>
 		, public user_timer_cp         <derived_t, args_t>
 		, public silence_timer_cp      <derived_t, args_t>
@@ -110,6 +126,8 @@ namespace asio2::detail
 			, alive_time_cp       <derived_t, args_t>()
 			, socket_cp           <derived_t, args_t>(std::forward<Args>(args)...)
 			, connect_cp          <derived_t, args_t>()
+			, shutdown_cp         <derived_t, args_t>()
+			, close_cp            <derived_t, args_t>()
 			, disconnect_cp       <derived_t, args_t>()
 			, user_timer_cp       <derived_t, args_t>()
 			, silence_timer_cp    <derived_t, args_t>(rwio)
@@ -205,13 +223,16 @@ namespace asio2::detail
 				// function, so we must destroy ecs, otherwise the server will can't be exited
 				// forever.
 				this->ecs_.reset();
+
+				// 
+				this->reset_life_id();
 			});
 		}
 
 		/**
 		 * @brief check whether the session is started
 		 */
-		inline bool is_started() const
+		inline bool is_started()
 		{
 			return (this->state_ == state_t::started && this->socket().is_open());
 		}
@@ -219,7 +240,7 @@ namespace asio2::detail
 		/**
 		 * @brief check whether the session is stopped
 		 */
-		inline bool is_stopped() const
+		inline bool is_stopped()
 		{
 			return (this->state_ == state_t::stopped && !this->socket().is_open());
 		}
@@ -263,11 +284,8 @@ namespace asio2::detail
 		inline listener_t               & listener() noexcept { return this->listener_; }
 		inline std::atomic<state_t>     & state   () noexcept { return this->state_;    }
 
-	public:
-		inline constexpr static bool is_session() noexcept { return true ; }
-		inline constexpr static bool is_client () noexcept { return false; }
-		inline constexpr static bool is_server () noexcept { return false; }
-		inline constexpr static bool is_sslmode() noexcept { return false; }
+		inline constexpr bool             life_id () noexcept { return true; }
+		inline constexpr void       reset_life_id () noexcept { }
 
 	protected:
 		/// asio::strand ,used to ensure socket multi thread safe,we must ensure that only one operator
@@ -299,6 +317,9 @@ namespace asio2::detail
 
 		/// the pointer of ecs_t
 		std::shared_ptr<ecs_base>            ecs_;
+
+		/// Whether the async_read... is called.
+		bool                                 reading_ = false;
 
 	#if defined(_DEBUG) || defined(DEBUG)
 		std::atomic<int>                     post_send_counter_ = 0;

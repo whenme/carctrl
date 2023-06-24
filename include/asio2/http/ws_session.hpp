@@ -103,7 +103,17 @@ namespace asio2::detail
 			return reinterpret_cast<key_type>(this);
 		}
 
+		/**
+		 * @brief get the websocket upgraged request object
+		 */
+		inline const websocket::request_type& get_upgrade_request() noexcept { return this->upgrade_req_; }
+
 	protected:
+		inline typename super::socket_type& upgrade_stream() noexcept
+		{
+			return this->socket();
+		}
+
 		template<typename C>
 		inline void _do_init(std::shared_ptr<derived_t>& this_ptr, std::shared_ptr<ecs_t<C>>& ecs)
 		{
@@ -113,17 +123,17 @@ namespace asio2::detail
 		}
 
 		template<typename DeferEvent>
-		inline void _handle_disconnect(const error_code& ec, std::shared_ptr<derived_t> this_ptr, DeferEvent chain)
+		inline void _post_shutdown(const error_code& ec, std::shared_ptr<derived_t> this_ptr, DeferEvent chain)
 		{
-			this->derived()._ws_stop(this_ptr,
-				defer_event
+			ASIO2_LOG_DEBUG("ws_session::_post_shutdown: {} {}", ec.value(), ec.message());
+
+			this->derived()._ws_stop(this_ptr, defer_event
+			{
+				[this, ec, this_ptr, e = chain.move_event()] (event_queue_guard<derived_t> g) mutable
 				{
-					[this, ec, this_ptr, e = chain.move_event()] (event_queue_guard<derived_t> g) mutable
-					{
-						super::_handle_disconnect(ec, std::move(this_ptr), defer_event(std::move(e), std::move(g)));
-					}, chain.move_guard()
-				}
-			);
+					super::_post_shutdown(ec, std::move(this_ptr), defer_event(std::move(e), std::move(g)));
+				}, chain.move_guard()
+			});
 		}
 
 		template<typename C, typename DeferEvent>
@@ -142,8 +152,7 @@ namespace asio2::detail
 			{
 				this->derived()._ws_start(this_ptr, ecs, this->socket_);
 
-				this->derived()._post_control_callback(this_ptr, ecs);
-				this->derived()._post_upgrade(std::move(this_ptr), std::move(ecs), std::move(chain));
+				this->derived()._post_read_upgrade_request(std::move(this_ptr), std::move(ecs), std::move(chain));
 			}));
 		}
 
@@ -177,6 +186,7 @@ namespace asio2::detail
 		}
 
 	protected:
+		websocket::request_type                   upgrade_req_;
 	};
 }
 

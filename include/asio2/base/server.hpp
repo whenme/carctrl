@@ -43,13 +43,25 @@
 #include <asio2/base/impl/event_queue_cp.hpp>
 #include <asio2/base/impl/condition_event_cp.hpp>
 
+namespace asio2
+{
+	class server
+	{
+	public:
+		inline constexpr static bool is_session() noexcept { return false; }
+		inline constexpr static bool is_client () noexcept { return false; }
+		inline constexpr static bool is_server () noexcept { return true ; }
+	};
+}
+
 namespace asio2::detail
 {
 	ASIO2_CLASS_FORWARD_DECLARE_BASE;
 
 	template<class derived_t, class session_t>
 	class server_impl_t
-		: public object_t          <derived_t>
+		: public asio2::server
+		, public object_t          <derived_t>
 		, public iopool_cp         <derived_t>
 		, public thread_id_cp      <derived_t>
 		, public event_queue_cp    <derived_t>
@@ -139,7 +151,7 @@ namespace asio2::detail
 		/**
 		 * @brief check whether the server is started 
 		 */
-		inline bool is_started() const noexcept
+		inline bool is_started() noexcept
 		{
 			return (this->state_ == state_t::started);
 		}
@@ -147,9 +159,9 @@ namespace asio2::detail
 		/**
 		 * @brief check whether the server is stopped
 		 */
-		inline bool is_stopped() const noexcept
+		inline bool is_stopped() noexcept
 		{
-			return (this->state_ == state_t::stopped && this->is_iopool_stopped());
+			return (this->state_ == state_t::stopped);
 		}
 
 		/**
@@ -186,11 +198,7 @@ namespace asio2::detail
 		 * PodType * : async_send("abc");
 		 */
 		template<class CharT, class Traits = std::char_traits<CharT>>
-		inline typename std::enable_if_t<
-			std::is_same_v<detail::remove_cvref_t<CharT>, char> ||
-			std::is_same_v<detail::remove_cvref_t<CharT>, wchar_t> ||
-			std::is_same_v<detail::remove_cvref_t<CharT>, char16_t> ||
-			std::is_same_v<detail::remove_cvref_t<CharT>, char32_t>, derived_t&> async_send(CharT * s)
+		inline typename std::enable_if_t<detail::is_char_v<CharT>, derived_t&> async_send(CharT* s)
 		{
 			return this->async_send(s, s ? Traits::length(s) : 0);
 		}
@@ -320,12 +328,6 @@ namespace asio2::detail
 		inline session_mgr_t<session_t> & sessions() noexcept { return this->sessions_; }
 		inline listener_t               & listener() noexcept { return this->listener_; }
 		inline std::atomic<state_t>     & state   () noexcept { return this->state_;    }
-
-	public:
-		inline constexpr static bool is_session() noexcept { return false; }
-		inline constexpr static bool is_client () noexcept { return false; }
-		inline constexpr static bool is_server () noexcept { return true ; }
-		inline constexpr static bool is_sslmode() noexcept { return false; }
 
 	protected:
 		// The memory to use for handler-based custom memory allocation. used for acceptor.

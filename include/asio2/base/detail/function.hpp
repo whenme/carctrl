@@ -41,9 +41,9 @@
 
 namespace asio2::detail
 {
-#if defined(ASIO2_ENABLE_LOG)
+#if defined(ASIO2_ENABLE_LOG) && defined(ASIO2_ENABLE_LOG_STORAGE_SIZE)
 	template<typename = void>
-	inline void log_storage_size(bool is_stack, std::size_t size)
+	inline void log_function_storage_size(bool is_stack, std::size_t size)
 	{
 		static std::mutex mtx;
 		static std::map<std::size_t, std::size_t> stack_map;
@@ -59,7 +59,7 @@ namespace asio2::detail
 		static auto t1 = std::chrono::steady_clock::now();
 
 		auto t2 = std::chrono::steady_clock::now();
-		if (std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() > 5)
+		if (std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() > 60)
 		{
 			t1 = std::chrono::steady_clock::now();
 
@@ -118,7 +118,7 @@ namespace asio2::detail
 			str += "------------------------------------------------------------\n";
 			str += "\n";
 
-			ASIO2_LOG(spdlog::level::critical, "{}", str);
+			ASIO2_LOG_FATAL("{}", str);
 		}
 	}
 #endif
@@ -302,8 +302,8 @@ private:
 		{
 			new (reinterpret_cast<T *>(&storage_)) T(std::move(f));
 
-		#if defined(ASIO2_ENABLE_LOG)
-			log_storage_size(true, sizeof(T));
+		#if defined(ASIO2_ENABLE_LOG) && defined(ASIO2_ENABLE_LOG_STORAGE_SIZE)
+			log_function_storage_size(true, sizeof(T));
 		#endif
 
 			static vtable m = {
@@ -318,8 +318,8 @@ private:
 		{
 			*reinterpret_cast<T**>(&storage_) = new T(std::move(f));
 
-		#if defined(ASIO2_ENABLE_LOG)
-			log_storage_size(false, sizeof(T));
+		#if defined(ASIO2_ENABLE_LOG) && defined(ASIO2_ENABLE_LOG_STORAGE_SIZE)
+			log_function_storage_size(false, sizeof(T));
 		#endif
 
 			static vtable m = {
