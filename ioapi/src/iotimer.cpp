@@ -2,11 +2,11 @@
 
 #include <ioapi/iotimer.hpp>
 
-IoTimer::IoTimer(asio::io_service& io_service,
+IoTimer::IoTimer(asio::io_context& context,
                  std::function<void(const asio::error_code &e, void *ctxt)> timeoutHandler,
                  void *ctxt, bool isRepeated) :
-    m_ioService(io_service),
-    m_timer(io_service),
+    m_context(context),
+    m_timer(context),
     m_timeoutHandler(std::move(timeoutHandler)),
     m_usrContext(ctxt),
     m_repeat(isRepeated)
@@ -16,6 +16,7 @@ IoTimer::IoTimer(asio::io_service& io_service,
 IoTimer::~IoTimer()
 {
     stop();
+    m_timer.cancel();
 }
 
 void IoTimer::start(uint64_t timeoutms)

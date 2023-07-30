@@ -6,10 +6,11 @@
 #include <video/sound_intf.hpp>
 #include <cli/remote_key.hpp>
 #include <cli/cli_car.hpp>
+#include <rpc_service/rpc_service.hpp>
 
-RemoteKey::RemoteKey(asio::io_service& io_service) :
+RemoteKey::RemoteKey(asio::io_context& context) :
     m_keyfd(0),
-    m_timer(io_service, timerCallback, this, true)
+    m_timer(context, timerCallback, this, true)
 {
     m_keyList.clear();
 
@@ -102,16 +103,8 @@ void RemoteKey::handleKeyPress()
     static int32_t oldKey = 0;
     auto& soundIntf = cmn::getSingletonInstance<SoundIntf>();
     auto& client = cmn::getSingletonInstance<cli::CliCar>().getClient();
-    int32_t num = client.call<int32_t>("getMotorNum");
+    int32_t num = rpc_call_int_param<getMotorNum>(client);
     char sound[128] {0};
-
-    auto setMotorSteps = [&](int32_t id, int32_t step) {
-        client.async_call([&](int32_t res) {
-            if (asio2::get_last_error()) {
-                ctrllog::warn("rpc setCtrlSteps failed: {}, {}", asio2::last_error_val(), asio2::last_error_msg());
-            }
-        }, "setCtrlSteps", id, step);
-    };
 
     int32_t keyEvent = 0;
     int32_t ret = getKeyEvent(&keyEvent);
@@ -157,26 +150,26 @@ void RemoteKey::handleKeyPress()
         break;
 
     case RC_KEY_UP:
-        setMotorSteps(0, input);
+        rpc_call_void_param<setCtrlSteps>(client, 0, input);
         sprintf(sound, "前进%d步", input);
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_DOWN:
-        setMotorSteps(0, -1*input);
+        rpc_call_int_param<setCtrlSteps>(client, 0, -input);
         sprintf(sound, "后退%d步", input);
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_LEFT:
         if (num < 4) {
-            setMotorSteps(1, input);
+            rpc_call_int_param<setCtrlSteps>(client, 1, input);
             sprintf(sound, "左轮前进%d步", input);
         } else {
-            setMotorSteps(1, -input);
-            setMotorSteps(2, input);
-            setMotorSteps(3, input);
-            setMotorSteps(4, -input);
+            rpc_call_int_param<setCtrlSteps>(client, 1, -input);
+            rpc_call_int_param<setCtrlSteps>(client, 2, input);
+            rpc_call_int_param<setCtrlSteps>(client, 3, input);
+            rpc_call_int_param<setCtrlSteps>(client, 4, -input);
             sprintf(sound, "左移%d步", input);
         }
         soundIntf.speak(sound);
@@ -184,46 +177,36 @@ void RemoteKey::handleKeyPress()
         break;
     case RC_KEY_RIGHT:
         if (num < 4) {
-            setMotorSteps(2, input);
+            rpc_call_void_param<setCtrlSteps>(client, 2, input);
             sprintf(sound, "右轮前进%d步", input);
         } else {
-            setMotorSteps(1, input);
-            setMotorSteps(2, -input);
-            setMotorSteps(3, -input);
-            setMotorSteps(4, input);
+            rpc_call_int_param<setCtrlSteps>(client, 1, input);
+            rpc_call_int_param<setCtrlSteps>(client, 2, -input);
+            rpc_call_int_param<setCtrlSteps>(client, 3, -input);
+            rpc_call_int_param<setCtrlSteps>(client, 4, input);
             sprintf(sound, "右移%d步", input);
         }
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_OK:
-        client.async_call([&](int res){
-                              if (asio2::get_last_error()) {
-                                  ctrllog::warn("setMotorSpeedLevel failed: {}, {}",
-                                      asio2::last_error_val(), asio2::last_error_msg().c_str());
-                              }
-                          }, "setMotorSpeedLevel", input);
+        rpc_call_int_param<setMotorSpeedLevel>(client, input);
         ctrllog::info("set motor speed level {}", input);
         sprintf(sound, "设置速度等级%d", input);
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_STAR:
-        client.async_call([&](){
-                              if (asio2::get_last_error()) {
-                                  ctrllog::warn("setAllMotorState failed: {}, {}",
-                                      asio2::last_error_val(), asio2::last_error_msg().c_str());
-                              }
-                          }, "setAllMotorState", 0);
+        rpc_call_void_param<setAllMotorState>(client, 0);
         sprintf(sound, "停止");
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_POUND: //rotation
-        setMotorSteps(1, input);
-        setMotorSteps(2, -input);
-        setMotorSteps(3, input);
-        setMotorSteps(4, -input);
+        rpc_call_int_param<setCtrlSteps>(client, 1, input);
+        rpc_call_int_param<setCtrlSteps>(client, 2, -input);
+        rpc_call_int_param<setCtrlSteps>(client, 3, input);
+        rpc_call_int_param<setCtrlSteps>(client, 4, -input);
         sprintf(sound, "旋转%d步", input);
         soundIntf.speak(sound);
         input = 0;

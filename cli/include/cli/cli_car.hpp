@@ -4,7 +4,7 @@
 #include <cli/cli.h>
 #include <cli/cli_impl.h>
 #include <memory>
-#include <asio2/asio2.hpp>
+#include <ylt/coro_rpc/coro_rpc_client.hpp>
 
 namespace cli
 {
@@ -17,12 +17,10 @@ public:
     virtual ~CliCar();
 
     void initCliCommand(std::unique_ptr<Menu>& rootMenu) override;
-    asio2::rpc_client& getClient();
+    coro_rpc::coro_rpc_client& getClient();
 
 private:
-    asio2::rpc_client m_client;
-
-    void initRpcClient();
+    coro_rpc::coro_rpc_client m_client;
 };
 
 }  // namespace cli

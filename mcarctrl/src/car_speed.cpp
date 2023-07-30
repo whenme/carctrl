@@ -8,8 +8,8 @@
 #include "car_speed.hpp"
 #include "car_ctrl.hpp"
 
-CarSpeed::CarSpeed(asio2::rpc_server& ioServer, CarCtrl *carCtrl) :
-    m_server(ioServer),
+CarSpeed::CarSpeed(asio::io_context& context, CarCtrl *carCtrl) :
+    m_context(context),
     m_speedThread("speed thread", IoThread::ThreadPriorityNormal, CarSpeed::threadFun, this),
     m_carCtrl(carCtrl)
 {
@@ -23,7 +23,7 @@ CarSpeed::CarSpeed(asio2::rpc_server& ioServer, CarCtrl *carCtrl) :
 
 CarSpeed::~CarSpeed()
 {
-    m_timer.stop();
+    //m_timer.stop();
     m_speedThread.stop();
 
     for (auto& item : m_motor) {
@@ -125,7 +125,7 @@ void CarSpeed::setActualSteps(int32_t motor, int32_t steps)
 {
     m_motor[motor]->setActualSteps(steps);
 }
-
+/*
 void CarSpeed::timerSpeedCallback(const asio::error_code &e, void *ctxt)
 {
     CarSpeed* obj = static_cast<CarSpeed*>(ctxt);
@@ -137,7 +137,7 @@ void CarSpeed::timerSpeedCallback(const asio::error_code &e, void *ctxt)
             counter[i] = obj->m_motor[i]->m_swCounter;
         }
     }
-}
+}*/
 
 void CarSpeed::motorPwmCtrl()
 {

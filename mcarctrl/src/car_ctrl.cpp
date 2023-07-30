@@ -7,15 +7,15 @@
 #include <ioapi/param_json.hpp>
 #include "car_ctrl.hpp"
 
-CarCtrl::CarCtrl(asio2::rpc_server& ioServer) :
-    m_server(ioServer),
-    m_carSpeed(m_server, this)
+CarCtrl::CarCtrl(asio::io_context& context) :
+    m_carSpeed(context, this),
+    m_runTimer(context, runTimeCallback, this, false)
 {
 }
 
 CarCtrl::~CarCtrl()
 {
-    m_timer.stop();
+    m_runTimer.stop();
 }
 
 
@@ -38,12 +38,10 @@ int32_t CarCtrl::setCtrlSteps(int32_t motor, int32_t steps)
 
     m_ctrlMode = CTRL_MODE_STEP;
     if (motor == 0) {
-        m_straight = true;
         for (int32_t i = 0; i < m_carSpeed.getMotorNum(); i++) {
             m_carSpeed.setRunSteps(i, steps);
         }
     } else {
-        m_straight = false;
         m_carSpeed.setRunSteps(motor-1, steps);
     }
 
@@ -80,6 +78,13 @@ int32_t CarCtrl::getActualSteps(int32_t motor)
     return m_carSpeed.getActualSteps(motor);
 }
 
+void CarCtrl::runTimeCallback(const asio::error_code &e, void *ctxt)
+{
+    CarCtrl *pCtrl = static_cast<CarCtrl *>(ctxt);
+
+    pCtrl->setAllMotorState(MOTOR_STATE_STOP);
+}
+
 int32_t CarCtrl::setRunTime(int32_t time)
 {
     m_ctrlMode = CTRL_MODE_TIME;
@@ -88,11 +93,8 @@ int32_t CarCtrl::setRunTime(int32_t time)
         m_carSpeed.setActualSteps(i, 0);
     }
     setAllMotorState(MOTOR_STATE_FORWARD);
+    m_runTimer.start(time * 1000);
 
-    m_server.start_timer("runtimer", time, 1, [&]() {
-                             ctrllog::warn("setRunTime timer callback...");
-                             setAllMotorState(MOTOR_STATE_STOP);
-                         });
     return 0;
 }
 

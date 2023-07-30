@@ -25,7 +25,7 @@
 class RemoteKey
 {
 public:
-    RemoteKey(asio::io_service& io_service);
+    RemoteKey(asio::io_context& context);
     virtual ~RemoteKey();
     void   handleKeyPress();
 

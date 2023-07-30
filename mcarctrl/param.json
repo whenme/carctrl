@@ -24,7 +24,7 @@
         "product_name": "Quadcycle",
         "motor_num": 4,
         "motor_front_left":  [121, 71],
-        "motor_front_right": [73, 72],
+        "motor_front_right": [72, 73],
         "motor_back_left":   [119, 120],
         "motor_back_right":  [117, 118],
         "ir_front_left": 228,

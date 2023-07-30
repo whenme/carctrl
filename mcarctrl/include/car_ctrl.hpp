@@ -2,7 +2,6 @@
 
 #pragma once
 #include <ioapi/iotimer.hpp>
-#include <asio2/asio2.hpp>
 #include "gpio.hpp"
 #include "car_speed.hpp"
 
@@ -16,7 +15,7 @@
 class CarCtrl
 {
 public:
-    CarCtrl(asio2::rpc_server& ioServer);
+    CarCtrl(asio::io_context& context);
     virtual ~CarCtrl();
 
     int32_t getActualSpeed(int32_t motor);
@@ -35,9 +34,9 @@ public:
     int32_t getMotorPwm(int32_t motor);
 
 private:
-    asio2::rpc_server& m_server;
-    asio2::timer       m_timer;
+    static void runTimeCallback(const asio::error_code &e, void *ctxt);
+
     CarSpeed           m_carSpeed;
+    IoTimer            m_runTimer;
     int32_t            m_ctrlMode {CTRL_MODE_STEP};
-    bool               m_straight { false };
 };
