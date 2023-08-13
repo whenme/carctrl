@@ -2,7 +2,7 @@
 
 #pragma once
 #include <spdlog/sinks/basic_file_sink.h>
-//#include <spdlog/sinks/rotating_file_sink.h>
+#include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
@@ -17,7 +17,7 @@ struct easylog_options {
   spdlog::level::level_enum log_level = spdlog::level::debug;
   std::string app_log_name = __progname;
   std::string log_dir = "/var/log/";
-  bool always_flush = true;
+  bool always_flush = false;
   int flush_interval = 5;
   int max_size = 5 * 1024 * 1024;
   int max_files = 5;

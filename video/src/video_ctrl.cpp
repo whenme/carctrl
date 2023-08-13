@@ -4,7 +4,7 @@
 #include <video/video_ctrl.hpp>
 #include <vector>
 
-VideoCtrl::VideoCtrl(asio::io_service& io_service):
+VideoCtrl::VideoCtrl(asio::io_context& ioContext):
   m_videoThread("video thread", IoThread::ThreadPriorityNormal, videoThreadFun, this)
 {
     //check there is GUI backend or not

@@ -122,7 +122,7 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                     "set motor steps");
 
     cliMenu->insert("set-carstep",
-                    {"direction:0-forward/backward, 1-left/right, 2-rotation", "steps: >0-forward or left, <0-backward or right"},
+                    {"direction:0-forward/backward, 1-left/right, 2-rotation", "steps: >0-forward/left, <0-backward/right"},
                     [&](std::ostream& out, int32_t direction, int32_t steps) {
                         int32_t motorNum = rpc_call_int_param<getMotorNum>(m_client);
                         if (direction == 0) {

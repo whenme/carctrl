@@ -2,11 +2,11 @@
 
 #include <ioapi/iosignal.hpp>
 
-IoSignal::IoSignal(asio::io_service& io_service, std::initializer_list<int32_t>& signalNum,
+IoSignal::IoSignal(asio::io_context& ioContext, std::initializer_list<int32_t>& signalNum,
                    std::function<void(const asio::error_code &e, void *ctxt)> signalHandler,
                    void *ctxt):
-    m_ioService(io_service),
-    m_sigset(m_ioService),
+    m_context(ioContext),
+    m_sigset(m_context),
     m_signalHandler(signalHandler),
     m_usrContext(ctxt)
 {

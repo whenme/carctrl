@@ -9,7 +9,7 @@
 class VideoCtrl
 {
 public:
-    VideoCtrl(asio::io_service& io_service);
+    VideoCtrl(asio::io_context& ioContext);
     virtual ~VideoCtrl();
 
 private:

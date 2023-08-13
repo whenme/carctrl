@@ -15,8 +15,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <termios.h>
-#include <stdarg.h>
 
+#include <cstdarg>
 #include <cstdlib>
 #include <mutex>
 #include <string>
@@ -26,10 +26,21 @@
 #include <exception>
 
 #include <ioapi/pty_shell.hpp>
+#include <ioapi/easylog.hpp>
+
+struct scc_stats_reborn
+{
+    uint32_t pipe_continuously_full;
+    uint32_t slow_serial_remainig_iterations;
+    uint32_t slow_serial_entry_count;
+    uint32_t dropped_chars;
+    uint32_t dropped_count;
+    uint32_t sent_count;
+    uint32_t flushed_count;
+};
 
 static int master_fd[] = {-1, -1, -1, -1, -1};
 static int rs_shell_channel = -1;
-static int real_aux_fd = -1;
 
 /* *** BEGIN useSTDIO support *** */
 /*
@@ -185,9 +196,16 @@ static char tty_name_to_cleanup[MAX_TTY_DEV_NAME_LEN];
 
 static void cleanup_tty_link()
 {
-  std::cout << "cleanup_tty_link..." << std::endl;
-  if (strlen(tty_name_to_cleanup) > 0)
-    unlink(tty_name_to_cleanup);
+    fprintf(stderr, "cleanup tty link at exit\r\n");
+    apilog::warn("cleanup tty link at exit");
+
+    if (strlen(tty_name_to_cleanup) > 0)
+        unlink(tty_name_to_cleanup);
+}
+
+static void cleanup_tty_link_param(int param)
+{
+    cleanup_tty_link();
 }
 
 static int setup_pseudo_tty_link(uint32_t dev_num, int *return_fd, int *return_aux_fd, enum e_filetype *return_ft)
@@ -305,8 +323,6 @@ static int setup_pseudo_tty_link(uint32_t dev_num, int *return_fd, int *return_a
 static uint32_t use_stdio=0;
 static uint32_t debug_io=0;
 static uint32_t debug_tty=1;
-static struct scc_stats_reborn scc_stats;
-static std::mutex scc_stats_mutex;
 
 static int error_printf(const char *format, ...)
 {
@@ -382,15 +398,16 @@ static uint32_t scc_psos_send_buf_real_serial (uint32_t channel, uint8_t *buf, s
       return 0;
 }
 
-static uint32_t scc_psos_send_buf (uint32_t channel,
-                                 uint8_t *buf,
-                                 short buf_len)
+static uint32_t scc_psos_send_buf(uint32_t channel, uint8_t *buf, short buf_len)
 {
   int32_t fd;
-  fd_set fdset;
-  struct timeval timeout;
+  fd_set  fdset;
+  struct  timeval timeout;
   uint32_t sleep_timeout = 0;
   int32_t retval = 0;
+
+  static struct scc_stats_reborn scc_stats;
+  static std::mutex scc_stats_mutex;
 
   if (debug_io == 1) {
       fprintf(stderr, "scc_psos_send_buf: writing %d bytes:", buf_len);
@@ -400,8 +417,9 @@ static uint32_t scc_psos_send_buf (uint32_t channel,
   }
 
   // All calls with non rs_shell_channel are redirected to a simple function.
-  if (channel != (uint32_t)rs_shell_channel)
+  if (channel != (uint32_t)rs_shell_channel) {
     return scc_psos_send_buf_real_serial(channel, buf, buf_len);
+  }
 
 
   /* On Linux we use a pseudo tty to simulate a serial line. The big difference with a real
@@ -588,9 +606,12 @@ void pty_shell_init(uint32_t channel)
     tty_setup(STDIN_FILENO);
   } else {
     enum e_filetype filetype;
+    int real_aux_fd = -1;
     if (setup_pseudo_tty_link(channel, &master_fd[channel], &real_aux_fd, &filetype) == 0) {
       std::set_terminate(cleanup_tty_link);
       std::atexit(cleanup_tty_link);
+      signal(SIGTERM, cleanup_tty_link_param);
+      signal(SIGINT, cleanup_tty_link_param);
     } else {
       std::cout << "pty_shell_init: fail to setup_pseudo_tty_link..." << std::endl;
     }
@@ -609,17 +630,4 @@ int getchar(){
     short rcv_len;
     scc_psos_recv_buf(2, (uint8_t *)(&c), 1, &rcv_len);
     return c;
-}
-
-std::string readLink()
-{
-    char name[100];
-    int32_t ret = readlink("/proc/self/exe", name, sizeof(name));
-    if (ret < 0)
-        std::cout<<"readlink error"<<std::endl;
-
-    std::cout<< "readlink name "<< name << std::endl;
-    name[ret] = 0;
-
-    return std::string(strrchr(name, '/') + 1);
 }

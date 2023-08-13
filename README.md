@@ -3,11 +3,14 @@
 
 ### 1) Two applications:
 > The demo framework has 2 applications with different functions:
+>
 >   &emsp;carctrl:&emsp; control intelligent car.
+>
 >   &emsp;interface: user interface, such as command line(CLI) and IR remote controller.
+>
 
 ### 2) RPC between applications
->   &emsp;based on asio2. Please check https://github.com/zhllxt/asio2.git for RPC details.
+>   &emsp;based on yalanting/coro_rpc. Please check https://github.com/alibaba/yalantinglibs for RPC details.
 >
 >   &emsp;cli/src/cli_car.cpp for RPC client, mcarctrl/src/main.cpp for RPC server.
 >
@@ -32,7 +35,9 @@
 # Build options
 ### 1) install required package
 >   apt-get install libasio-dev nlohmann-json3-dev libspdlog-dev
+>
 >   apt-get install libcereal-dev libopencv-dev
+>
 
 ### 2) clone code
 >   git clone https://github.com/whenme/carctrl.git

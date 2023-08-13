@@ -9,7 +9,7 @@
 class IoSignal final
 {
 public:
-    IoSignal(asio::io_service& io_service, std::initializer_list<int32_t>& signalNum,
+    IoSignal(asio::io_context& ioContext, std::initializer_list<int32_t>& signalNum,
              std::function<void(const asio::error_code &e, void *ctxt)> signalHandler,
              void *ctxt = nullptr);
     virtual ~IoSignal();
@@ -19,7 +19,7 @@ public:
 
 private:
     std::vector<int32_t> m_signalVect;
-    asio::io_service&    m_ioService;
+    asio::io_context&    m_context;
     asio::signal_set     m_sigset;
     std::function<void(const asio::error_code &e, void *ctxt)> m_signalHandler;
     void *m_usrContext;
