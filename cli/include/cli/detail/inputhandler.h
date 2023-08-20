@@ -34,25 +34,25 @@ private:
     {
         switch (str.first)
         {
-            case Symbol::Nothing:
+            case Symbol::nothing:
                 break;
-            case Symbol::Eof:
+            case Symbol::eof:
                 m_session.exit();
                 break;
-            case Symbol::Command:
+            case Symbol::command:
                 m_session.feed(str.second);
                 m_session.prompt();
                 break;
-            case Symbol::Down:
+            case Symbol::down:
                 m_terminal.setLine(m_session.nextCmd());
                 break;
-            case Symbol::Up:
+            case Symbol::up:
             {
                 auto line = m_terminal.getLine();
                 m_terminal.setLine(m_session.previousCmd(line));
                 break;
             }
-            case Symbol::Tab:
+            case Symbol::tab:
             {
                 auto line        = m_terminal.getLine();
                 auto completions = m_session.getCompletions(line);

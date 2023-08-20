@@ -32,9 +32,9 @@ public:
 private:
     void reset()
     {
-        m_state        = State::Space;
-        m_prevState    = State::Space;
-        m_sentenceType = SentenceType::DoubleQuote;
+        m_state        = State::space;
+        m_prevState    = State::space;
+        m_sentenceType = SentenceType::double_quote;
         m_splitResult.clear();
     }
 
@@ -42,16 +42,16 @@ private:
     {
         switch (m_state)
         {
-            case State::Space:
+            case State::space:
                 evalSpace(chr);
                 break;
-            case State::Word:
+            case State::word:
                 evalWord(chr);
                 break;
-            case State::Sentence:
+            case State::sentence:
                 evalSentence(chr);
                 break;
-            case State::Escape:
+            case State::escape:
                 evalEscape(chr);
                 break;
         }
@@ -71,13 +71,13 @@ private:
         {
             // This is the case where the first character of a word is escaped.
             // Should come back into the word state after this.
-            m_prevState = State::Word;
-            m_state     = State::Escape;
+            m_prevState = State::word;
+            m_state     = State::escape;
             m_splitResult.emplace_back("");
         }
         else
         {
-            m_state = State::Word;
+            m_state = State::word;
             m_splitResult.emplace_back(1, chr);
         }
     }
@@ -86,7 +86,7 @@ private:
     {
         if (chr == ' ' || chr == '\t' || chr == '\n')
         {
-            m_state = State::Space;
+            m_state = State::space;
         }
         else if (chr == '"' || chr == '\'')
         {
@@ -95,7 +95,7 @@ private:
         else if (chr == '\\')
         {
             m_prevState = m_state;
-            m_state     = State::Escape;
+            m_state     = State::escape;
         }
         else
         {
@@ -108,10 +108,10 @@ private:
     {
         if (chr == '"' || chr == '\'')
         {
-            auto newType = chr == '"' ? SentenceType::DoubleQuote : SentenceType::Quote;
+            auto newType = chr == '"' ? SentenceType::double_quote : SentenceType::quote;
             if (newType == m_sentenceType)
             {
-                m_state = State::Space;
+                m_state = State::space;
             }
             else
             {
@@ -122,7 +122,7 @@ private:
         else if (chr == '\\')
         {
             m_prevState = m_state;
-            m_state     = State::Escape;
+            m_state     = State::escape;
         }
         else
         {
@@ -144,8 +144,8 @@ private:
 
     void newSentence(char chr)
     {
-        m_state        = State::Sentence;
-        m_sentenceType = (chr == '"' ? SentenceType::DoubleQuote : SentenceType::Quote);
+        m_state        = State::sentence;
+        m_sentenceType = (chr == '"' ? SentenceType::double_quote : SentenceType::quote);
         m_splitResult.emplace_back("");
     }
 
@@ -162,19 +162,19 @@ private:
 
     enum class State
     {
-        Space,
-        Word,
-        Sentence,
-        Escape
+        space,
+        word,
+        sentence,
+        escape
     };
     enum class SentenceType
     {
-        Quote,
-        DoubleQuote
+        quote,
+        double_quote
     };
-    State                    m_state        = State::Space;
-    State                    m_prevState    = State::Space;
-    SentenceType             m_sentenceType = SentenceType::DoubleQuote;
+    State                    m_state        = State::space;
+    State                    m_prevState    = State::space;
+    SentenceType             m_sentenceType = SentenceType::double_quote;
     const std::string        m_input;
     std::vector<std::string> m_splitResult;
 };

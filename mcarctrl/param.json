@@ -5,8 +5,8 @@
         "motor_num": 2,
         "motor_front_left": [10, 9],
         "motor_front_right": [8, 7],
-        "ir_front_left": 201,
-        "ir_front_right": 200,
+        "ir_front_left": 200,
+        "ir_front_right": 201,
         "pwm": {
             "one":   [10, 6],
             "two":   [20, 15],

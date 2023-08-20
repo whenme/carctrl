@@ -12,18 +12,18 @@ namespace cli::detail
 {
 enum class KeyType
 {
-    Ascii,
-    Up,
-    Down,
-    Left,
-    Right,
-    Backspace,
-    Canc,
-    Home,
-    End,
-    Ret,
-    Eof,
-    Ignored
+    ascii,
+    up,
+    down,
+    left,
+    right,
+    backspace,
+    canc,
+    home,
+    end,
+    ret,
+    eof,
+    ignored
 };
 
 class InputDevice

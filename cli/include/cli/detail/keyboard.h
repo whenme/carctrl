@@ -112,12 +112,12 @@ private:
         {
             case EOF:
             case k_KeyEot:  // EOT
-                return std::make_pair(KeyType::Eof, ' ');
+                return std::make_pair(KeyType::eof, ' ');
             case k_KeyBackspace:
             case 8:
-                return std::make_pair(KeyType::Backspace, ' ');
+                return std::make_pair(KeyType::backspace, ' ');
             case k_KeyRet:
-                return std::make_pair(KeyType::Ret, ' ');
+                return std::make_pair(KeyType::ret, ' ');
             case k_KeySymbol:  // symbol
                 ch = std::getchar();
                 if (ch == k_KeyArrow)  // arrow keys
@@ -128,33 +128,33 @@ private:
                         case k_KeyWait:
                             ch = std::getchar();
                             if (ch == k_KeyCanc)
-                                return std::make_pair(KeyType::Canc, ' ');
+                                return std::make_pair(KeyType::canc, ' ');
                             else
-                                return std::make_pair(KeyType::Ignored, ' ');
+                                return std::make_pair(KeyType::ignored, ' ');
                         case k_KeyUp:
-                            return std::make_pair(KeyType::Up, ' ');
+                            return std::make_pair(KeyType::up, ' ');
                         case k_KeyDown:
-                            return std::make_pair(KeyType::Down, ' ');
+                            return std::make_pair(KeyType::down, ' ');
                         case k_KeyLeft:
-                            return std::make_pair(KeyType::Left, ' ');
+                            return std::make_pair(KeyType::left, ' ');
                         case k_KeyRight:
-                            return std::make_pair(KeyType::Right, ' ');
+                            return std::make_pair(KeyType::right, ' ');
                         case k_KeyEnd:
-                            return std::make_pair(KeyType::End, ' ');
+                            return std::make_pair(KeyType::end, ' ');
                         case k_KeyHome:
-                            return std::make_pair(KeyType::Home, ' ');
+                            return std::make_pair(KeyType::home, ' ');
                         default:
-                            return std::make_pair(KeyType::Ignored, ' ');
+                            return std::make_pair(KeyType::ignored, ' ');
                     }
                 }
                 break;
             default:  // ascii
             {
                 const char chr = static_cast<char>(ch);
-                return std::make_pair(KeyType::Ascii, chr);
+                return std::make_pair(KeyType::ascii, chr);
             }
         }
-        return std::make_pair(KeyType::Ignored, ' ');
+        return std::make_pair(KeyType::ignored, ' ');
     }
 
     void toManualMode()

@@ -27,7 +27,7 @@ public:
     {
         ++m_commands;
         m_current = 0;
-        if (m_mode == Mode::Browsing)
+        if (m_mode == Mode::browsing)
         {
             assert(!m_buffer.empty());
             if (m_buffer.size() > 1 && m_buffer[1] == item)  // try to insert an element identical to last one
@@ -46,7 +46,7 @@ public:
                 insert(item);
             }
         }
-        m_mode = Mode::Inserting;
+        m_mode = Mode::inserting;
     }
 
     // Return the previous item of the history, updating the m_current item and
@@ -56,10 +56,10 @@ public:
     // Otherwise, the line overwrites the m_current item.
     std::string previous(const std::string& line)
     {
-        if (m_mode == Mode::Inserting)
+        if (m_mode == Mode::inserting)
         {
             insert(line);
-            m_mode    = Mode::Browsing;
+            m_mode    = Mode::browsing;
             m_current = (m_buffer.size() > 1) ? 1 : 0;
         }
         else  // Mode::browsing
@@ -71,7 +71,7 @@ public:
                 ++m_current;
             }
         }
-        assert(m_mode == Mode::Browsing);
+        assert(m_mode == Mode::browsing);
         assert(m_current < m_buffer.size());
         return m_buffer[m_current];
     }
@@ -114,7 +114,7 @@ public:
     {
         auto numCmdsToReturn = std::min(m_commands, m_buffer.size());
         auto start           = m_buffer.begin();
-        if (m_mode == Mode::Browsing)
+        if (m_mode == Mode::browsing)
         {
             numCmdsToReturn = std::min(m_commands, m_buffer.size() - 1);
             start           = m_buffer.begin() + 1;
@@ -143,10 +143,10 @@ private:
     std::size_t             m_commands = 0;  // number of commands issued
     enum class Mode
     {
-        Inserting,
-        Browsing
+        inserting,
+        browsing
     };
-    Mode m_mode = Mode::Inserting;
+    Mode m_mode = Mode::inserting;
 };
 
 }  // namespace cli::detail

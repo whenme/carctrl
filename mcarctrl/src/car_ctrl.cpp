@@ -36,6 +36,20 @@ int32_t CarCtrl::setCtrlSteps(int32_t motor, int32_t steps)
         return -1;
     }
 
+    if (!steps)
+        return 0;
+
+    //revise steps
+    int32_t level = m_carSpeed.getMotorSpeedLevel();
+    if (steps > 10)
+        steps -= level;
+    else if ((steps > 0) && (steps <= 10))
+        steps -= level/2;
+    else if ((steps < 0) && (steps >= -10))
+        steps += level/2;
+    else
+        steps += level;
+
     m_ctrlMode = CTRL_MODE_STEP;
     if (motor == 0) {
         for (int32_t i = 0; i < m_carSpeed.getMotorNum(); i++) {

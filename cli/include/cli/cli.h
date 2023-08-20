@@ -88,8 +88,19 @@ public:
                  std::unique_ptr<HistoryStorage> historyStorage = std::make_unique<VolatileHistoryStorage>()) :
         m_globalHistoryStorage(std::move(historyStorage)),
         m_rootMenu(std::move(rootMenu)),
+        m_enterAction{},
         m_exitAction{}
     {
+    }
+
+    /**
+     * @brief Add a global enter action that is called every time a session (local or remote) is established.
+     *
+     * @param action the function to be called when a session exits, taking a @c std::ostream& parameter to write on that session console.
+     */
+    void enterAction(const std::function<void(std::ostream&)>& action)
+    {
+        m_enterAction = action;
     }
 
     /**
@@ -140,6 +151,14 @@ private:
         return s;
     }
 
+    void enterAction(std::ostream& out)
+    {
+        if (m_enterAction)
+        {
+            m_enterAction(out);
+        }
+    }
+
     void exitAction(std::ostream& out)
     {
         if (m_exitAction)
@@ -160,16 +179,6 @@ private:
         }
     }
 
-    static void registerStream(std::ostream& ostm)
-    {
-        cout().registerStream(ostm);
-    }
-
-    static void unRegisterStream(std::ostream& ostm)
-    {
-        cout().unRegisterStream(ostm);
-    }
-
     void storeCommands(const std::vector<std::string>& cmds)
     {
         m_globalHistoryStorage->store(cmds);
@@ -182,6 +191,7 @@ private:
 
     std::unique_ptr<HistoryStorage>    m_globalHistoryStorage;
     std::unique_ptr<Menu>              m_rootMenu;  // just to keep it alive
+    std::function<void(std::ostream&)> m_enterAction;
     std::function<void(std::ostream&)> m_exitAction;
     std::function<void(std::ostream&, const std::string& cmd, const std::exception&)> m_exceptionHandler;
 };
@@ -284,6 +294,14 @@ public:
 
     void help() const;
 
+    void enter()
+    {
+        m_cli.enterAction(m_out);
+
+        if (m_enterAction)
+            m_enterAction(m_out);
+    }
+
     void exit()
     {
         m_exitAction(m_out);
@@ -293,6 +311,11 @@ public:
         m_cli.storeCommands(cmds);
 
         m_exit = true;  // prevent the prompt to be shown
+    }
+
+    void enterAction(const std::function<void(std::ostream&)>& action)
+    {
+        m_enterAction = action;
     }
 
     void exitAction(const std::function<void(std::ostream&)>& action)
@@ -323,7 +346,8 @@ private:
     Menu*                              m_current;
     std::unique_ptr<Menu>              m_globalScopeMenu;
     std::ostream&                      m_out;
-    std::function<void(std::ostream&)> m_exitAction = [](std::ostream&) { };
+    std::function<void(std::ostream&)> m_enterAction = [](std::ostream&) noexcept {};
+    std::function<void(std::ostream&)> m_exitAction = [](std::ostream&) noexcept {};
     detail::History m_history;
     bool            m_exit{false};  // to prevent the prompt after exit command
 

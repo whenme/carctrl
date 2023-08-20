@@ -201,27 +201,27 @@ private:
     {
         switch (m_state)
         {
-            case State::Data:
+            case State::data:
                 output(ch);
                 break;
-            case State::Sub:
+            case State::sub:
                 rxSub(ch);
                 break;
-            case State::WaitWill:
+            case State::wait_will:
                 rxWill(ch);
-                m_state = State::Data;
+                m_state = State::data;
                 break;
-            case State::WaitWont:
+            case State::wait_wont:
                 rxWont(ch);
-                m_state = State::Data;
+                m_state = State::data;
                 break;
-            case State::WaitDo:
+            case State::wait_do:
                 rxDo(ch);
-                m_state = State::Data;
+                m_state = State::data;
                 break;
-            case State::WaitDont:
+            case State::wait_dont:
                 rxDont(ch);
-                m_state = State::Data;
+                m_state = State::data;
                 break;
             default:
                 break;
@@ -233,9 +233,9 @@ private:
         switch (ch)
         {
             case SE:
-                if (m_state == State::Sub)
+                if (m_state == State::sub)
                 {
-                    m_state = State::Data;
+                    m_state = State::data;
                 }
                 else
                 {
@@ -251,12 +251,12 @@ private:
             case EraseLine:
             case GoAhead:
             case NOP:
-                m_state = State::Data;
+                m_state = State::data;
                 break;
             case SB:
-                if (m_state != State::Sub)
+                if (m_state != State::sub)
                 {
-                    m_state = State::Sub;
+                    m_state = State::sub;
                 }
                 else
                 {
@@ -264,20 +264,20 @@ private:
                 }
                 break;
             case WILL:
-                m_state = State::WaitWill;
+                m_state = State::wait_will;
                 break;
             case WONT:
-                m_state = State::WaitWont;
+                m_state = State::wait_wont;
                 break;
             case DO:
-                m_state = State::WaitDo;
+                m_state = State::wait_do;
                 break;
             case DONT:
-                m_state = State::WaitDont;
+                m_state = State::wait_dont;
                 break;
             case IAC:
                 assert(false);  // can't be here
-                m_state = State::Data;
+                m_state = State::data;
                 break;
             default:
                 break;
@@ -363,14 +363,14 @@ protected:
 private:
     enum class State
     {
-        Data,
-        Sub,
-        WaitWill,
-        WaitWont,
-        WaitDo,
-        WaitDont
+        data,
+        sub,
+        wait_will,
+        wait_wont,
+        wait_do,
+        wait_dont
     };
-    State m_state  = State::Data;
+    State m_state  = State::data;
     bool  m_escape = false;
 #endif
 
@@ -424,6 +424,7 @@ protected:
     void onConnect() override
     {
         TelnetSession::onConnect();
+        enter();
         prompt();
     }
 
@@ -436,11 +437,11 @@ protected:
                 {
                     case EOF:
                     case k_KeyEot:  // EOT
-                        notify(std::make_pair(KeyType::Eof, ' '));
+                        notify(std::make_pair(KeyType::eof, ' '));
                         break;
                     case k_KeyBack:       // Backspace
                     case k_KeyBackspace:  // Backspace or Delete
-                        notify(std::make_pair(KeyType::Backspace, ' '));
+                        notify(std::make_pair(KeyType::backspace, ' '));
                         break;
                     // case 10: Notify(std::make_pair(KeyType::ret,' ')); break;
                     case k_KeySymbol:  // symbol
@@ -452,7 +453,7 @@ protected:
                     default:  // ascii
                     {
                         const char chr = static_cast<char>(ch);
-                        notify(std::make_pair(KeyType::Ascii, chr));
+                        notify(std::make_pair(KeyType::ascii, chr));
                     }
                 }
                 break;
@@ -465,7 +466,7 @@ protected:
                 else  // unknown
                 {
                     m_step = Step::Step1;
-                    notify(std::make_pair(KeyType::Ignored, ' '));
+                    notify(std::make_pair(KeyType::ignored, ' '));
                 }
                 break;
 
@@ -474,27 +475,27 @@ protected:
                 {
                     case k_KeyUp:
                         m_step = Step::Step1;
-                        notify(std::make_pair(KeyType::Up, ' '));
+                        notify(std::make_pair(KeyType::up, ' '));
                         break;
                     case k_KeyDown:
                         m_step = Step::Step1;
-                        notify(std::make_pair(KeyType::Down, ' '));
+                        notify(std::make_pair(KeyType::down, ' '));
                         break;
                     case k_KeyLeft:
                         m_step = Step::Step1;
-                        notify(std::make_pair(KeyType::Left, ' '));
+                        notify(std::make_pair(KeyType::left, ' '));
                         break;
                     case k_KeyRight:
                         m_step = Step::Step1;
-                        notify(std::make_pair(KeyType::Right, ' '));
+                        notify(std::make_pair(KeyType::right, ' '));
                         break;
                     case k_KeyEnd:
                         m_step = Step::Step1;
-                        notify(std::make_pair(KeyType::End, ' '));
+                        notify(std::make_pair(KeyType::end, ' '));
                         break;
                     case k_KeyHome:
                         m_step = Step::Step1;
-                        notify(std::make_pair(KeyType::Home, ' '));
+                        notify(std::make_pair(KeyType::home, ' '));
                         break;
                     default:
                         m_step = Step::Step4;
@@ -505,11 +506,11 @@ protected:
             case Step::Step4:
                 if (ch == k_KeyCanc)
                 {
-                    notify(std::make_pair(KeyType::Canc, ' '));
+                    notify(std::make_pair(KeyType::canc, ' '));
                 }
                 else
                 {
-                    notify(std::make_pair(KeyType::Ignored, ' '));
+                    notify(std::make_pair(KeyType::ignored, ' '));
                 }
                 m_step = Step::Step1;
                 break;
@@ -517,11 +518,11 @@ protected:
             case Step::Wait0:
                 if (ch == 0 /* linux */ || ch == k_KeyRet /* win */)
                 {
-                    notify(std::make_pair(KeyType::Ret, ' '));
+                    notify(std::make_pair(KeyType::ret, ' '));
                 }
                 else
                 {
-                    notify(std::make_pair(KeyType::Ignored, ' '));
+                    notify(std::make_pair(KeyType::ignored, ' '));
                 }
                 m_step = Step::Step1;
                 break;
@@ -594,6 +595,7 @@ public:
 private:
     Scheduler&                         m_scheduler;
     Cli&                               m_cli;
+    std::function<void(std::ostream&)> m_enterAction;
     std::function<void(std::ostream&)> m_exitAction;
     std::size_t                        m_historySize;
 
