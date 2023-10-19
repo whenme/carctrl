@@ -1,9 +1,25 @@
+/*
+ * Copyright (c) 2023, Alibaba Group Holding Limited;
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #pragma once
 #include <cstdint>
 #include <ostream>
 #include <system_error>
 #include <type_traits>
 
+#include "endian_wrapper.hpp"
 #include "reflection.hpp"
 namespace struct_pack {
 
@@ -193,10 +209,16 @@ STRUCT_PACK_INLINE void serialize_varint(writer& writer_, const T& t) {
   }
   while (v >= 0x80) {
     uint8_t temp = v | 0x80u;
-    writer_.write((char*)&temp, sizeof(temp));
+    write_wrapper<sizeof(char)>(writer_, (char*)&temp);
     v >>= 7;
   }
-  writer_.write((char*)&v, sizeof(char));
+  if constexpr (is_system_little_endian) {
+    write_wrapper<sizeof(char)>(writer_, (char*)&v);
+  }
+  else {
+    uint8_t tmp = v;
+    write_wrapper<sizeof(char)>(writer_, (char*)&tmp);
+  }
 }
 #if __cpp_concepts >= 201907L
 template <reader_t Reader>
@@ -256,5 +278,8 @@ template <bool NotSkip = true,
   // return decode_varint_v1(f);
 }
 }  // namespace detail
-
+using var_int32_t = detail::sint<int32_t>;
+using var_int64_t = detail::sint<int64_t>;
+using var_uint32_t = detail::varint<uint32_t>;
+using var_uint64_t = detail::varint<uint64_t>;
 }  // namespace struct_pack

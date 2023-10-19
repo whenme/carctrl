@@ -1,4 +1,3 @@
-#pragma once
 /*
  * Copyright (c) 2023, Alibaba Group Holding Limited;
  *
@@ -14,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 #if defined __clang__
 #define STRUCT_PACK_INLINE __attribute__((always_inline)) inline
 #define CONSTEXPR_INLINE_LAMBDA __attribute__((always_inline)) constexpr
@@ -45,4 +45,26 @@
 #define SP_UNLIKELY(expr) (__builtin_expect(!!(expr), 0))
 #else
 #define SP_UNLIKELY(expr) (expr)
+#endif
+
+#if defined(__clang__)
+#if __has_feature(cxx_rtti)
+#define STRUCT_PACK_RTTI_ENABLED
+#endif
+#elif defined(__GNUC__)
+#if defined(__GXX_RTTI)
+#define STRUCT_PACK_RTTI_ENABLED
+#endif
+#elif defined(_MSC_VER)
+#if defined(_CPPRTTI)
+#define STRUCT_PACK_RTTI_ENABLED
+#endif
+#endif
+
+#if defined __clang__ || __GNUC__
+#define SP_RESTRICT __restrict__
+#elif defined _MSC_VER
+#define SP_RESTRICT __restrict
+#else
+#define SP_RESTRICT
 #endif

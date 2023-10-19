@@ -31,6 +31,11 @@
 
 namespace coro_io {
 
+inline asio::io_context **get_current() {
+  static thread_local asio::io_context *current = nullptr;
+  return &current;
+}
+
 template <typename ExecutorImpl = asio::io_context::executor_type>
 class ExecutorWrapper : public async_simple::Executor {
  private:
@@ -71,6 +76,17 @@ class ExecutorWrapper : public async_simple::Executor {
 
   operator ExecutorImpl() { return executor_; }
 
+  bool currentThreadInExecutor() const override {
+    auto ctx = get_current();
+    return *ctx == &executor_.context();
+  }
+
+  size_t currentContextId() const override {
+    auto ctx = get_current();
+    auto ptr = *ctx;
+    return ptr ? (size_t)ptr : 0;
+  }
+
  private:
   void schedule(Func func, Duration dur) override {
     auto timer = std::make_unique<asio::steady_timer>(executor_, dur);
@@ -99,7 +115,7 @@ class io_context_pool {
 
     easylog::logger<>::instance();
     for (std::size_t i = 0; i < pool_size; ++i) {
-      io_context_ptr io_context(new asio::io_context);
+      io_context_ptr io_context(new asio::io_context(1));
       work_ptr work(new asio::io_context::work(*io_context));
       io_contexts_.push_back(io_context);
       auto executor = std::make_unique<coro_io::ExecutorWrapper<>>(
@@ -120,6 +136,8 @@ class io_context_pool {
     for (std::size_t i = 0; i < io_contexts_.size(); ++i) {
       threads.emplace_back(std::make_shared<std::thread>(
           [](io_context_ptr svr) {
+            auto ctx = get_current();
+            *ctx = svr.get();
             svr->run();
           },
           io_contexts_[i]));
@@ -255,13 +273,15 @@ inline T &g_block_io_context_pool(
 }
 
 template <typename T = io_context_pool>
-inline auto get_global_executor() {
-  return g_io_context_pool<T>().get_executor();
+inline auto get_global_executor(
+    unsigned pool_size = std::thread::hardware_concurrency()) {
+  return g_io_context_pool<T>(pool_size).get_executor();
 }
 
 template <typename T = io_context_pool>
-inline auto get_global_block_executor() {
-  return g_block_io_context_pool<T>().get_executor();
+inline auto get_global_block_executor(
+    unsigned pool_size = std::thread::hardware_concurrency()) {
+  return g_block_io_context_pool<T>(pool_size).get_executor();
 }
 
 }  // namespace coro_io
