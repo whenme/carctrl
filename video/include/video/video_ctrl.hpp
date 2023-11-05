@@ -15,7 +15,7 @@ public:
 private:
     IoThread    m_videoThread;
     VideoDevice m_videoDev;
-    bool        m_showVideo { true };
+    bool        m_showVideo { false };
 
     void        showImage(std::string title, Mat& mat);
     static void videoThreadFun(void *ctxt);

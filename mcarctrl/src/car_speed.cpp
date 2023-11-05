@@ -35,19 +35,15 @@ CarSpeed::~CarSpeed()
 void CarSpeed::initJsonParam()
 {
     ParamJson param("param.json");
-    std::string hostname, jsonItem;
+    std::string jsonItem;
     std::ifstream ifs("/etc/hostname", std::ifstream::in);
-    ifs >> hostname;
-    if (hostname == "orangepioneplus")
-        jsonItem = "quadcycle.";
-    else
-        jsonItem = "bicycle.";
+    ifs >> jsonItem;
 
     auto createMotorObject = [&](std::string jsonMotor, std::string jsonIr) {
         std::vector<uint32_t> port;
         uint32_t inputPort;
-        bool outputRet = param.getJsonParam(jsonItem + jsonMotor, port);
-        bool inputRet = param.getJsonParam(jsonItem + jsonIr, inputPort);
+        bool outputRet = param.getJsonParam(jsonItem + "." + jsonMotor, port);
+        bool inputRet = param.getJsonParam(jsonItem + "." + jsonIr, inputPort);
         if (outputRet && inputRet) {
             port.push_back(inputPort);
             m_motor.push_back(new Motor(port));
@@ -58,19 +54,19 @@ void CarSpeed::initJsonParam()
 
     auto getPwmParam = [&](std::string item) {
         std::vector<int32_t> vectVal;
-        bool ret = param.getJsonParam(jsonItem + "pwm." + item, vectVal);
+        bool ret = param.getJsonParam(jsonItem + ".pwm." + item, vectVal);
         if (ret)
             m_pwmVect.push_back(vectVal);
         else
             ctrllog::warn("initParam: json pwm param error");
     };
 
-    bool ret = param.getJsonParam(jsonItem + "motor_num", m_motorNum);
+    bool ret = param.getJsonParam(jsonItem + ".motor_num", m_motorNum);
     if (!ret || !m_motorNum) {
         ctrllog::error("initParam: error motor number {}...", m_motorNum);
         return;
     }
-    ctrllog::info("initParam: motor number {}", m_motorNum);
+    ctrllog::info("initParam: motor number {}, jsonItem {}", m_motorNum, jsonItem);
 
     // motor defines
     createMotorObject("motor_front_left", "ir_front_left");

@@ -1,17 +1,17 @@
 {
-    "bicycle": {
-        "device_name": "bicycle",
-        "product_name": "Bicycle",
+    "orangepipc": {
+        "device_name": "orangepipc",
+        "product_name": "orangepipc",
         "motor_num": 2,
         "motor_front_left": [10, 9],
         "motor_front_right": [8, 7],
         "ir_front_left": 200,
         "ir_front_right": 201,
         "pwm": {
-            "one":   [10, 6],
-            "two":   [20, 15],
-            "three": [30, 19],
-            "four":  [40, 29],
+            "one":   [9, 11],
+            "two":   [16, 20],
+            "three": [20, 24],
+            "four":  [29, 39],
             "five":  [50, 37],
             "six":   [60, 47],
             "seven": [70, 55],
@@ -19,18 +19,18 @@
             "nine":  [90, 77]
         }
     },
-    "quadcycle": {
-        "device_name": "quadcycle",
-        "product_name": "Quadcycle",
+    "nanopim1": {
+        "device_name": "nanopim1",
+        "product_name": "nanopim1",
         "motor_num": 4,
-        "motor_front_left":  [121, 71],
-        "motor_front_right": [72, 73],
-        "motor_back_left":   [119, 120],
-        "motor_back_right":  [117, 118],
-        "ir_front_left": 228,
-        "ir_front_right": 229,
-        "ir_back_left": 227,
-        "ir_back_right": 230,
+        "motor_front_left":  [16, 7],
+        "motor_front_right": [13, 9],
+        "motor_back_left":   [21, 8],
+        "motor_back_right":  [14, 15],
+        "ir_front_left": 1,
+        "ir_front_right": 201,
+        "ir_back_left": 17,
+        "ir_back_right": 18,
         "pwm": {
             "one":   [11, 10, 11, 10],
             "two":   [19, 21, 20, 20],

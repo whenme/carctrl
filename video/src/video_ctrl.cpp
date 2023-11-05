@@ -10,14 +10,14 @@ VideoCtrl::VideoCtrl(asio::io_context& ioContext):
     //check there is GUI backend or not
     Mat img = imread("lena.png");
     if (!img.empty()) {
-        try {
+        /*try {
             imshow("lena", img);
             destroyWindow("lena");
         }
         catch(...) {
             // No GUI backend...
             m_showVideo = false;
-        }
+        }*/
     }
 
     m_videoThread.start();
