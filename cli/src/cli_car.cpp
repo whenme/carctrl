@@ -34,12 +34,11 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                         out << "speed level: " << speedLevel << "\n";
                         out << "motor number: " << motorNum << "\n";
 
-                        for (int32_t i = 0; i < motorNum; i++) {
-                            int32_t actualSpeed = rpc_call_int_param<getActualSpeed>(m_client, i);
-                            int32_t actualStep = rpc_call_int_param<getActualSteps>(m_client, i);
-                            int32_t motorPwm = rpc_call_int_param<getMotorPwm>(m_client, i);
-                            out << "motor " << i+1 << " speed=" << actualSpeed << " pwm=" << motorPwm
-                                << " step=" << actualStep << "\n";
+                        for (int32_t ii = 1; ii <= motorNum; ii++) {
+                            int32_t actualSpeed = rpc_call_int_param<getActualSpeed>(m_client, ii);
+                            int32_t actualStep = rpc_call_int_param<getActualSteps>(m_client, ii);
+                            int32_t motorPwm = rpc_call_int_param<getMotorPwm>(m_client, ii);
+                            out << fmt::format("motor {} speed={} pwm={} step={}\n", ii, actualSpeed, motorPwm, actualStep);
                         }
                     },
                     "show car speed/pwm/step");
@@ -59,11 +58,11 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                         }
 
                         if (motor == 0) {
-                            for (int32_t i = 0; i < motorNum; i++) {
-                                rpc_call_void_param<setMotorPwm>(m_client, i, pwm);
+                            for (int32_t ii = 1; ii <= motorNum; ii++) {
+                                rpc_call_void_param<setMotorPwm>(m_client, ii, pwm);
                             }
                         } else {
-                            rpc_call_void_param<setMotorPwm>(m_client, motor - 1, pwm);
+                            rpc_call_void_param<setMotorPwm>(m_client, motor, pwm);
                         }
                     },
                     "set motor pwm");
@@ -71,10 +70,10 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
     cliMenu->insert("show-motorstep",
                     [&](std::ostream& out) {
                         int32_t motorNum = rpc_call_int_param<getMotorNum>(m_client);
-                        for (int32_t i = 0; i < motorNum; i++) {
-                            int32_t actualStep = rpc_call_int_param<getActualSteps>(m_client, i);
-                            int32_t ctrlStep = rpc_call_int_param<getCtrlSteps>(m_client, i);
-                            out << "motor " << i+1 << " steps: control=" << ctrlStep
+                        for (int32_t ii = 1; ii <= motorNum; ii++) {
+                            int32_t actualStep = rpc_call_int_param<getActualSteps>(m_client, ii);
+                            int32_t ctrlStep = rpc_call_int_param<getCtrlSteps>(m_client, ii);
+                            out << "motor " << ii << " steps: control=" << ctrlStep
                                 << " actual=" << actualStep << "\n";
                         }
                     },
@@ -90,62 +89,67 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
 
                         rpc_call_int_param<setCtrlSteps>(m_client, wheel, steps);
 
-                        char sound[128] = {0};
+                        std::string sound;
                         if (wheel == 0) {
                             if (steps > 0)
-                                sprintf(sound, "前进%d步", steps);
+                                sound = fmt::format("前进{}步", steps);
                             else
-                                sprintf(sound, "后退%d步", abs(steps));
+                                sound = fmt::format("后退{}步", abs(steps));
                         } else if (wheel == 1) {
                             if (steps > 0)
-                                sprintf(sound, "左前轮前进%d步", steps);
+                                sound = fmt::format("左前轮前进{}步", steps);
                             else
-                                sprintf(sound, "左前轮后退%d步", abs(steps));
+                                sound = fmt::format("左前轮后退{}步", abs(steps));
                         } else if (wheel == 2) {
                             if (steps > 0)
-                                sprintf(sound, "右前轮前进%d步", steps);
+                                sound = fmt::format("右前轮前进{}步", steps);
                             else
-                                sprintf(sound, "右前轮后退%d步", abs(steps));
+                                sound = fmt::format("右前轮后退{}步", abs(steps));
                         } else if (wheel == 3) {
                             if (steps > 0)
-                                sprintf(sound, "左后轮前进%d步", steps);
+                                sound = fmt::format("左后轮前进{}步", steps);
                             else
-                                sprintf(sound, "左后轮后退%d步", abs(steps));
+                                sound = fmt::format("左后轮后退{}步", abs(steps));
                         } else if (wheel == 4) {
                             if (steps > 0)
-                                sprintf(sound, "右后轮前进%d步", steps);
+                                sound = fmt::format("右后轮前进{}步", steps);
                             else
-                                sprintf(sound, "右后轮后退%d步", abs(steps));
+                                sound = fmt::format("右后轮后退{}步", abs(steps));
                         }
                         soundIntf.speak(sound);
                     },
                     "set motor steps");
 
     cliMenu->insert("set-carstep",
-                    {"direction:0-forward/backward, 1-left/right, 2-rotation", "steps: >0-forward/left, <0-backward/right"},
+                    {"direction:0-forward/backward, 1-left/right, 2-rotation", "step: >0-forward/left, <0-backward/right"},
                     [&](std::ostream& out, int32_t direction, int32_t steps) {
+                        std::string sound;
                         int32_t motorNum = rpc_call_int_param<getMotorNum>(m_client);
                         if (direction == 0) {
-                            rpc_call_int_param<setCtrlSteps>(m_client, 0, steps);
+                            rpc_call_int_param<setCarSteps>(m_client, CarDirection::dirUpDown, steps);
+                            if (steps > 0)
+                                sound = fmt::format("前进{}步", steps);
+                            else
+                                sound = fmt::format("后退{}步", steps);
                         } else if (direction == 1) { //left/right
-                            if (motorNum < 4) { // 2 motor not support
-                                out << "not support left/right moving with 2 motor" << "\n";
-                            } else {
-                                rpc_call_int_param<setCtrlSteps>(m_client, 1, -steps);
-                                rpc_call_int_param<setCtrlSteps>(m_client, 2, steps);
-                                rpc_call_int_param<setCtrlSteps>(m_client, 3, steps);
-                                rpc_call_int_param<setCtrlSteps>(m_client, 4, -steps);
-                            }
+                            rpc_call_int_param<setCarSteps>(m_client, CarDirection::dirLeftRight, steps);
+                                if (steps > 0)
+                                    sound = fmt::format("左进{}步", steps);
+                                else
+                                    sound = fmt::format("右进{}步", -steps);
                         } else { //rotation
                             if (motorNum < 4) { // 2 motor not support
                                 out << "not support rotation moving with 2 motor" << "\n";
+                                sound = fmt::format("两轮车不支持旋转运动");
                             } else {
-                                rpc_call_int_param<setCtrlSteps>(m_client, 1, steps);
-                                rpc_call_int_param<setCtrlSteps>(m_client, 2, -steps);
-                                rpc_call_int_param<setCtrlSteps>(m_client, 3, steps);
-                                rpc_call_int_param<setCtrlSteps>(m_client, 4, -steps);
+                                rpc_call_int_param<setCarSteps>(m_client, CarDirection::dirRotation, steps);
+                                if (steps > 0)
+                                    sound = fmt::format("顺时针旋转{}步", steps);
+                                else
+                                    sound = fmt::format("逆时针旋转{}步", -steps);
                             }
                         }
+                        soundIntf.speak(sound);
                     },
                     "set car steps");
     cliMenu->insert("set-runtime", {"time: seconds"},

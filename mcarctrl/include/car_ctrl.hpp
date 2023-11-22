@@ -2,6 +2,7 @@
 
 #pragma once
 #include <ioapi/iotimer.hpp>
+#include <rpc_service/rpc_service.hpp>
 #include "gpio.hpp"
 #include "car_speed.hpp"
 
@@ -26,6 +27,8 @@ public:
     int32_t setMotorSpeedLevel(int32_t level);
     int32_t getMotorSpeedLevel();
     void    setAllMotorState(int32_t state);
+
+    int32_t setCarSteps(CarDirection dir, int32_t steps);
 
     int32_t getCtrlMode();
     int32_t getMotorNum();

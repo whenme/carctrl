@@ -4,6 +4,7 @@
 #include <cli/cli_example.h>
 #include <cli/cli_car.hpp>
 #include <cli/cli_video.hpp>
+#include <ioapi/cmn_singleton.hpp>
 
 #include <algorithm>
 #include <vector>
@@ -17,9 +18,20 @@ CliImpl::~CliImpl()
 
 void CliImpl::initCliCommand()
 {
+    auto addCommandGroup = [&](CliCommandGroup& cmd) {
+        for (auto& it : m_cliGroup) {
+             // already added
+            if (it->getGroupName() == cmd.getGroupName())
+                return;
+        }
+        m_cliGroup.push_back(&cmd);
+    };
+
     static CliExample cliExample;
     static CliCar     cliCar;
     static CliVideo   cliVideo;
+
+    cmn::setSingletonInstance<CliCar>(&cliCar);
 
     addCommandGroup(cliExample);
     addCommandGroup(cliCar);
@@ -29,19 +41,6 @@ void CliImpl::initCliCommand()
     for (auto& it : m_cliGroup) {
         it->initCliCommand(m_rootMenu);
     }
-}
-
-bool CliImpl::addCommandGroup(CliCommandGroup& cmd)
-{
-    for (auto& it : m_cliGroup) {
-        // already added
-        if (it->getGroupName() == cmd.getGroupName()) {
-            return true;
-        }
-    }
-
-    m_cliGroup.push_back(&cmd);
-    return true;
 }
 
 void CliImpl::runCliImpl()

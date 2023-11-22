@@ -21,11 +21,11 @@ CarCtrl::~CarCtrl()
 
 int32_t CarCtrl::getActualSpeed(int32_t motor)
 {
-    if (motor >= m_carSpeed.getMotorNum()) {
+    if (motor > m_carSpeed.getMotorNum()) {
         ctrllog::warn("error motor {}", motor);
         return 0;
     } else {
-        return m_carSpeed.getActualSpeed(motor);
+        return m_carSpeed.getActualSpeed(motor-1);
     }
 }
 
@@ -36,8 +36,15 @@ int32_t CarCtrl::setCtrlSteps(int32_t motor, int32_t steps)
         return -1;
     }
 
-    if (!steps)
+    if (!steps) {
+        if (motor == 0) {
+            for (int32_t ii = 0; ii < m_carSpeed.getMotorNum(); ii++)
+                m_carSpeed.setMotorState(ii, MOTOR_STATE_STOP);
+        } else {
+            m_carSpeed.setMotorState(motor-1, MOTOR_STATE_STOP);
+        }
         return 0;
+    }
 
     //revise steps
     int32_t level = m_carSpeed.getMotorSpeedLevel();
@@ -52,8 +59,8 @@ int32_t CarCtrl::setCtrlSteps(int32_t motor, int32_t steps)
 
     m_ctrlMode = CTRL_MODE_STEP;
     if (motor == 0) {
-        for (int32_t i = 0; i < m_carSpeed.getMotorNum(); i++) {
-            m_carSpeed.setRunSteps(i, steps);
+        for (int32_t ii = 0; ii < m_carSpeed.getMotorNum(); ii++) {
+            m_carSpeed.setRunSteps(ii, steps);
         }
     } else {
         m_carSpeed.setRunSteps(motor-1, steps);
@@ -64,12 +71,12 @@ int32_t CarCtrl::setCtrlSteps(int32_t motor, int32_t steps)
 
 int32_t CarCtrl::getCtrlSteps(int32_t motor)
 {
-    if (motor >= m_carSpeed.getMotorNum()) {
+    if (motor > m_carSpeed.getMotorNum()) {
         ctrllog::warn("error motor {}", motor);
         return 0;
     }
 
-    return m_carSpeed.getCtrlSteps(motor);
+    return m_carSpeed.getCtrlSteps(motor-1);
 }
 
 int32_t CarCtrl::getCtrlMode()
@@ -84,12 +91,12 @@ int32_t CarCtrl::getMotorNum()
 
 int32_t CarCtrl::getActualSteps(int32_t motor)
 {
-    if (motor >= m_carSpeed.getMotorNum()) {
+    if (motor > m_carSpeed.getMotorNum()) {
         ctrllog::warn("error motor {}", motor);
         return 0;
     }
 
-    return m_carSpeed.getActualSteps(motor);
+    return m_carSpeed.getActualSteps(motor-1);
 }
 
 void CarCtrl::runTimeCallback(const asio::error_code &e, void *ctxt)
@@ -114,22 +121,22 @@ int32_t CarCtrl::setRunTime(int32_t time)
 
 void CarCtrl::setMotorPwm(int32_t motor, int32_t pwm)
 {
-    if (motor >= m_carSpeed.getMotorNum() || pwm > Motor::getMaxPwm()) {
+    if (motor > m_carSpeed.getMotorNum() || pwm > Motor::getMaxPwm()) {
         ctrllog::warn("error param: motor={} pwm={}", motor, pwm);
         return;
     }
 
-    m_carSpeed.setMotorPwm(motor, pwm);
+    m_carSpeed.setMotorPwm(motor-1, pwm);
 }
 
 int32_t CarCtrl::getMotorPwm(int32_t motor)
 {
-    if (motor >= m_carSpeed.getMotorNum()) {
+    if (motor > m_carSpeed.getMotorNum()) {
         ctrllog::warn("error motor {}", motor);
         return -1;
     }
 
-    return m_carSpeed.getMotorPwm(motor);
+    return m_carSpeed.getMotorPwm(motor-1);
 }
 
 int32_t CarCtrl::setMotorSpeedLevel(int32_t level)
@@ -153,4 +160,29 @@ void CarCtrl::setAllMotorState(int32_t state)
     for (int32_t i = 0; i < m_carSpeed.getMotorNum(); i++) {
         m_carSpeed.setMotorState(i, state);
     }
+}
+
+int32_t CarCtrl::setCarSteps(CarDirection dir, int32_t steps)
+{
+    switch (dir) {
+    case CarDirection::dirUpDown:
+        setCtrlSteps(0, steps);
+        break;
+    case CarDirection::dirLeftRight:
+        setCtrlSteps(1, -steps);
+        setCtrlSteps(2, steps);
+        setCtrlSteps(3, steps);
+        setCtrlSteps(4, -steps);
+        break;
+    case CarDirection::dirRotation:
+        setCtrlSteps(1, steps);
+        setCtrlSteps(2, -steps);
+        setCtrlSteps(3, steps);
+        setCtrlSteps(4, -steps);
+        break;
+    default:
+        break;
+    }
+
+    return 0;
 }

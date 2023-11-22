@@ -43,7 +43,6 @@ public:
     //class are neither copyable nor movable
     CMN_UNCOPYABLE_IMMOVABLE(CliImpl)
 
-    bool addCommandGroup(CliCommandGroup& cmd);
     void initCliCommand();
     void runCliImpl();
     asio::io_context& getIoContext();

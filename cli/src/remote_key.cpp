@@ -10,12 +10,11 @@
 
 RemoteKey::RemoteKey(asio::io_context& context) :
     m_keyfd(0),
+    m_context(context),
     m_timer(context, timerCallback, this, true)
 {
-    m_keyList.clear();
-
     initIrKey();
-    m_timer.start(1000);
+    m_timer.start(k_checkTime);
 }
 
 RemoteKey::~RemoteKey()
@@ -63,19 +62,14 @@ void RemoteKey::timerCallback(const asio::error_code &e, void *ctxt)
         return;
 
     //read input_event
-    int evsize = read(pKey->m_keyfd, ev, sizeof(ev));
-    if (evsize < 0)
+    int32_t evsize = read(pKey->m_keyfd, ev, sizeof(ev));
+    if (evsize < (int32_t)sizeof(struct input_event))
         return;
 
-    if (evsize < sizeof(struct input_event)) {
-        ctrllog::info("no event");
-        return;
-    }
-
-    for (int32_t i = 0; i < evsize/sizeof(struct input_event); i++) {
-        if (4 == ev[i].code) { //only handle key pressed
-            if (ev[i].value != 0) {
-                pKey->m_keyList.push_back(ev[i].value);
+    for (int32_t ii = 0; ii < evsize/sizeof(struct input_event); ii++) {
+        if (4 == ev[ii].code) { //only handle key pressed
+            if (ev[ii].value != 0) {
+                pKey->m_keyList.push_back(ev[ii].value);
                 break;
             }
         }
@@ -104,7 +98,12 @@ void RemoteKey::handleKeyPress()
     auto& soundIntf = cmn::getSingletonInstance<SoundIntf>();
     auto& client = cmn::getSingletonInstance<cli::CliCar>().getClient();
     int32_t num = rpc_call_int_param<getMotorNum>(client);
-    char sound[128] {0};
+    std::string sound;
+
+    static IoTimer timerDirKey(m_context, [&](const asio::error_code &e, void *ctxt) {
+        RemoteKey *pKey = static_cast<RemoteKey *>(ctxt);
+        rpc_call_void_param<setAllMotorState>(client, 0);
+    }, this, false);
 
     int32_t keyEvent = 0;
     int32_t ret = getKeyEvent(&keyEvent);
@@ -113,9 +112,18 @@ void RemoteKey::handleKeyPress()
         return;
     }
 
+    if (keyEvent == oldKey) {
+        if (keyEvent == RC_KEY_UP || keyEvent == RC_KEY_DOWN
+            || keyEvent == RC_KEY_LEFT || keyEvent == RC_KEY_RIGHT)
+        {
+            timerDirKey.start(k_checkTime);
+        } else { // ignore other repeated key
+            return;
+        }
+    }
+
     oldKey = keyEvent;
     ctrllog::info(" key {} is pressed", keyEvent);
-    //std::cout << "RemoteKey: key " << std::hex << keyEvent << " pressed" << std::dec << std::endl;
 
     switch(keyEvent) {
     case RC_KEY_0:
@@ -150,41 +158,33 @@ void RemoteKey::handleKeyPress()
         break;
 
     case RC_KEY_UP:
-        rpc_call_void_param<setCtrlSteps>(client, 0, input);
-        sprintf(sound, "前进%d步", input);
+        rpc_call_void_param<setCarSteps>(client, CarDirection::dirUpDown, input);
+        sound = fmt::format("前进{}步", input);
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_DOWN:
-        rpc_call_int_param<setCtrlSteps>(client, 0, -input);
-        sprintf(sound, "后退%d步", input);
+        rpc_call_int_param<setCarSteps>(client, CarDirection::dirUpDown, -input);
+        sound = fmt::format("后退{}步", input);
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_LEFT:
+        rpc_call_int_param<setCarSteps>(client, CarDirection::dirLeftRight, input);
         if (num < 4) {
-            rpc_call_int_param<setCtrlSteps>(client, 1, input);
-            sprintf(sound, "左轮前进%d步", input);
+            sound = fmt::format("左轮前进{}步", input);
         } else {
-            rpc_call_int_param<setCtrlSteps>(client, 1, -input);
-            rpc_call_int_param<setCtrlSteps>(client, 2, input);
-            rpc_call_int_param<setCtrlSteps>(client, 3, input);
-            rpc_call_int_param<setCtrlSteps>(client, 4, -input);
-            sprintf(sound, "左移%d步", input);
+            sound = fmt::format("左移{}步", input);
         }
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_RIGHT:
+        rpc_call_int_param<setCarSteps>(client, CarDirection::dirLeftRight, -input);
         if (num < 4) {
-            rpc_call_void_param<setCtrlSteps>(client, 2, input);
-            sprintf(sound, "右轮前进%d步", input);
+            sound = fmt::format("右轮前进{}步", input);
         } else {
-            rpc_call_int_param<setCtrlSteps>(client, 1, input);
-            rpc_call_int_param<setCtrlSteps>(client, 2, -input);
-            rpc_call_int_param<setCtrlSteps>(client, 3, -input);
-            rpc_call_int_param<setCtrlSteps>(client, 4, input);
-            sprintf(sound, "右移%d步", input);
+            sound = fmt::format("右移{}步", input);
         }
         soundIntf.speak(sound);
         input = 0;
@@ -192,22 +192,23 @@ void RemoteKey::handleKeyPress()
     case RC_KEY_OK:
         rpc_call_int_param<setMotorSpeedLevel>(client, input);
         ctrllog::info("set motor speed level {}", input);
-        sprintf(sound, "设置速度等级%d", input);
+        sound = fmt::format("设置速度等级{}", input);
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_STAR:
         rpc_call_void_param<setAllMotorState>(client, 0);
-        sprintf(sound, "停止");
+        sound = fmt::format("停止");
         soundIntf.speak(sound);
         input = 0;
         break;
     case RC_KEY_POUND: //rotation
-        rpc_call_int_param<setCtrlSteps>(client, 1, input);
-        rpc_call_int_param<setCtrlSteps>(client, 2, -input);
-        rpc_call_int_param<setCtrlSteps>(client, 3, input);
-        rpc_call_int_param<setCtrlSteps>(client, 4, -input);
-        sprintf(sound, "旋转%d步", input);
+        if (num < 4) {
+            sound = fmt::format("两轮轩不支持", input);
+        } else {
+            rpc_call_int_param<setCarSteps>(client, CarDirection::dirRotation, input);
+            sound = fmt::format("旋转{}步", input);
+        }
         soundIntf.speak(sound);
         input = 0;
         break;

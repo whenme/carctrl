@@ -36,5 +36,8 @@ private:
 
     int32_t m_keyfd;
     IoTimer m_timer;
+    asio::io_context&  m_context;
     std::list<int32_t> m_keyList;
+
+    static constexpr uint32_t k_checkTime = 300;
 };

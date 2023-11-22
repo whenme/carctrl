@@ -4,8 +4,17 @@
 #include <ylt/coro_rpc/coro_rpc_context.hpp>
 #include <ylt/coro_rpc/coro_rpc_client.hpp>
 
-int32_t setCtrlSteps(int32_t motor, int32_t steps);
+enum class CarDirection {
+    dirInvalid,
+    dirUpDown,
+    dirLeftRight,
+    dirRotation
+};
+
 int32_t getCtrlSteps(int32_t motor);
+int32_t setCtrlSteps(int32_t motor, int32_t steps);
+
+int32_t setCarSteps(CarDirection dir, int32_t steps);
 
 int32_t getActualSteps(int32_t motor);
 int32_t setRunTime(int32_t time);

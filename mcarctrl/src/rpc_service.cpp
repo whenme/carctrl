@@ -75,3 +75,9 @@ int32_t getMotorNum()
     auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
     return ctrl.getMotorNum();
 }
+
+int32_t setCarSteps(CarDirection dir, int32_t steps)
+{
+    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
+    return ctrl.setCarSteps(dir, steps);
+}

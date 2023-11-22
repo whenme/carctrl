@@ -24,7 +24,7 @@ int32_t main(int argc, char **argv)
                                  getCtrlSteps, getActualSteps,
                                  setRunTime, setMotorSpeedLevel,
                                  getMotorSpeedLevel, setAllMotorState,
-                                 getMotorNum, getMotorPwm>();
+                                 getMotorNum, getMotorPwm, setCarSteps>();
 
     auto timerCallback = [](const asio::error_code &e, void *ctxt)
     {
