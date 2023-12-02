@@ -34,10 +34,11 @@ private:
     int32_t getKeyEvent(int32_t *pEvent);
     static void timerCallback(const asio::error_code &e, void *ctxt);
 
-    int32_t m_keyfd;
-    IoTimer m_timer;
+    int32_t            m_keyfd;
+    IoTimer            m_timer;
     asio::io_context&  m_context;
     std::list<int32_t> m_keyList;
 
     static constexpr uint32_t k_checkTime = 300;
+    static constexpr uint32_t k_stopTime = 3*k_checkTime;
 };

@@ -34,12 +34,10 @@ public:
 
 private:
     static void threadFun(void *ctxt);
-    //static void timerSpeedCallback(const asio::error_code &e, void *ctxt);
     void        initJsonParam();
     void        motorPwmCtrl();
 
     asio::io_context& m_context;
-    //asio2::timer       m_timer;
     IoThread m_speedThread;
     CarCtrl* m_carCtrl;
     int32_t  m_motorNum { 0 };

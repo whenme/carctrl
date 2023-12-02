@@ -38,8 +38,9 @@ int32_t CarCtrl::setCtrlSteps(int32_t motor, int32_t steps)
 
     if (!steps) {
         if (motor == 0) {
-            for (int32_t ii = 0; ii < m_carSpeed.getMotorNum(); ii++)
+            for (int32_t ii = 0; ii < m_carSpeed.getMotorNum(); ii++) {
                 m_carSpeed.setMotorState(ii, MOTOR_STATE_STOP);
+            }
         } else {
             m_carSpeed.setMotorState(motor-1, MOTOR_STATE_STOP);
         }
@@ -165,22 +166,87 @@ void CarCtrl::setAllMotorState(int32_t state)
 int32_t CarCtrl::setCarSteps(CarDirection dir, int32_t steps)
 {
     switch (dir) {
-    case CarDirection::dirUpDown:
+    case CarDirection::dirUp:
         setCtrlSteps(0, steps);
         break;
-    case CarDirection::dirLeftRight:
-        setCtrlSteps(1, -steps);
-        setCtrlSteps(2, steps);
-        setCtrlSteps(3, steps);
-        setCtrlSteps(4, -steps);
+    case CarDirection::dirLeft:
+        if (m_carSpeed.getMotorNum() == 2) {
+            if (steps > 0)
+                setCtrlSteps(1, steps);
+            else
+                setCtrlSteps(2, -steps);
+        } else {
+            setCtrlSteps(1, -steps);
+            setCtrlSteps(2, steps);
+            setCtrlSteps(3, steps);
+            setCtrlSteps(4, -steps);
+        }
         break;
     case CarDirection::dirRotation:
-        setCtrlSteps(1, steps);
-        setCtrlSteps(2, -steps);
-        setCtrlSteps(3, steps);
-        setCtrlSteps(4, -steps);
+        if (m_carSpeed.getMotorNum() == 2) {
+            ctrllog::warn("two motor not support");
+            return -1;
+        } else {
+            setCtrlSteps(1, steps);
+            setCtrlSteps(2, -steps);
+            setCtrlSteps(3, steps);
+            setCtrlSteps(4, -steps);
+        }
         break;
     default:
+        break;
+    }
+
+    return 0;
+}
+
+int32_t CarCtrl::setCarMoving(CarDirection dir)
+{
+    m_ctrlMode = CTRL_MODE_TIME;
+    switch (dir) {
+    case CarDirection::dirUp:
+        for (int32_t i = 0; i < m_carSpeed.getMotorNum(); i++) {
+            m_carSpeed.setMotorState(i, 1);
+        }
+        break;
+    case CarDirection::dirDown:
+        for (int32_t i = 0; i < m_carSpeed.getMotorNum(); i++) {
+            m_carSpeed.setMotorState(i, -1);
+        }
+        break;
+    case CarDirection::dirLeft:
+        if (m_carSpeed.getMotorNum() == 2) {
+            m_carSpeed.setMotorState(0, 1);
+        } else {
+            m_carSpeed.setMotorState(0, -1);
+            m_carSpeed.setMotorState(1, 1);
+            m_carSpeed.setMotorState(2, 1);
+            m_carSpeed.setMotorState(3, -1);
+        }
+        break;
+    case CarDirection::dirRight:
+        if (m_carSpeed.getMotorNum() == 2) {
+            m_carSpeed.setMotorState(1, 1);
+        } else {
+            m_carSpeed.setMotorState(0, 1);
+            m_carSpeed.setMotorState(1, -1);
+            m_carSpeed.setMotorState(2, -1);
+            m_carSpeed.setMotorState(3, 1);
+        }
+        break;
+    case CarDirection::dirRotation:
+        if (m_carSpeed.getMotorNum() == 2) {
+            ctrllog::warn("two motor not support");
+            return -1;
+        } else {
+            m_carSpeed.setMotorState(0, 1);
+            m_carSpeed.setMotorState(1, -1);
+            m_carSpeed.setMotorState(2, 1);
+            m_carSpeed.setMotorState(3, -1);
+        }
+        break;
+    default:
+        ctrllog::warn("not supported direction");
         break;
     }
 

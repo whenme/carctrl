@@ -121,19 +121,6 @@ void CarSpeed::setActualSteps(int32_t motor, int32_t steps)
 {
     m_motor[motor]->setActualSteps(steps);
 }
-/*
-void CarSpeed::timerSpeedCallback(const asio::error_code &e, void *ctxt)
-{
-    CarSpeed* obj = static_cast<CarSpeed*>(ctxt);
-    static int32_t counter[] {0, 0, 0, 0};
-
-    for (int32_t i = 0; i < obj->m_motorNum; i++) {
-        if (obj->m_motor[i]->getRunState() != MOTOR_STATE_STOP) {
-            obj->m_motor[i]->m_actualSpeed = obj->m_motor[i]->m_swCounter - counter[i];
-            counter[i] = obj->m_motor[i]->m_swCounter;
-        }
-    }
-}*/
 
 void CarSpeed::motorPwmCtrl()
 {

@@ -126,17 +126,17 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                         std::string sound;
                         int32_t motorNum = rpc_call_int_param<getMotorNum>(m_client);
                         if (direction == 0) {
-                            rpc_call_int_param<setCarSteps>(m_client, CarDirection::dirUpDown, steps);
+                            rpc_call_int_param<setCarSteps>(m_client, CarDirection::dirUp, steps);
                             if (steps > 0)
                                 sound = fmt::format("前进{}步", steps);
                             else
                                 sound = fmt::format("后退{}步", steps);
                         } else if (direction == 1) { //left/right
-                            rpc_call_int_param<setCarSteps>(m_client, CarDirection::dirLeftRight, steps);
-                                if (steps > 0)
-                                    sound = fmt::format("左进{}步", steps);
-                                else
-                                    sound = fmt::format("右进{}步", -steps);
+                            rpc_call_int_param<setCarSteps>(m_client, CarDirection::dirLeft, steps);
+                            if (steps > 0)
+                                sound = fmt::format("左进{}步", steps);
+                            else
+                                sound = fmt::format("右进{}步", -steps);
                         } else { //rotation
                             if (motorNum < 4) { // 2 motor not support
                                 out << "not support rotation moving with 2 motor" << "\n";

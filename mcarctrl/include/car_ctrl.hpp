@@ -29,6 +29,7 @@ public:
     void    setAllMotorState(int32_t state);
 
     int32_t setCarSteps(CarDirection dir, int32_t steps);
+    int32_t setCarMoving(CarDirection dir);
 
     int32_t getCtrlMode();
     int32_t getMotorNum();

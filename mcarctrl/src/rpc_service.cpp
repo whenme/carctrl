@@ -81,3 +81,9 @@ int32_t setCarSteps(CarDirection dir, int32_t steps)
     auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
     return ctrl.setCarSteps(dir, steps);
 }
+
+int32_t setCarMoving(CarDirection dir)
+{
+    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
+    return ctrl.setCarMoving(dir);
+}
