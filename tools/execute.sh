@@ -10,13 +10,14 @@ function help_usage()
     echo "    -h|--help:  help"
 }
 
-app_list="carctrl interface"
+app_list="agvctrl agvintf"
 
 #set all application to run or stop
 function set_application_state()
 {
     local state=$1
 
+    cd /srv/build.carctrl
     for item in $app_list; do
         local pids=$(ps -ef |grep $item |grep -v grep | awk '{print $2}')
         if [ "$pids" == "" ]; then #app not run

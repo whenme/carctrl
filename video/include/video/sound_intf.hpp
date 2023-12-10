@@ -17,7 +17,7 @@ public:
 
 private:
     IoThread m_iosThread;
-    bool     m_state;
+    bool     m_state{false};
     std::vector<std::string> m_vectContent;
     static constexpr int32_t m_interval = 100;
 

@@ -16,14 +16,14 @@
 #include <errno.h>
 #include <termios.h>
 
+#include <chrono>
 #include <cstdarg>
 #include <cstdlib>
+#include <exception>
 #include <mutex>
+#include <iostream>
 #include <string>
 #include <thread>
-#include <chrono>
-#include <iostream>
-#include <exception>
 
 #include <ioapi/pty_shell.hpp>
 #include <ioapi/easylog.hpp>
@@ -224,7 +224,13 @@ static int setup_pseudo_tty_link(uint32_t dev_num, int *return_fd, int *return_a
   else {
     /* Failed to open as slave ; create master */
     extern char *__progname;
-    sprintf(devname, "tty_%s", __progname);
+    char *path = getcwd(localname, MAX_TTY_DEV_NAME_LEN);
+    if (path == nullptr) {
+        printf ("failed to get current path...\n");
+        return -1;
+    }
+
+    sprintf(devname, "%s/tty_%s", path, __progname);
     strcpy(localname, devname);
 
     int32_t retVal = ptym_open (&master_fd[dev_num], &aux_fd, slavename);

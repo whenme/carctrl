@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
-
 #include <stdlib.h>
-#include <iostream>
 
 #include <ioapi/cmn_singleton.hpp>
 #include <video/sound_intf.hpp>
 
 SoundIntf::SoundIntf():
-  m_iosThread("sound thread", IoThread::ThreadPriorityNormal, soundThreadFun, this),
-  m_state(false)
+  m_iosThread("sound thread", IoThread::ThreadPriorityNormal, soundThreadFun, this)
 {
     system("pulseaudio --start"); //start pulseaudio service
 

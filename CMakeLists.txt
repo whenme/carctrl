@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
-set (car_app_name carctrl)
-set (cli_app_name interface)
+set (car_app_name agvctrl)
+set (cli_app_name agvintf)
 project(${car_app_name})
 
 set(CMAKE_CXX_FLAGS "-std=c++20")
