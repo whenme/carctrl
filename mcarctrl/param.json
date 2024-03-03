@@ -4,19 +4,19 @@
         "product_name": "orangepipc",
         "motor_num": 2,
         "motor_front_left": [10, 9],
-        "motor_front_right": [8, 7],
+        "motor_front_right": [7, 8],
         "ir_front_left": 200,
         "ir_front_right": 201,
         "pwm": {
-            "one":   [9, 11],
-            "two":   [16, 20],
-            "three": [20, 24],
-            "four":  [29, 39],
-            "five":  [50, 37],
-            "six":   [60, 47],
-            "seven": [70, 55],
-            "eight": [80, 66],
-            "nine":  [90, 77]
+            "one":   [9, 10],
+            "two":   [18, 21],
+            "three": [29, 33],
+            "four":  [39, 42],
+            "five":  [49, 52],
+            "six":   [60, 62],
+            "seven": [70, 72],
+            "eight": [80, 82],
+            "nine":  [90, 92]
         }
     },
     "nanopim1": {
