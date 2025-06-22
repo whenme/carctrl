@@ -18,8 +18,8 @@
 #include <async_simple/coro/Lazy.h>
 
 #include <any>
-#include <atomic>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <type_traits>
 #include <utility>
@@ -27,7 +27,9 @@
 #include <ylt/easylog.hpp>
 
 #include "coro_connection.hpp"
+#include "ylt/coro_rpc/impl/errno.h"
 #include "ylt/util/type_traits.h"
+#include "ylt/util/utils.hpp"
 
 namespace coro_rpc {
 /*!
@@ -41,6 +43,22 @@ class context_base {
   std::shared_ptr<context_info_t<rpc_protocol>> self_;
   typename rpc_protocol::req_header &get_req_head() { return self_->req_head_; }
 
+  bool check_status() {
+    auto old_flag = self_->status_.exchange(context_status::start_response);
+    if (old_flag != context_status::init)
+      AS_UNLIKELY {
+        ELOG_ERROR << "response message more than one time";
+        return false;
+      }
+
+    if (self_->has_closed())
+      AS_UNLIKELY {
+        ELOG_DEBUG << "response_msg failed: connection has been closed";
+        return false;
+      }
+    return true;
+  }
+
  public:
   /*!
    * Construct a context by a share pointer of context Concept
@@ -50,14 +68,26 @@ class context_base {
   context_base(std::shared_ptr<context_info_t<rpc_protocol>> context_info)
       : self_(std::move(context_info)) {
     if (self_->conn_) {
-      self_->conn_->set_rpc_call_type(
-          coro_connection::rpc_call_type::callback_started);
+      self_->conn_->set_rpc_return_by_callback();
     }
   };
   context_base() = default;
 
   using return_type = return_msg_type;
 
+  void response_error(coro_rpc::err_code error_code,
+                      std::string_view error_msg) {
+    if (!check_status())
+      AS_UNLIKELY { return; };
+    ELOGI << "rpc error in function:" << self_->get_rpc_function_name()
+          << ". error code:" << error_code.ec << ". message : " << error_msg;
+    self_->conn_->template response_error<rpc_protocol>(
+        error_code, error_msg, self_->req_head_,
+        std::move(self_->complete_handler_));
+  }
+  void response_error(coro_rpc::err_code error_code) {
+    response_error(error_code, error_code.message());
+  }
   /*!
    * Send response message
    *
@@ -71,26 +101,16 @@ class context_base {
    */
   template <typename... Args>
   void response_msg(Args &&...args) {
+    if (!check_status())
+      AS_UNLIKELY { return; };
     if constexpr (std::is_same_v<return_msg_type, void>) {
       static_assert(sizeof...(args) == 0, "illegal args");
-
-      auto old_flag = self_->has_response_.exchange(true);
-      if (old_flag != false)
-        AS_UNLIKELY {
-          ELOGV(ERROR, "response message more than one time");
-          return;
-        }
-
-      if (has_closed())
-        AS_UNLIKELY {
-          ELOGV(DEBUG, "response_msg failed: connection has been closed");
-          return;
-        }
       std::visit(
           [&]<typename serialize_proto>(const serialize_proto &) {
             self_->conn_->template response_msg<rpc_protocol>(
-                serialize_proto::serialize(), self_->req_head_,
-                self_->is_delay_);
+                serialize_proto::serialize(),
+                std::move(self_->resp_attachment_), self_->req_head_,
+                std::move(self_->complete_handler_));
           },
           *rpc_protocol::get_serialize_protocol(self_->req_head_));
     }
@@ -99,51 +119,26 @@ class context_base {
           requires { return_msg_type{std::forward<Args>(args)...}; },
           "constructed return_msg_type failed by illegal args");
       return_msg_type ret{std::forward<Args>(args)...};
-
-      auto old_flag = self_->has_response_.exchange(true);
-      if (old_flag != false)
-        AS_UNLIKELY {
-          ELOGV(ERROR, "response message more than one time");
-          return;
-        }
-
-      if (has_closed())
-        AS_UNLIKELY {
-          ELOGV(DEBUG, "response_msg failed: connection has been closed");
-          return;
-        }
-
       std::visit(
           [&]<typename serialize_proto>(const serialize_proto &) {
             self_->conn_->template response_msg<rpc_protocol>(
-                serialize_proto::serialize(ret), self_->req_head_,
-                self_->is_delay_);
+                serialize_proto::serialize(ret),
+                std::move(self_->resp_attachment_), self_->req_head_,
+                std::move(self_->complete_handler_));
           },
           *rpc_protocol::get_serialize_protocol(self_->req_head_));
 
-      // response_handler_(std::move(conn_), std::move(ret));
+      // complete_handler_(std::move(conn_), std::move(ret));
     }
+    /*finish here*/
+    self_->status_ = context_status::finish_response;
   }
-
-  /*!
-   * Check connection closed or not
-   *
-   * @return true if closed, otherwise false
-   */
-  bool has_closed() const { return self_->conn_->has_closed(); }
-
-  void set_delay() {
-    self_->is_delay_ = true;
-    self_->conn_->set_rpc_call_type(
-        coro_connection::rpc_call_type::callback_with_delay);
+  const context_info_t<rpc_protocol> *get_context_info() const noexcept {
+    return self_.get();
   }
-
-  template <typename T>
-  void set_tag(T &&tag) {
-    self_->conn_->set_tag(std::forward<T>(tag));
+  context_info_t<rpc_protocol> *get_context_info() noexcept {
+    return self_.get();
   }
-
-  std::any get_tag() { return self_->conn_->get_tag(); }
 };
 
 template <typename T>
@@ -159,8 +154,9 @@ struct get_type_t<async_simple::coro::Lazy<T>> {
 template <auto func>
 inline auto get_return_type() {
   using T = decltype(func);
-  using param_type = function_parameters_t<T>;
-  using return_type = typename get_type_t<function_return_type_t<T>>::type;
+  using param_type = util::function_parameters_t<T>;
+  using return_type =
+      typename get_type_t<util::function_return_type_t<T>>::type;
   if constexpr (std::is_void_v<param_type>) {
     if constexpr (std::is_void_v<return_type>) {
       return;
@@ -171,7 +167,8 @@ inline auto get_return_type() {
   }
   else {
     using First = std::tuple_element_t<0, param_type>;
-    constexpr bool is_conn = is_specialization<First, context_base>::value;
+    constexpr bool is_conn =
+        util::is_specialization<First, context_base>::value;
 
     if constexpr (is_conn) {
       using U = typename First::return_type;

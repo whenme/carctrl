@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <ioapi/cmn_singleton.hpp>
-#include <ioapi/easylog.hpp>
-#include <ioapi/pty_shell.hpp>
+#include <xapi/cmn_singleton.hpp>
+#include <xapi/easylog.hpp>
+#include <xapi/pty_shell.hpp>
 #include <cli/cli_impl.h>
 #include <cli/remote_key.hpp>
 #include <video/sound_intf.hpp>

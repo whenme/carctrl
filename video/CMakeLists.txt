@@ -11,7 +11,7 @@ add_library (${library_name} src/video_device.cpp
 
 target_include_directories (${library_name} PUBLIC include)
 
-target_link_libraries (${library_name} ioapi cli
+target_link_libraries (${library_name} xapi cli
                                        ${OpenCV_LIBS})
 
 install (FILES lena.png DESTINATION ${PROJECT_BINARY_DIR})

@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <iostream>
-#include <ioapi/easylog.hpp>
+#include <xapi/easylog.hpp>
 #include "gpio.hpp"
 
 Gpio::Gpio(int32_t pin, int32_t direction, int32_t edge) :

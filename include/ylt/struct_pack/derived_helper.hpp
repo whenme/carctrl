@@ -98,11 +98,10 @@ struct public_base_class_checker {
 template <typename DerivedClasses>
 struct deserialize_derived_class_helper {
   template <size_t index, typename BaseClass, typename unpack>
-  static STRUCT_PACK_INLINE constexpr struct_pack::errc run(
+  static STRUCT_PACK_INLINE constexpr struct_pack::err_code run(
       std::unique_ptr<BaseClass> &base, unpack &unpacker) {
     if constexpr (index >= std::tuple_size_v<DerivedClasses>) {
       unreachable();
-      return struct_pack::errc{};
     }
     else {
       using derived_class = std::tuple_element_t<index, DerivedClasses>;
@@ -112,7 +111,7 @@ struct deserialize_derived_class_helper {
   }
 };
 
-template <typename T>
+template <typename T, uint64_t parent_tag = 0>
 constexpr size_info inline calculate_one_size(const T &item);
 
 template <typename DerivedClasses>
@@ -154,8 +153,8 @@ template <typename DerivedClasses, typename size_type, typename version,
           typename NotSkip>
 struct deserialize_one_derived_class_helper {
   template <size_t index, typename unpacker, typename Pointer>
-  static STRUCT_PACK_INLINE constexpr struct_pack::errc run(unpacker *self,
-                                                            Pointer &base) {
+  static STRUCT_PACK_INLINE constexpr struct_pack::err_code run(unpacker *self,
+                                                                Pointer &base) {
     if constexpr (index >= std::tuple_size_v<DerivedClasses>) {
       unreachable();
     }
@@ -169,24 +168,8 @@ struct deserialize_one_derived_class_helper {
   }
 };
 
-template <typename DerivedClasses, typename size_type, typename version>
-struct deserialize_one_compatible_in_derived_class_helper {
-  template <size_t index, typename unpacker, typename Pointer>
-  static STRUCT_PACK_INLINE constexpr struct_pack::errc run(unpacker *self,
-                                                            Pointer &base) {
-    if constexpr (index >= std::tuple_size_v<DerivedClasses>) {
-      unreachable();
-    }
-    else {
-      using derived_class = std::tuple_element_t<index, DerivedClasses>;
-#ifdef STRUCT_PACK_RTTI_ENABLED
-      assert(dynamic_cast<derived_class *>(base.get()));
-#endif
-      return self->template deserialize_one<size_type::value, version::value>(
-          *(derived_class *)base.get());
-    }
-  }
-};
+template <typename T>
+void struct_pack_derived_decl(const T *) = delete;
 
 template <typename Base>
 using derived_class_set_t = decltype(struct_pack_derived_decl((Base *)nullptr));
@@ -220,6 +203,31 @@ constexpr auto derived_decl_impl() {
   else {
     return struct_pack::detail::declval<std::tuple<Base, Derives...>>();
   }
+}
+
+template <typename Base, typename... Derives>
+constexpr bool check_ID_collision() {
+  if constexpr (std::is_abstract_v<Base>) {
+    constexpr auto has_collision = struct_pack::detail::MD5_set<
+        std::tuple<Derives...>>::has_hash_collision;
+    if constexpr (has_collision != 0) {
+      static_assert(
+          !sizeof(std::tuple_element_t<has_collision, std::tuple<Derives...>>),
+          "ID collision happened, consider add member `static "
+          "constexpr uint64_t struct_pack_id` for collision type. ");
+    }
+  }
+  else {
+    constexpr auto has_collision = struct_pack::detail::MD5_set<
+        std::tuple<Base, Derives...>>::has_hash_collision;
+    if constexpr (has_collision != 0) {
+      static_assert(!sizeof(std::tuple_element_t<has_collision,
+                                                 std::tuple<Base, Derives...>>),
+                    "ID collision happened, consider add member `static "
+                    "constexpr uint64_t struct_pack_id` for collision type. ");
+    }
+  }
+  return true;
 }
 }  // namespace detail
 }  // namespace struct_pack

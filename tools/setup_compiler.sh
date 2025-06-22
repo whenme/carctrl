@@ -6,4 +6,4 @@ apt-get install cmake
 apt-get install libfmt-dev nlohmann-json3-dev
 apt-get install libasio-dev libspdlog-dev
 apt-get install libcereal-dev libopencv-dev 
-
+apt-get install libharfbuzz-dev

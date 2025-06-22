@@ -47,10 +47,14 @@ enum class type_id {
   float32_t,
   float64_t,
   float128_t,
-  v_int32_t,   // variable size int
-  v_int64_t,   // variable size int
-  v_uint32_t,  // variable size unsigned int
-  v_uint64_t,  // variable size unsigned int
+  vint32_t,        // variable size int
+  vint64_t,        // variable size int
+  vuint32_t,       // variable size unsigned int
+  vuint64_t,       // variable size unsigned int
+  fast_vint32_t,   // variable size int with fast encoding
+  fast_vint64_t,   // variable size int with fast encoding
+  fast_vuint32_t,  // variable size unsigned int with fast encoding
+  fast_vuint64_t,  // variable size unsigned int with fast encoding
   // template type
   string_t = 128,
   array_t,
@@ -62,6 +66,8 @@ enum class type_id {
   expected_t,
   bitset_t,
   polymorphic_unique_ptr_t,
+  // flag for user-defined type
+  user_defined_type = 249,
   // monostate, or void
   monostate_t = 250,
   // circle_flag
@@ -74,22 +80,49 @@ enum class type_id {
   type_end_flag = 255,
 };
 
-template <typename T>
+template <typename T, uint64_t parent_tag>
 constexpr type_id get_varint_type() {
-  if constexpr (std::is_same_v<var_int32_t, T>) {
-    return type_id::v_int32_t;
-  }
-  else if constexpr (std::is_same_v<var_int64_t, T>) {
-    return type_id::v_int64_t;
-  }
-  else if constexpr (std::is_same_v<var_uint32_t, T>) {
-    return type_id::v_uint32_t;
-  }
-  else if constexpr (std::is_same_v<var_uint64_t, T>) {
-    return type_id::v_uint64_t;
+  if constexpr (is_enable_fast_varint_coding(parent_tag)) {
+    if constexpr (std::is_same_v<var_int32_t, T> ||
+                  std::is_same_v<int32_t, T>) {
+      return type_id::fast_vint32_t;
+    }
+    else if constexpr (std::is_same_v<var_int64_t, T> ||
+                       std::is_same_v<int64_t, T>) {
+      return type_id::fast_vint64_t;
+    }
+    else if constexpr (std::is_same_v<var_uint32_t, T> ||
+                       std::is_same_v<uint32_t, T>) {
+      return type_id::fast_vuint32_t;
+    }
+    else if constexpr (std::is_same_v<var_uint64_t, T> ||
+                       std::is_same_v<uint64_t, T>) {
+      return type_id::fast_vuint64_t;
+    }
+    else {
+      static_assert(!sizeof(T), "unsupported varint type!");
+    }
   }
   else {
-    static_assert(!std::is_same_v<wchar_t, T>, "unsupported varint type!");
+    if constexpr (std::is_same_v<var_int32_t, T> ||
+                  std::is_same_v<int32_t, T>) {
+      return type_id::vint32_t;
+    }
+    else if constexpr (std::is_same_v<var_int64_t, T> ||
+                       std::is_same_v<int64_t, T>) {
+      return type_id::vint64_t;
+    }
+    else if constexpr (std::is_same_v<var_uint32_t, T> ||
+                       std::is_same_v<uint32_t, T>) {
+      return type_id::vuint32_t;
+    }
+    else if constexpr (std::is_same_v<var_uint64_t, T> ||
+                       std::is_same_v<uint64_t, T>) {
+      return type_id::vuint64_t;
+    }
+    else {
+      static_assert(!sizeof(T), "unsupported varint type!");
+    }
   }
 }
 
@@ -163,6 +196,28 @@ constexpr type_id get_integral_type() {
     return type_id::uint128_t;
   }
 #endif
+  else if constexpr (std::is_same_v<long, T>) {
+    if constexpr (sizeof(long) == sizeof(int32_t)) {
+      return type_id::int32_t;
+    }
+    else if constexpr (sizeof(long) == sizeof(int64_t)) {
+      return type_id::int64_t;
+    }
+    else {
+      static_assert(!sizeof(T), "unsupport size of long type");
+    }
+  }
+  else if constexpr (std::is_same_v<unsigned long, T>) {
+    if constexpr (sizeof(unsigned long) == sizeof(uint32_t)) {
+      return type_id::uint32_t;
+    }
+    else if constexpr (sizeof(unsigned long) == sizeof(uint64_t)) {
+      return type_id::uint64_t;
+    }
+    else {
+      static_assert(!sizeof(T), "unsupport size of long type");
+    }
+  }
   else {
     /*
      * Due to different data model,
@@ -186,17 +241,6 @@ constexpr type_id get_integral_type() {
         !std::is_same_v<wchar_t, T>,
         "Tips: Add macro STRUCT_PACK_ENABLE_UNPORTABLE_TYPE to support "
         "wchar_t");
-    static_assert(!std::is_same_v<long, T> && !std::is_same_v<unsigned long, T>,
-                  "The long types have different width in "
-                  "different data model. "
-                  "see "
-                  "https://en.cppreference.com/w/cpp/language/"
-                  "types. "
-                  "Please use fixed width integer types. e.g. "
-                  "int32_t, int64_t. "
-                  "see "
-                  "https://en.cppreference.com/w/cpp/types/"
-                  "integer.");
     static_assert(!sizeof(T), "not supported type");
     // This branch will always compiled error.
   }
@@ -239,12 +283,18 @@ constexpr type_id get_floating_point_type() {
   }
 }
 
-template <typename T>
+template <typename T, std::size_t parent_tag = 0>
 constexpr type_id get_type_id() {
   static_assert(CHAR_BIT == 8);
   // compatible member, which should be ignored in MD5 calculated.
-  if constexpr (optional<T> && is_compatible_v<T>) {
+  if constexpr (user_defined_serialization<T>) {
+    return type_id::user_defined_type;
+  }
+  else if constexpr (ylt::reflection::optional<T> && is_compatible_v<T>) {
     return type_id::compatible_t;
+  }
+  else if constexpr (detail::varint_t<T, parent_tag>) {
+    return get_varint_type<T, parent_tag>();
   }
   else if constexpr (std::is_enum_v<T>) {
     return get_integral_type<std::underlying_type_t<T>>();
@@ -260,16 +310,15 @@ constexpr type_id get_type_id() {
   else if constexpr (std::is_floating_point_v<T>) {
     return get_floating_point_type<T>();
   }
-  else if constexpr (detail::varint_t<T>) {
-    return get_varint_type<T>();
-  }
   else if constexpr (std::is_same_v<T, std::monostate> ||
                      std::is_same_v<T, void> || std::is_abstract_v<T>) {
     return type_id::monostate_t;
   }
+#ifdef STRUCT_PACK_ENABLE_UNPORTABLE_TYPE
   else if constexpr (bitset<T>) {
     return type_id::bitset_t;
   }
+#endif
   else if constexpr (string<T>) {
     return type_id::string_t;
   }
@@ -285,7 +334,7 @@ constexpr type_id get_type_id() {
   else if constexpr (container<T>) {
     return type_id::container_t;
   }
-  else if constexpr (optional<T>) {
+  else if constexpr (ylt::reflection::optional<T>) {
     return type_id::optional_t;
   }
   else if constexpr (unique_ptr<T>) {
@@ -305,7 +354,7 @@ constexpr type_id get_type_id() {
     static_assert(std::variant_size_v<T> < 256, "The variant is too complex!");
     return type_id::variant_t;
   }
-  else if constexpr (expected<T>) {
+  else if constexpr (ylt::reflection::expected<T>) {
     return type_id::expected_t;
   }
   else if constexpr (is_trivial_tuple<T> || pair<T> || std::is_class_v<T>) {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <ioapi/cmn_singleton.hpp>
+#include <xapi/cmn_singleton.hpp>
 #include <cli/cli_impl.h>
 #include <video/cli_video.hpp>
 #include <video/sound_intf.hpp>

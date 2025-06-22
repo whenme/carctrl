@@ -25,6 +25,56 @@ namespace struct_pack {
 
 namespace detail {
 
+constexpr inline bool is_enable_fast_varint_coding(uint64_t tag) {
+  return tag & struct_pack::USE_FAST_VARINT;
+}
+
+template <std::size_t bytes_width>
+struct int_t;
+
+template <>
+struct int_t<1> {
+  using type = int8_t;
+};
+
+template <>
+struct int_t<2> {
+  using type = int16_t;
+};
+
+template <>
+struct int_t<4> {
+  using type = int32_t;
+};
+
+template <>
+struct int_t<8> {
+  using type = int64_t;
+};
+
+template <std::size_t bytes_width>
+struct uint_t;
+
+template <>
+struct uint_t<1> {
+  using type = uint8_t;
+};
+
+template <>
+struct uint_t<2> {
+  using type = uint16_t;
+};
+
+template <>
+struct uint_t<4> {
+  using type = uint32_t;
+};
+
+template <>
+struct uint_t<8> {
+  using type = uint64_t;
+};
+
 template <typename T>
 class varint {
  public:
@@ -202,7 +252,7 @@ STRUCT_PACK_INLINE void serialize_varint(writer& writer_, const T& t) {
 #endif
   uint64_t v;
   if constexpr (sintable_t<T>) {
-    v = encode_zigzag(t.get());
+    v = encode_zigzag(get_varint_value(t));
   }
   else {
     v = t;
@@ -225,7 +275,7 @@ template <reader_t Reader>
 #else
 template <typename Reader>
 #endif
-[[nodiscard]] STRUCT_PACK_INLINE struct_pack::errc deserialize_varint_impl(
+[[nodiscard]] STRUCT_PACK_INLINE struct_pack::err_code deserialize_varint_impl(
     Reader& reader, uint64_t& v) {
 #if __cpp_concepts < 201907L
   static_assert(reader_t<Reader>, "The writer type must satisfy requirements!");
@@ -250,7 +300,7 @@ template <bool NotSkip = true,
           typename Reader,
 #endif
           typename T>
-[[nodiscard]] STRUCT_PACK_INLINE struct_pack::errc deserialize_varint(
+[[nodiscard]] STRUCT_PACK_INLINE struct_pack::err_code deserialize_varint(
     Reader& reader, T& t) {
 #if __cpp_concepts < 201907L
   static_assert(reader_t<Reader>, "The writer type must satisfy requirements!");
@@ -258,7 +308,7 @@ template <bool NotSkip = true,
   uint64_t v = 0;
   auto ec = deserialize_varint_impl(reader, v);
   if constexpr (NotSkip) {
-    if SP_LIKELY (ec == struct_pack::errc{}) {
+    if SP_LIKELY (!ec) {
       if constexpr (sintable_t<T>) {
         t = decode_zigzag<int64_t>(v);
       }
@@ -277,6 +327,27 @@ template <bool NotSkip = true,
   // between one and ten bytes, with small values using fewer bytes.
   // return decode_varint_v1(f);
 }
+
+template <typename T>
+const auto& get_varint_value(const T& v) {
+  if constexpr (varint_t<T>) {
+    return v.get();
+  }
+  else {
+    return v;
+  }
+}
+
+template <typename T>
+auto& get_varint_value(T& v) {
+  if constexpr (varint_t<T>) {
+    return v.get();
+  }
+  else {
+    return v;
+  }
+}
+
 }  // namespace detail
 using var_int32_t = detail::sint<int32_t>;
 using var_int64_t = detail::sint<int64_t>;

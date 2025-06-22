@@ -19,7 +19,7 @@
 ### 3) log shows in other tty
 >   &emsp;log is based on spdlog. It is header-only library with very fast log to output/file. log shows in both tty and log-file named /var/log/appname.log, such as /var/log/carctrl.log and /var/log/interface.log.
 >
->   &emsp;log file is writen with basic_file_sink_mt, not rotating_file_sink_mt. It is record log for this running. Previous running log will be covered. Please check log style in [easylog.hpp](https://github.com/whenme/carctrl/blob/main/ioapi/include/ioapi/easylog.hpp).
+>   &emsp;log file is writen with basic_file_sink_mt, not rotating_file_sink_mt. It is record log for this running. Previous running log will be covered. Please check log style in [easylog.hpp](https://github.com/whenme/carctrl/blob/main/xapi/include/xapi/easylog.hpp).
 >
 >   &emsp;As multi-applications run, the log cannot show in local tty. It shows in created tty. The tty name is tty_appname, such as tty_carctrl, tty_interface. It is symbolic to created tty as: tty_carctrl -> /dev/pts/2
 >

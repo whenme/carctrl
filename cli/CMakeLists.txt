@@ -14,4 +14,4 @@ target_include_directories (${library_name} PUBLIC include ${PROJECT_SOURCE_DIR}
 
 target_compile_definitions(${library_name} PRIVATE ASYNC_SIMPLE_HAS_NOT_AIO)
 
-target_link_libraries (${library_name} ioapi video fmt ${OpenCV_LIBS})
+target_link_libraries (${library_name} xapi video fmt ${OpenCV_LIBS})

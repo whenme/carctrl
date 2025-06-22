@@ -16,7 +16,12 @@
 #pragma once
 
 #include <chrono>
+#include <optional>
 #include <thread>
+
+#ifdef YLT_ENABLE_IBV
+#include "ylt/coro_io/ibverbs/ib_socket.hpp"
+#endif
 
 #include "ylt/coro_io/io_context_pool.hpp"
 #include "ylt/coro_rpc/coro_rpc_server.hpp"
@@ -25,19 +30,25 @@
 
 namespace coro_rpc {
 
-namespace config {
-struct coro_rpc_config_base {
-  uint16_t port = 8801;
+struct config_base {
+  bool is_enable_tcp_no_delay = true;
+  uint16_t port = 9001;
   unsigned thread_num = std::thread::hardware_concurrency();
   std::chrono::steady_clock::duration conn_timeout_duration =
       std::chrono::seconds{0};
+  std::string address = "0.0.0.0";
+#ifdef YLT_ENABLE_SSL
+  std::optional<ssl_configure> ssl_config = std::nullopt;
+#endif
+#ifdef YLT_ENABLE_IBV
+  std::optional<coro_io::ibverbs_config> ibv_config = std::nullopt;
+#endif
 };
 
-struct coro_rpc_default_config : public coro_rpc_config_base {
+struct config_t : public config_base {
   using rpc_protocol = coro_rpc::protocol::coro_rpc_protocol;
   using executor_pool_t = coro_io::io_context_pool;
 };
-}  // namespace config
 
-using coro_rpc_server = coro_rpc_server_base<config::coro_rpc_default_config>;
+using coro_rpc_server = coro_rpc_server_base<config_t>;
 }  // namespace coro_rpc

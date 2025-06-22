@@ -12,7 +12,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include <ioapi/cmn_attribute.hpp>
+#include <xapi/cmn_attribute.hpp>
 
 #include "detail/fromstring.h"
 #include "detail/history.h"

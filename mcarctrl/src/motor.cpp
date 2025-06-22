@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <iostream>
-#include <ioapi/easylog.hpp>
+#include <xapi/easylog.hpp>
 #include "motor.hpp"
 
 Motor::Motor(std::vector<uint32_t> port)

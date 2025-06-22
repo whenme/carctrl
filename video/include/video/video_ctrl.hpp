@@ -2,8 +2,8 @@
 
 #pragma once
 #include <opencv2/opencv.hpp>
-#include <ioapi/iotimer.hpp>
-#include <ioapi/iothread.hpp>
+#include <xapi/iotimer.hpp>
+#include <xapi/iothread.hpp>
 #include <video/video_device.hpp>
 
 class VideoCtrl

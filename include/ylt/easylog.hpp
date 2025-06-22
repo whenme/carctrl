@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #pragma once
+#include <atomic>
 #include <functional>
 #include <string_view>
 #include <utility>
@@ -42,7 +43,13 @@ class logger {
     return instance;
   }
 
-  void operator+=(record_t &record) { write(record); }
+  void operator+=(record_t &record) {
+    if (has_destruct_) [[unlikely]] {
+      return;
+    }
+
+    write(record);
+  }
 
   void write(record_t &record) {
     if (async_ && appender_) {
@@ -75,7 +82,9 @@ class logger {
     enable_console_ = enable_console;
   }
 
-  bool check_severity(Severity severity) { return severity >= min_severity_; }
+  bool check_severity(Severity severity) {
+    return severity >= min_severity_.load(std::memory_order::relaxed);
+  }
 
   void add_appender(std::function<void(std::string_view)> fn) {
     appenders_.emplace_back(std::move(fn));
@@ -85,7 +94,9 @@ class logger {
 
   // set and get
   void set_min_severity(Severity severity) { min_severity_ = severity; }
-  Severity get_min_severity() { return min_severity_; }
+  Severity get_min_severity() {
+    return min_severity_.load(std::memory_order::relaxed);
+  }
 
   void set_console(bool enable) {
     enable_console_ = enable;
@@ -97,6 +108,8 @@ class logger {
 
   void set_async(bool enable) { async_ = enable; }
   bool get_async() { return async_; }
+  ~logger() { has_destruct_ = true; }
+
  private:
   logger() {
     static appender appender{};
@@ -121,7 +134,7 @@ class logger {
     }
   }
 
-  Severity min_severity_ =
+  std::atomic<Severity> min_severity_ =
 #if NDEBUG
       Severity::WARN;
 #else
@@ -131,6 +144,7 @@ class logger {
   bool enable_console_ = true;
   appender *appender_ = nullptr;
   std::vector<std::function<void(std::string_view)>> appenders_;
+  inline static std::atomic<bool> has_destruct_ = false;
 };
 
 template <size_t Id = 0>
@@ -212,7 +226,7 @@ inline void add_appender(std::function<void(std::string_view)> fn) {
         easylog::record_t(std::chrono::system_clock::now(), severity, \
                           GET_STRING(__FILE__, __LINE__))             \
             .sprintf(fmt, __VA_ARGS__);                               \
-    if (severity == easylog::Severity::CRITICAL) {                    \
+    if constexpr (severity == easylog::Severity::CRITICAL) {          \
       easylog::flush<Id>();                                           \
       std::exit(EXIT_FAILURE);                                        \
     }                                                                 \
@@ -230,7 +244,7 @@ inline void add_appender(std::function<void(std::string_view)> fn) {
 
 #if __has_include(<fmt/format.h>) || __has_include(<format>)
 
-#define ELOGFMT_IMPL0(severity, Id, prefix, format_str, ...)          \
+#define ELOGFMT_IMPL0(severity, Id, prefix, ...)                      \
   if (!easylog::logger<Id>::instance().check_severity(severity)) {    \
     ;                                                                 \
   }                                                                   \
@@ -238,8 +252,8 @@ inline void add_appender(std::function<void(std::string_view)> fn) {
     easylog::logger<Id>::instance() +=                                \
         easylog::record_t(std::chrono::system_clock::now(), severity, \
                           GET_STRING(__FILE__, __LINE__))             \
-            .format(prefix::format(format_str, __VA_ARGS__));         \
-    if (severity == easylog::Severity::CRITICAL) {                    \
+            .format(prefix::format(__VA_ARGS__));                     \
+    if constexpr (severity == easylog::Severity::CRITICAL) {          \
       easylog::flush<Id>();                                           \
       std::exit(EXIT_FAILURE);                                        \
     }                                                                 \
@@ -248,9 +262,7 @@ inline void add_appender(std::function<void(std::string_view)> fn) {
 #if __has_include(<fmt/format.h>)
 #define ELOGFMT_IMPL(severity, Id, ...) \
   ELOGFMT_IMPL0(severity, Id, fmt, __VA_ARGS__)
-#endif
-
-#if __has_include(<format>)
+#else
 #define ELOGFMT_IMPL(severity, Id, ...) \
   ELOGFMT_IMPL0(severity, Id, std, __VA_ARGS__)
 #endif
@@ -289,7 +301,7 @@ inline void add_appender(std::function<void(std::string_view)> fn) {
 #endif
 
 #ifndef MELOG_TRACE
-#define MELOG_TRACE(id) ELOG(INFO, id)
+#define MELOG_TRACE(id) ELOG(TRACE, id)
 #endif
 #ifndef MELOG_DEBUG
 #define MELOG_DEBUG(id) ELOG(DEBUG, id)

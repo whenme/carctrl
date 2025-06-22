@@ -15,6 +15,7 @@
  */
 #pragma once
 #include <async_simple/coro/Lazy.h>
+#include <ylt/coro_rpc/impl/errno.h>
 #include <ylt/util/function_name.h>
 #include <ylt/util/type_traits.h>
 
@@ -29,6 +30,8 @@
 #include <ylt/struct_pack/md5_constexpr.hpp>
 
 #include "rpc_execute.hpp"
+#include "ylt/coro_rpc/impl/expected.hpp"
+#include "ylt/coro_rpc/impl/protocol/coro_rpc_protocol.hpp"
 
 namespace coro_rpc {
 
@@ -45,21 +48,19 @@ template <typename rpc_protocol,
           template <typename...> typename map_t = std::unordered_map>
 
 class router {
-  using router_handler_t = std::function<std::optional<std::string>(
-      std::string_view, rpc_context<rpc_protocol> &context_info,
-      typename rpc_protocol::supported_serialize_protocols protocols)>;
-
-  using coro_router_handler_t =
-      std::function<async_simple::coro::Lazy<std::optional<std::string>>(
+ public:
+  using router_handler_t =
+      std::function<std::pair<coro_rpc::err_code, std::string>(
           std::string_view, rpc_context<rpc_protocol> &context_info,
           typename rpc_protocol::supported_serialize_protocols protocols)>;
 
-  using route_key = typename rpc_protocol::route_key_t;
-  std::unordered_map<route_key, router_handler_t> handlers_;
-  std::unordered_map<route_key, coro_router_handler_t> coro_handlers_;
-  std::unordered_map<route_key, std::string> id2name_;
+  using coro_router_handler_t = std::function<
+      async_simple::coro::Lazy<std::pair<coro_rpc::err_code, std::string>>(
+          std::string_view,
+          typename rpc_protocol::supported_serialize_protocols protocols)>;
 
- private:
+  using route_key = typename rpc_protocol::route_key_t;
+
   const std::string &get_name(const route_key &key) {
     static std::string empty_string;
     if (auto it = id2name_.find(key); it != id2name_.end()) {
@@ -69,37 +70,40 @@ class router {
       return empty_string;
   }
 
+ private:
+  std::unordered_map<route_key, router_handler_t> handlers_;
+  std::unordered_map<route_key, coro_router_handler_t> coro_handlers_;
+  std::unordered_map<route_key, std::string> id2name_;
+
   // See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=100611
   // We use this struct instead of lambda for workaround
   template <auto Func, typename Self>
   struct execute_visitor {
     std::string_view data;
-    rpc_context<rpc_protocol> &context_info;
     Self *self;
     template <typename serialize_protocol>
-    async_simple::coro::Lazy<std::optional<std::string>> operator()(
-        const serialize_protocol &) {
+    async_simple::coro::Lazy<std::pair<coro_rpc::err_code, std::string>>
+    operator()(const serialize_protocol &) {
       return internal::execute_coro<rpc_protocol, serialize_protocol, Func>(
-          data, context_info, self);
+          data, self);
     }
   };
 
   template <auto Func>
   struct execute_visitor<Func, void> {
     std::string_view data;
-    rpc_context<rpc_protocol> &context_info;
     template <typename serialize_protocol>
-    async_simple::coro::Lazy<std::optional<std::string>> operator()(
-        const serialize_protocol &) {
+    async_simple::coro::Lazy<std::pair<coro_rpc::err_code, std::string>>
+    operator()(const serialize_protocol &) {
       return internal::execute_coro<rpc_protocol, serialize_protocol, Func>(
-          data, context_info);
+          data);
     }
   };
 
   template <auto func, typename Self>
   void regist_one_handler(Self *self) {
     if (self == nullptr)
-      AS_UNLIKELY { ELOGV(CRITICAL, "null connection!"); }
+      AS_UNLIKELY { ELOG_CRITICAL << "null connection!"; }
 
     route_key key{};
 
@@ -124,21 +128,22 @@ class router {
   template <auto func, typename Self>
   void regist_one_handler_impl(Self *self, const route_key &key) {
     if (self == nullptr)
-      AS_UNLIKELY { ELOGV(CRITICAL, "null connection!"); }
+      AS_UNLIKELY { ELOG_CRITICAL << "null connection!"; }
 
     constexpr auto name = get_func_name<func>();
-    using return_type = function_return_type_t<decltype(func)>;
-    if constexpr (is_specialization_v<return_type, async_simple::coro::Lazy>) {
+    using return_type = util::function_return_type_t<decltype(func)>;
+    if constexpr (util::is_specialization_v<return_type,
+                                            async_simple::coro::Lazy>) {
       auto it = coro_handlers_.emplace(
           key,
           [self](
-              std::string_view data, rpc_context<rpc_protocol> &context_info,
+              std::string_view data,
               typename rpc_protocol::supported_serialize_protocols protocols) {
-            execute_visitor<func, Self> visitor{data, context_info, self};
+            execute_visitor<func, Self> visitor{data, self};
             return std::visit(visitor, protocols);
           });
       if (!it.second) {
-        ELOGV(CRITICAL, "duplication function %s register!", name.data());
+        ELOG_CRITICAL << "duplication function " << name << " registered!";
       }
     }
     else {
@@ -156,7 +161,7 @@ class router {
                 protocols);
           });
       if (!it.second) {
-        ELOGV(CRITICAL, "duplication function %s register!", name.data());
+        ELOG_CRITICAL << "duplication function " << name << " registered!";
       }
     }
 
@@ -179,19 +184,20 @@ class router {
   void regist_one_handler_impl(const route_key &key) {
     static_assert(!std::is_member_function_pointer_v<decltype(func)>,
                   "register member function but lack of the parent object");
-    using return_type = function_return_type_t<decltype(func)>;
+    using return_type = util::function_return_type_t<decltype(func)>;
 
     constexpr auto name = get_func_name<func>();
-    if constexpr (is_specialization_v<return_type, async_simple::coro::Lazy>) {
+    if constexpr (util::is_specialization_v<return_type,
+                                            async_simple::coro::Lazy>) {
       auto it = coro_handlers_.emplace(
           key,
-          [](std::string_view data, rpc_context<rpc_protocol> &context_info,
+          [](std::string_view data,
              typename rpc_protocol::supported_serialize_protocols protocols) {
-            execute_visitor<func, void> visitor{data, context_info};
+            execute_visitor<func, void> visitor{data};
             return std::visit(visitor, protocols);
           });
       if (!it.second) {
-        ELOGV(CRITICAL, "duplication function %s register!", name.data());
+        ELOG_CRITICAL << "duplication function " << name << " registered!";
       }
     }
     else {
@@ -208,7 +214,7 @@ class router {
                 protocols);
           });
       if (!it.second) {
-        ELOGV(CRITICAL, "duplication function %s register!", name.data());
+        ELOG_CRITICAL << "duplication function " << name << " registered!";
       }
     }
     id2name_.emplace(key, name);
@@ -229,54 +235,35 @@ class router {
     return nullptr;
   }
 
-  async_simple::coro::Lazy<std::pair<std::errc, std::string>> route_coro(
-      auto handler, std::string_view data,
-      rpc_context<rpc_protocol> &context_info,
-      typename rpc_protocol::supported_serialize_protocols protocols,
-      const typename rpc_protocol::route_key_t &route_key) {
+  async_simple::coro::Lazy<std::pair<coro_rpc::err_code, std::string>>
+  route_coro(auto handler, std::string_view data,
+             typename rpc_protocol::supported_serialize_protocols protocols,
+             const typename rpc_protocol::route_key_t &route_key) {
     using namespace std::string_literals;
     if (handler)
       AS_LIKELY {
         try {
 #ifndef NDEBUG
-          ELOGV(INFO, "route function name: %s", get_name(route_key).data());
-
+          ELOG_INFO << "route function name: " << get_name(route_key);
 #endif
           // clang-format off
-      auto res = co_await (*handler)(data, context_info, protocols);
-          // clang-format on
-          if (res.has_value())
-            AS_LIKELY {
-              co_return std::make_pair(std::errc{}, std::move(res.value()));
-            }
-          else {  // deserialize failed
-            ELOGV(ERROR, "payload deserialize failed in rpc function: %s",
-                  get_name(route_key).data());
-            co_return std::make_pair(std::errc::invalid_argument,
-                                     "invalid rpc function arguments"s);
-          }
+          co_return co_await (*handler)(data, protocols);
+        } catch (coro_rpc::rpc_error& err) {
+          co_return std::make_pair(err.code, std::move(err.msg));
         } catch (const std::exception &e) {
-          ELOGV(ERROR, "exception: %s in rpc function: %s", e.what(),
-                get_name(route_key).data());
-          co_return std::make_pair(std::errc::interrupted, e.what());
+          co_return std::make_pair(coro_rpc::errc::rpc_throw_exception, e.what());
         } catch (...) {
-          ELOGV(ERROR, "unknown exception in rpc function: %s",
-                get_name(route_key).data());
-          co_return std::make_pair(std::errc::interrupted,
-                                   "unknown exception"s);
+          co_return std::make_pair(coro_rpc::errc::rpc_throw_exception,
+                                   "unknown rpc function exception"s);
         }
       }
     else {
-      std::ostringstream ss;
-      ss << route_key;
-      ELOGV(ERROR, "the rpc function not registered, function ID: %s",
-            ss.str().data());
-      co_return std::make_pair(std::errc::function_not_supported,
+      co_return std::make_pair(coro_rpc::errc::function_not_registered,
                                "the rpc function not registered"s);
     }
   }
 
-  std::pair<std::errc, std::string> route(
+  std::pair<coro_rpc::err_code, std::string> route(
       auto handler, std::string_view data,
       rpc_context<rpc_protocol> &context_info,
       typename rpc_protocol::supported_serialize_protocols protocols,
@@ -286,37 +273,22 @@ class router {
       AS_LIKELY {
         try {
 #ifndef NDEBUG
-          ELOGV(INFO, "route function name: %s", get_name(route_key).data());
+          ELOG_INFO << "route function name: " << get_name(route_key);
 #endif
-          auto res = (*handler)(data, context_info, protocols);
-          if (res.has_value())
-            AS_LIKELY {
-              return std::make_pair(std::errc{}, std::move(res.value()));
-            }
-          else {  // deserialize failed
-            ELOGV(ERROR, "payload deserialize failed in rpc function: %s",
-                  get_name(route_key).data());
-            return std::make_pair(std::errc::invalid_argument,
-                                  "invalid rpc function arguments"s);
-          }
+          return (*handler)(data, context_info, protocols);
+        } catch (coro_rpc::rpc_error& err) {
+          return std::make_pair(err.code, std::move(err.msg));
         } catch (const std::exception &e) {
-          ELOGV(ERROR, "exception: %s in rpc function: %s", e.what(),
-                get_name(route_key).data());
-          return std::make_pair(std::errc::interrupted, e.what());
+          return std::make_pair(err_code{coro_rpc::errc::rpc_throw_exception}, e.what());
         } catch (...) {
-          ELOGV(ERROR, "unknown exception in rpc function: %s",
-                get_name(route_key).data());
-          return std::make_pair(std::errc::interrupted,
+          return std::make_pair(err_code{errc::rpc_throw_exception},
                                 "unknown rpc function exception"s);
         }
       }
     else {
-      std::ostringstream ss;
-      ss << route_key;
-      ELOGV(ERROR, "the rpc function not registered, function ID: %s",
-            ss.str().data());
-      return std::make_pair(std::errc::function_not_supported,
-                            "the rpc function not registered"s);
+      using namespace std;
+      return std::make_pair(coro_rpc::errc::function_not_registered,
+                            "the rpc function not registered");
     }
   }
 
@@ -350,13 +322,13 @@ class router {
    */
 
   template <auto first, auto... func>
-  void register_handler(class_type_t<decltype(first)> *self) {
+  void register_handler(util::class_type_t<decltype(first)> *self) {
     regist_one_handler<first>(self);
     (regist_one_handler<func>(self), ...);
   }
 
   template <auto func>
-  void register_handler(class_type_t<decltype(func)> *self,
+  void register_handler(util::class_type_t<decltype(func)> *self,
                         const route_key &key) {
     regist_one_handler_impl<func>(self, key);
   }

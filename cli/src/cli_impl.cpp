@@ -4,7 +4,7 @@
 #include <cli/cli_example.h>
 #include <cli/cli_car.hpp>
 #include <cli/cli_video.hpp>
-#include <ioapi/cmn_singleton.hpp>
+#include <xapi/cmn_singleton.hpp>
 
 #include <algorithm>
 #include <vector>

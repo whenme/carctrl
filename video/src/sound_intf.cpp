@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdlib.h>
 
-#include <ioapi/cmn_singleton.hpp>
+#include <xapi/cmn_singleton.hpp>
 #include <video/sound_intf.hpp>
 
 SoundIntf::SoundIntf():

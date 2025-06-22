@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Alibaba Group Holding Limited;
+ * Copyright (c) 2023, Alibaba Group Holding Limited;
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ using remove_cvref_t = typename remove_cvref<T>::type;
 #endif
 #endif
 
-namespace coro_rpc {
+namespace util {
 template <typename Function>
 struct function_traits;
 
@@ -213,4 +213,4 @@ struct is_specialization<Ref<Args...>, Ref> : std::true_type {};
 template <typename Test, template <typename...> class Ref>
 inline constexpr bool is_specialization_v = is_specialization<Test, Ref>::value;
 
-}  // namespace coro_rpc
+}  // namespace util

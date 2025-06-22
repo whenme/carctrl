@@ -17,7 +17,7 @@ function set_application_state()
 {
     local state=$1
 
-    cd /opt/build.carctrl
+    cd $(dirname "$0")
     for item in $app_list; do
         local pids=$(ps -ef |grep $item |grep -v grep | awk '{print $2}')
         if [ "$pids" == "" ]; then #app not run
