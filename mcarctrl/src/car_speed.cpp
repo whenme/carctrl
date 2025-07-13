@@ -39,6 +39,10 @@ void CarSpeed::initJsonParam()
     std::ifstream ifs("/etc/hostname", std::ifstream::in);
     ifs >> jsonItem;
 
+    if (jsonItem.find("pi") == std::string::npos) {
+        jsonItem = k_deviceNameOneplus;
+    }
+
     auto createMotorObject = [&](std::string jsonMotor, std::string jsonIr) {
         std::vector<uint32_t> port;
         uint32_t inputPort;
@@ -46,6 +50,8 @@ void CarSpeed::initJsonParam()
         bool inputRet = param.getJsonParam(jsonItem + "." + jsonIr, inputPort);
         if (outputRet && inputRet) {
             port.push_back(inputPort);
+            m_motor.push_back(new Motor(port));
+        } else if (outputRet) {
             m_motor.push_back(new Motor(port));
         } else {
             ctrllog::warn("json parameter error: {}, {}", outputRet, inputRet);
@@ -68,12 +74,17 @@ void CarSpeed::initJsonParam()
     }
     ctrllog::info("initParam: motor number {}, jsonItem {}", m_motorNum, jsonItem);
 
-    // motor defines
-    createMotorObject("motor_front_left", "ir_front_left");
-    createMotorObject("motor_front_right", "ir_front_right");
-    if (m_motorNum == 4) {
-        createMotorObject("motor_back_left", "ir_back_left");
-        createMotorObject("motor_back_right", "ir_back_right");
+    if ((jsonItem == k_deviceNamePc) || (jsonItem == k_deviceNameM1)) {
+        // motor defines
+        createMotorObject("motor_front_left", "ir_front_left");
+        createMotorObject("motor_front_right", "ir_front_right");
+        if (m_motorNum == 4) {
+            createMotorObject("motor_back_left", "ir_back_left");
+            createMotorObject("motor_back_right", "ir_back_right");
+        }
+    } else if (jsonItem == k_deviceNameOneplus) {
+        createMotorObject("motor_front", "none");
+        createMotorObject("motor_back", "none");
     }
 
     getPwmParam("one");
@@ -154,12 +165,17 @@ void CarSpeed::motorPwmCtrl()
 void CarSpeed::threadFun(void *ctxt)
 {
     CarSpeed *obj = static_cast<CarSpeed *>(ctxt);
-    struct pollfd fds[MOTOR_NUM_MAX];
+    struct pollfd fds[MOTOR_NUM_MAX]{};
     char buffer[16];
 
-    for (int32_t i = 0; i < obj->m_motorNum; i++) {
-        fds[i].fd = obj->m_motor[i]->getInputGpioFd();
-        fds[i].events = POLLPRI;
+    for (int32_t ii = 0; ii < obj->m_motorNum; ii++) {
+        if (obj->m_motor[ii]->getInputGpioFd()) {
+            fds[ii].fd = obj->m_motor[ii]->getInputGpioFd();
+            fds[ii].events = POLLPRI;
+        } else {
+            ctrllog::warn("no input for port {}", ii);
+            return;
+        }
     }
 
     while(1) {

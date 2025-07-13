@@ -6,6 +6,10 @@
 #include <xapi/iothread.hpp>
 #include "motor.hpp"
 
+static constexpr std::string_view k_deviceNamePc = "orangepipc";
+static constexpr std::string_view k_deviceNameM1 = "nanopim1";
+static constexpr std::string_view k_deviceNameOneplus = "orangepioneplus";
+
 class CarCtrl;
 
 class CarSpeed

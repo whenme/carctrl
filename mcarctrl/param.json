@@ -1,7 +1,7 @@
 {
     "orangepipc": {
         "device_name": "orangepipc",
-        "product_name": "orangepipc",
+        "product_name": "2 wheeler",
         "motor_num": 2,
         "motor_front_left": [10, 9],
         "motor_front_right": [7, 8],
@@ -21,7 +21,7 @@
     },
     "nanopim1": {
         "device_name": "nanopim1",
-        "product_name": "nanopim1",
+        "product_name": "4 wheeler with mecanum",
         "motor_num": 4,
         "motor_front_left":  [16, 7],
         "motor_front_right": [13, 9],
@@ -41,6 +41,25 @@
             "seven": [64, 75, 63, 74],
             "eight": [74, 88, 71, 87],
             "nine":  [82, 97, 78, 94]
+        }
+    },
+    "orangepioneplus": {
+        "device_name": "orangepioneplus",
+        "product_name": "4 wheeler with steering",
+        "motor_num": 2,
+        "motor_front": [5, 6],
+        "motor_back":  [7, 8],
+        "rudder":      [9, 10],
+        "pwm": {
+            "one":   [10, 10],
+            "two":   [20, 20],
+            "three": [30, 30],
+            "four":  [40, 40],
+            "five":  [50, 50],
+            "six":   [60, 60],
+            "seven": [70, 70],
+            "eight": [80, 80],
+            "nine":  [90, 90]
         }
     }
 }

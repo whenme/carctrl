@@ -20,7 +20,7 @@ public:
     Motor(std::vector<uint32_t> port);
     virtual ~Motor();
 
-    inline int32_t getInputGpioFd() { return m_inputGpio->getGpioFd(); }
+    int32_t getInputGpioFd();
 
     void setRunState(int32_t state);
     inline int32_t getRunState()    { return m_runState; }
@@ -44,8 +44,8 @@ public:
     int32_t m_swCounter { 0 };
 
 private:
-    Gpio*   m_outputGpio[2];
-    Gpio*   m_inputGpio;
+    Gpio*   m_outputGpio[2] {nullptr, nullptr};
+    Gpio*   m_inputGpio {nullptr};
     int32_t m_portState[2];
     int32_t m_runState { MOTOR_STATE_STOP };
     int32_t m_nowState { MOTOR_STATE_STOP };
