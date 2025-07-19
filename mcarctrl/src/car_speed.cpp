@@ -9,9 +9,9 @@
 #include "car_ctrl.hpp"
 
 CarSpeed::CarSpeed(asio::io_context& context, CarCtrl *carCtrl) :
-    m_context(context),
-    m_speedThread("speed thread", IoThread::ThreadPriorityNormal, CarSpeed::threadFun, this),
-    m_carCtrl(carCtrl)
+    m_context{context},
+    m_speedThread{"speed thread", IoThread::ThreadPriorityNormal, CarSpeed::threadFun, this},
+    m_carCtrl{carCtrl}
 {
     initJsonParam();
 
@@ -23,13 +23,17 @@ CarSpeed::CarSpeed(asio::io_context& context, CarCtrl *carCtrl) :
 
 CarSpeed::~CarSpeed()
 {
-    //m_timer.stop();
     m_speedThread.stop();
 
     for (auto& item : m_motor) {
         delete item;
     }
     m_motor.clear();
+
+    if (m_steer) {
+        delete m_steer;
+        m_steer = nullptr;
+    }
 }
 
 void CarSpeed::initJsonParam()
@@ -85,6 +89,16 @@ void CarSpeed::initJsonParam()
     } else if (jsonItem == k_deviceNameOneplus) {
         createMotorObject("motor_front", "none");
         createMotorObject("motor_back", "none");
+        std::vector<uint32_t> port;
+        bool steerRet = param.getJsonParam(jsonItem + ".steer", port);
+        if (steerRet) {
+            m_steer = new Steer(m_context, port);
+            if (m_steer == nullptr) {
+                ctrllog::error("failed to create steer...");
+            }
+        } else {
+            ctrllog::warn("no steer parameter...");
+        }
     }
 
     getPwmParam("one");
@@ -244,4 +258,11 @@ void CarSpeed::setMotorSpeedLevel(int32_t level)
 int32_t CarSpeed::getMotorSpeedLevel()
 {
     return m_speedLevel;
+}
+
+void CarSpeed::steerTurn(int32_t time)
+{
+    if (m_steer) {
+        m_steer->turn(time);
+    }
 }

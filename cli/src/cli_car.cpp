@@ -25,7 +25,7 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
     auto cliMenu = std::make_unique<Menu>(name);
     auto& soundIntf = cmn::getSingletonInstance<SoundIntf>();
 
-    syncAwait(m_client.connect("localhost", "8802"));
+    syncAwait(m_client.connect("localhost", std::to_string(rpc_port)));
 
     cliMenu->insert("show-param",
                     [&](std::ostream& out) {

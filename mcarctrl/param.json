@@ -49,7 +49,7 @@
         "motor_num": 2,
         "motor_front": [5, 6],
         "motor_back":  [7, 8],
-        "rudder":      [9, 10],
+        "steer":       [9, 10],
         "pwm": {
             "one":   [10, 10],
             "two":   [20, 20],

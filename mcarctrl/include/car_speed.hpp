@@ -5,6 +5,7 @@
 #include <xapi/iotimer.hpp>
 #include <xapi/iothread.hpp>
 #include "motor.hpp"
+#include "steer.hpp"
 
 static constexpr std::string_view k_deviceNamePc = "orangepipc";
 static constexpr std::string_view k_deviceNameM1 = "nanopim1";
@@ -36,6 +37,9 @@ public:
     void    setMotorPwm(int32_t motor, int32_t pwm);
     int32_t getMotorPwm(int32_t motor);
 
+    // time >0 turn left, <0 turn right, =0 stop. 
+    void    steerTurn(int32_t time = 0);
+
 private:
     static void threadFun(void *ctxt);
     void        initJsonParam();
@@ -44,6 +48,7 @@ private:
     asio::io_context& m_context;
     IoThread m_speedThread;
     CarCtrl* m_carCtrl;
+    Steer*   m_steer {nullptr};
     int32_t  m_motorNum { 0 };
     int32_t  m_speedLevel { 0 };
     std::vector<Motor*> m_motor;

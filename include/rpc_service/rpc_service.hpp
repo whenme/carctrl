@@ -4,6 +4,8 @@
 #include <ylt/coro_rpc/coro_rpc_context.hpp>
 #include <ylt/coro_rpc/coro_rpc_client.hpp>
 
+static constexpr uint16_t rpc_port = 8802;
+
 enum class CarDirection {
     dirInvalid,
     dirUp,
