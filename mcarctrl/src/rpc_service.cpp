@@ -87,3 +87,9 @@ int32_t setCarMoving(CarDirection dir)
     auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
     return ctrl.setCarMoving(dir);
 }
+
+int32_t setSteerTurn(int32_t time)
+{
+    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
+    return ctrl.steerTurn(time);
+}

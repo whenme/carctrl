@@ -37,6 +37,8 @@ public:
     void    setMotorPwm(int32_t motor, int32_t pwm);
     int32_t getMotorPwm(int32_t motor);
 
+    int32_t steerTurn(int32_t time);
+
 private:
     static void runTimeCallback(const asio::error_code &e, void *ctxt);
 

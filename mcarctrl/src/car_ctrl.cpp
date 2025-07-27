@@ -252,3 +252,9 @@ int32_t CarCtrl::setCarMoving(CarDirection dir)
 
     return 0;
 }
+
+int32_t CarCtrl::steerTurn(int32_t time)
+{
+    m_carSpeed.steerTurn(time);
+    return 0;
+}

@@ -26,6 +26,7 @@ Steer::~Steer()
 
 void Steer::turn(int32_t time)
 {
+    ctrllog::warn("set turn time {}", time);
     if (time > 0) { //turn left
         m_outputGpio[0]->setValue(0);
         m_outputGpio[1]->setValue(1);
@@ -34,7 +35,7 @@ void Steer::turn(int32_t time)
         m_outputGpio[0]->setValue(0);
         m_outputGpio[1]->setValue(0);
         m_steerTimer.stop();
-    } else { //tuen right
+    } else { //turn right
         m_outputGpio[0]->setValue(1);
         m_outputGpio[1]->setValue(0);
         m_steerTimer.start(-time);

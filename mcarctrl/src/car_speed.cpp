@@ -44,7 +44,7 @@ void CarSpeed::initJsonParam()
     ifs >> jsonItem;
 
     if (jsonItem.find("pi") == std::string::npos) {
-        jsonItem = k_deviceNameOneplus;
+        jsonItem = k_deviceNamePc;
     }
 
     auto createMotorObject = [&](std::string jsonMotor, std::string jsonIr) {
@@ -78,7 +78,7 @@ void CarSpeed::initJsonParam()
     }
     ctrllog::info("initParam: motor number {}, jsonItem {}", m_motorNum, jsonItem);
 
-    if ((jsonItem == k_deviceNamePc) || (jsonItem == k_deviceNameM1)) {
+    if (jsonItem == k_deviceNameM1) {
         // motor defines
         createMotorObject("motor_front_left", "ir_front_left");
         createMotorObject("motor_front_right", "ir_front_right");
@@ -86,7 +86,7 @@ void CarSpeed::initJsonParam()
             createMotorObject("motor_back_left", "ir_back_left");
             createMotorObject("motor_back_right", "ir_back_right");
         }
-    } else if (jsonItem == k_deviceNameOneplus) {
+    } else if (jsonItem == k_deviceNamePc) {
         createMotorObject("motor_front", "none");
         createMotorObject("motor_back", "none");
         std::vector<uint32_t> port;

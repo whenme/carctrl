@@ -14,18 +14,16 @@ int32_t main(int argc, char **argv)
     pty_shell_init(2);
     init_log();
 
-    coro_rpc::coro_rpc_server coro_server(std::thread::hardware_concurrency(), 8802);
+    coro_rpc::coro_rpc_server coro_server(std::thread::hardware_concurrency(), rpc_port);
     auto& asioContext = coro_server.get_io_context_pool().get_executor()->context();
 
     CarCtrl carCtrl{asioContext};
     cmn::setSingletonInstance(&carCtrl);
 
-    coro_server.register_handler<getActualSpeed, setCtrlSteps,
-                                 getCtrlSteps, getActualSteps,
-                                 setRunTime, setMotorSpeedLevel,
-                                 getMotorSpeedLevel, setAllMotorState,
-                                 getMotorNum, getMotorPwm,
-                                 setCarSteps, setCarMoving>();
+    coro_server.register_handler<getActualSpeed, setCtrlSteps, getCtrlSteps,
+                                 getActualSteps, setRunTime, setMotorSpeedLevel,
+                                 getMotorSpeedLevel, setAllMotorState, getMotorNum,
+                                 getMotorPwm, setCarSteps, setCarMoving, setSteerTurn>();
 
     auto timerCallback = [](const asio::error_code &e, void *ctxt)
     {
@@ -44,6 +42,9 @@ int32_t main(int argc, char **argv)
     IoTimer timer(asioContext, timerCallback, nullptr, true);
     timer.start(1000);
 
-    coro_server.start();
+    auto res = coro_server.start();
+    if (res != coro_rpc::errc::ok) {
+        ctrllog::error("failed to start coro_rpc server...");
+    }
     return 0;
 }
