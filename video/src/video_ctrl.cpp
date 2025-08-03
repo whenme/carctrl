@@ -5,7 +5,7 @@
 #include <vector>
 
 VideoCtrl::VideoCtrl(asio::io_context& ioContext):
-  m_videoThread("video thread", IoThread::ThreadPriorityNormal, videoThreadFun, this)
+  m_videoThread("video thread", cmn::CmnThread::ThreadPriorityNormal, videoThreadFun, this)
 {
     //check there is GUI backend or not
     Mat img = imread("lena.png");

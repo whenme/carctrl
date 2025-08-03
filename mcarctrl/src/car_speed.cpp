@@ -10,7 +10,7 @@
 
 CarSpeed::CarSpeed(asio::io_context& context, CarCtrl *carCtrl) :
     m_context{context},
-    m_speedThread{"speed thread", IoThread::ThreadPriorityNormal, CarSpeed::threadFun, this},
+    m_speedThread{"speed thread", cmn::CmnThread::ThreadPriorityNormal, CarSpeed::threadFun, this},
     m_carCtrl{carCtrl}
 {
     initJsonParam();
@@ -57,6 +57,7 @@ void CarSpeed::initJsonParam()
             m_motor.push_back(new Motor(port));
         } else if (outputRet) {
             m_motor.push_back(new Motor(port));
+            ctrllog::warn("create motor with port {},{}", port[0], port[1]);
         } else {
             ctrllog::warn("json parameter error: {}, {}", outputRet, inputRet);
         }

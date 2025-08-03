@@ -27,9 +27,9 @@
         "device_name": "orangepipc",
         "product_name": "4 wheeler with steering",
         "motor_num": 2,
-        "motor_front": [5, 6],
-        "motor_back":  [7, 8],
-        "steer":       [9, 10],
+        "motor_front": [7, 8],
+        "motor_back":  [9, 10],
+        "steer":       [20, 21],
         "pwm": {
             "one":   [10, 10],
             "two":   [20, 20],

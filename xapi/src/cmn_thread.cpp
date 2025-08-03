@@ -2,9 +2,9 @@
 #include <iostream>
 #include <pthread.h>
 #include <xapi/easylog.hpp>
-#include <xapi/iothread.hpp>
+#include <xapi/cmn_thread.hpp>
 
-IoThread::IoThread(std::string name, int32_t priority,
+cmn::CmnThread::CmnThread(std::string name, int32_t priority,
                    std::function<void(void *ctxt)> threadFun,
                    void *ctxt) :
     m_name(name),
@@ -14,12 +14,12 @@ IoThread::IoThread(std::string name, int32_t priority,
 {
 }
 
-IoThread::~IoThread()
+cmn::CmnThread::~CmnThread()
 {
     stop();
 }
 
-void IoThread::start()
+void cmn::CmnThread::start()
 {
     m_thread = std::thread(m_threadFun, m_usrContext);
 
@@ -31,7 +31,7 @@ void IoThread::start()
     m_runState = true;
 }
 
-void IoThread::stop()
+void cmn::CmnThread::stop()
 {
     if (m_runState)
         pthread_cancel(m_threadId);
@@ -39,22 +39,22 @@ void IoThread::stop()
     m_runState = false;
 }
 
-std::string& IoThread::getThreadName()
+std::string& cmn::CmnThread::getThreadName()
 {
     return m_name;
 }
 
-std::thread::id IoThread::getThreadId()
+std::thread::id cmn::CmnThread::getThreadId()
 {
     return m_thread.get_id();
 }
 
-bool IoThread::getRunState()
+bool cmn::CmnThread::getRunState()
 {
     return m_runState;
 }
 
-int32_t IoThread::setThreadPriority(int32_t priority)
+int32_t cmn::CmnThread::setThreadPriority(int32_t priority)
 {
     int32_t policy, ret;
     struct sched_param param;
@@ -82,7 +82,7 @@ int32_t IoThread::setThreadPriority(int32_t priority)
     return 0;
 }
 
-int32_t IoThread::getThreadPriority()
+int32_t cmn::CmnThread::getThreadPriority()
 {
     int32_t policy, ret;
     struct sched_param param;
@@ -96,7 +96,7 @@ int32_t IoThread::getThreadPriority()
     return m_priority;
 }
 
-int32_t IoThread::setCpuAffinity(size_t cpu_id)
+int32_t cmn::CmnThread::setCpuAffinity(size_t cpu_id)
 {
     cpu_set_t cpuset;
 
@@ -109,7 +109,7 @@ int32_t IoThread::setCpuAffinity(size_t cpu_id)
     return ret;
 }
 
-int32_t IoThread::getCpuAffinity(cpu_set_t *cpuset)
+int32_t cmn::CmnThread::getCpuAffinity(cpu_set_t *cpuset)
 {
     int32_t ret = pthread_setaffinity_np(m_threadId, sizeof(cpu_set_t), cpuset);
     if (ret)

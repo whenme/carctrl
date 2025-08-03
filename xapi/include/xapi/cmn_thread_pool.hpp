@@ -14,6 +14,8 @@
 
 #include "cmn_attribute.hpp"
 
+namespace cmn
+{
 class thread_pool
 {
 public:
@@ -143,3 +145,5 @@ protected:
     // flag indicate the pool is stoped
     bool m_stop = false;
 };
+
+}  // namespace cmn

@@ -3,7 +3,7 @@
 #pragma once
 #include <vector>
 #include <xapi/iotimer.hpp>
-#include <xapi/iothread.hpp>
+#include <xapi/cmn_thread.hpp>
 #include "motor.hpp"
 #include "steer.hpp"
 
@@ -46,7 +46,7 @@ private:
     void        motorPwmCtrl();
 
     asio::io_context& m_context;
-    IoThread m_speedThread;
+    cmn::CmnThread    m_speedThread;
     CarCtrl* m_carCtrl;
     Steer*   m_steer {nullptr};
     int32_t  m_motorNum { 0 };

@@ -5,13 +5,15 @@
 #include <string>
 #include <thread>
 
-class IoThread
+namespace cmn
+{
+class CmnThread
 {
 public:
-    IoThread(std::string name, int32_t priority,
+    CmnThread(std::string name, int32_t priority,
              std::function<void(void *ctxt)> threadFun,
              void *ctxt = nullptr);
-    virtual ~IoThread();
+    virtual ~CmnThread();
 
     void start();
     void stop();
@@ -40,3 +42,5 @@ private:
     void*       m_usrContext;
     std::function<void(void *ctxt)> m_threadFun;
 };
+
+} // namespace cmn

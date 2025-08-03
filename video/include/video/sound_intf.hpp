@@ -2,7 +2,7 @@
 
 #pragma once
 #include <string>
-#include <xapi/iothread.hpp>
+#include <xapi/cmn_thread.hpp>
 #include "asio.hpp"
 
 class SoundIntf
@@ -16,8 +16,8 @@ public:
     void    setSoundState(int32_t enable);
 
 private:
-    IoThread m_iosThread;
-    bool     m_state{false};
+    cmn::CmnThread m_iosThread;
+    bool           m_state{false};
     std::vector<std::string> m_vectContent;
     static constexpr int32_t m_interval = 100;
 

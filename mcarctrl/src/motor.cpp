@@ -5,11 +5,6 @@
 
 Motor::Motor(std::vector<uint32_t> port)
 {
-    if (port.size() != 3) {
-        ctrllog::error("gpio number error {}", port.size());
-        return;
-    }
-
     m_outputGpio[0] = new Gpio(port.at(0), GPIO_DIR_OUT, GPIO_EDGE_NONE);
     m_outputGpio[1] = new Gpio(port.at(1), GPIO_DIR_OUT, GPIO_EDGE_NONE);
     if (port.size() > 2) {

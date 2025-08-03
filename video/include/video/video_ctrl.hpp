@@ -3,7 +3,7 @@
 #pragma once
 #include <opencv2/opencv.hpp>
 #include <xapi/iotimer.hpp>
-#include <xapi/iothread.hpp>
+#include <xapi/cmn_thread.hpp>
 #include <video/video_device.hpp>
 
 class VideoCtrl
@@ -13,9 +13,9 @@ public:
     virtual ~VideoCtrl();
 
 private:
-    IoThread    m_videoThread;
-    VideoDevice m_videoDev;
-    bool        m_showVideo { false };
+    cmn::CmnThread m_videoThread;
+    VideoDevice    m_videoDev;
+    bool           m_showVideo { false };
 
     void        showImage(std::string title, Mat& mat);
     static void videoThreadFun(void *ctxt);

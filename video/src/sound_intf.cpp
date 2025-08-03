@@ -5,7 +5,7 @@
 #include <video/sound_intf.hpp>
 
 SoundIntf::SoundIntf():
-  m_iosThread("sound thread", IoThread::ThreadPriorityNormal, soundThreadFun, this)
+  m_iosThread("sound thread", cmn::CmnThread::ThreadPriorityNormal, soundThreadFun, this)
 {
     system("pulseaudio --start"); //start pulseaudio service
 
