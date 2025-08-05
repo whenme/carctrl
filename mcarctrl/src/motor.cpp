@@ -15,12 +15,12 @@ Motor::Motor(std::vector<uint32_t> port)
         ctrllog::warn("fail to create motor from output gpio {},{}", port.at(0), port.at(1));
     }
 
-    setNowState(MOTOR_STATE_STOP);
+    setNowState(MotorState::Stop);
 }
 
 Motor::~Motor()
 {
-    setNowState(MOTOR_STATE_STOP);
+    setNowState(MotorState::Stop);
 
     delete m_outputGpio[0];
     delete m_outputGpio[1];
@@ -32,35 +32,39 @@ Motor::~Motor()
 void Motor::setCtrlSteps(int32_t steps)
 {
     m_ctrlSteps = steps;
-    setRunState(steps);
-}
 
-void Motor::setRunState(int32_t state)
-{
-    if (state > 0)
-        m_runState = MOTOR_STATE_FORWARD;
-    else if (!state)
-        m_runState = MOTOR_STATE_STOP;
+    MotorState state;
+    if (steps > 0)
+        state = MotorState::Forward;
+    else if(steps == 0)
+        state = MotorState::Stop;
     else
-        m_runState = MOTOR_STATE_BACK;
+        state = MotorState::Back;
+
+    setRunState(state);
 }
 
-void Motor::setNowState(int32_t state)
+void Motor::setRunState(MotorState state)
 {
-    auto setPortState = [&](int32_t port, int32_t state) {
-        if (m_portState[port] != state) {
-            m_portState[port] = state;
-            m_outputGpio[port]->setValue(state);
+    m_runState = state;
+}
+
+void Motor::setNowState(MotorState state)
+{
+    auto setPortState = [&](int32_t port, int32_t stat) {
+        if (m_portState[port] != stat) {
+            m_portState[port] = stat;
+            m_outputGpio[port]->setValue(stat);
         }
     };
 
     if (m_nowState == state)
         return;
 
-    if (state > 0) {
+    if (state == MotorState::Forward) {
         setPortState(0, 0);
         setPortState(1, 1);
-    } else if (state == 0) {
+    } else if (state == MotorState::Stop) {
         setPortState(0, 0);
         setPortState(1, 0);
     } else {

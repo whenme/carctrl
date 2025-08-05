@@ -24,15 +24,15 @@ public:
     void    setMotorSpeedLevel(int32_t level);
     int32_t getMotorSpeedLevel();
 
-    void    setRunSteps(int32_t motor, int32_t steps);
-    bool    getRunState(int32_t motor);
+    void       setRunSteps(int32_t motor, int32_t steps);
+    MotorState getRunState(int32_t motor);
 
     void    setActualSteps(int32_t motor, int32_t steps);
     int32_t getActualSteps(int32_t motor);
     int32_t getCtrlSteps(int32_t motor);
 
-    void    setMotorState(int32_t motor, int32_t state);
-    int32_t getMotorState(int32_t motor);
+    void       setMotorState(int32_t motor, MotorState state);
+    MotorState getMotorState(int32_t motor);
 
     void    setMotorPwm(int32_t motor, int32_t pwm);
     int32_t getMotorPwm(int32_t motor);

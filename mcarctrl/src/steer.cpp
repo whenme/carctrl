@@ -30,7 +30,7 @@ void Steer::turn(int32_t time)
     if (time > 0) { //turn left
         m_outputGpio[0]->setValue(0);
         m_outputGpio[1]->setValue(1);
-        m_steerTimer.start(time);
+        m_steerTimer.start(time*1000);
     } else if (time == 0) {  //stop
         m_outputGpio[0]->setValue(0);
         m_outputGpio[1]->setValue(0);
@@ -38,6 +38,6 @@ void Steer::turn(int32_t time)
     } else { //turn right
         m_outputGpio[0]->setValue(1);
         m_outputGpio[1]->setValue(0);
-        m_steerTimer.start(-time);
+        m_steerTimer.start(-time*1000);
     }
 }

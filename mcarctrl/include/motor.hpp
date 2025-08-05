@@ -10,9 +10,11 @@
 #define MOTOR_BACK_RIGHT    3
 #define MOTOR_NUM_MAX       4
 
-#define MOTOR_STATE_FORWARD    1
-#define MOTOR_STATE_BACK      -1
-#define MOTOR_STATE_STOP       0
+enum class MotorState : int32_t {
+    Forward = 1,
+    Stop = 0,
+    Back = -1
+};
 
 class Motor
 {
@@ -22,11 +24,11 @@ public:
 
     int32_t getInputGpioFd();
 
-    void setRunState(int32_t state);
-    inline int32_t getRunState()    { return m_runState; }
+    void setRunState(MotorState state);
+    inline MotorState getRunState()    { return m_runState; }
 
-    void setNowState(int32_t state);
-    inline int32_t getNowState()    { return m_nowState; }
+    void setNowState(MotorState state);
+    inline MotorState getNowState()    { return m_nowState; }
 
     void setCtrlSteps(int32_t steps);
     inline int32_t& getCtrlSteps()  { return m_ctrlSteps; }
@@ -47,8 +49,8 @@ private:
     Gpio*   m_outputGpio[2] {nullptr, nullptr};
     Gpio*   m_inputGpio {nullptr};
     int32_t m_portState[2];
-    int32_t m_runState { MOTOR_STATE_STOP };
-    int32_t m_nowState { MOTOR_STATE_STOP };
+    MotorState m_runState { MotorState::Stop };
+    MotorState m_nowState { MotorState::Stop };
     int32_t m_ctrlSteps { 0 };
     int32_t m_actualSteps { 0 };
 

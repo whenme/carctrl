@@ -56,6 +56,7 @@ void CarSpeed::initJsonParam()
             port.push_back(inputPort);
             m_motor.push_back(new Motor(port));
         } else if (outputRet) {
+            ctrllog::warn("create motor port {}, {}", port[0], port[1]);
             m_motor.push_back(new Motor(port));
             ctrllog::warn("create motor with port {},{}", port[0], port[1]);
         } else {
@@ -113,7 +114,7 @@ void CarSpeed::initJsonParam()
     getPwmParam("nine");
 
     //set default speed
-    setMotorSpeedLevel(2);
+    setMotorSpeedLevel(1);
 }
 
 int32_t CarSpeed::getActualSpeed(int32_t motor)
@@ -128,7 +129,7 @@ void CarSpeed::setRunSteps(int32_t motor, int32_t steps)
     m_motor[motor]->setCtrlSteps(steps);
 }
 
-bool CarSpeed::getRunState(int32_t motor)
+MotorState CarSpeed::getRunState(int32_t motor)
 {
     return m_motor[motor]->getRunState();
 }
@@ -154,11 +155,11 @@ void CarSpeed::motorPwmCtrl()
     static bool runFlag[MOTOR_NUM_MAX] { true, true, true, true };
 
     for (int32_t i = 0; i < m_motorNum; i++) {
-        if (m_motor[i]->getRunState() != MOTOR_STATE_STOP) {
+        if (m_motor[i]->getRunState() != MotorState::Stop) {
             pwmCount[i]++;
             if (pwmCount[i] >= (runFlag[i] ? m_motor[i]->getRunPwm() : m_motor[i]->getStopPwm())) {
                 if (runFlag[i])
-                    m_motor[i]->setNowState(MOTOR_STATE_STOP);
+                    m_motor[i]->setNowState(MotorState::Stop);
                 else
                     m_motor[i]->setNowState(m_motor[i]->getRunState());
 
@@ -168,11 +169,11 @@ void CarSpeed::motorPwmCtrl()
 
             if ((std::abs(m_motor[i]->getActualSteps()) > std::abs(m_motor[i]->getCtrlSteps()))
                 && (m_carCtrl->getCtrlMode() == CTRL_MODE_STEP)) {
-                    m_motor[i]->setRunState(MOTOR_STATE_STOP);
+                    m_motor[i]->setRunState(MotorState::Stop);
             }
         } else {
             pwmCount[i] = 0;
-            m_motor[i]->setNowState(MOTOR_STATE_STOP);
+            m_motor[i]->setNowState(MotorState::Stop);
         }
     }
 }
@@ -182,14 +183,13 @@ void CarSpeed::threadFun(void *ctxt)
     CarSpeed *obj = static_cast<CarSpeed *>(ctxt);
     struct pollfd fds[MOTOR_NUM_MAX]{};
     char buffer[16];
+    bool inputFlag {false};
 
     for (int32_t ii = 0; ii < obj->m_motorNum; ii++) {
         if (obj->m_motor[ii]->getInputGpioFd()) {
             fds[ii].fd = obj->m_motor[ii]->getInputGpioFd();
             fds[ii].events = POLLPRI;
-        } else {
-            ctrllog::warn("no input for port {}", ii);
-            return;
+            inputFlag = true;
         }
     }
 
@@ -197,38 +197,42 @@ void CarSpeed::threadFun(void *ctxt)
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         obj->motorPwmCtrl();
 
-        if (poll(fds, obj->m_motorNum, 0) <= 0)
-            continue;
+        if (inputFlag) { //with input counter
+            if (poll(fds, obj->m_motorNum, 0) <= 0) {
+                continue;
+            }
 
-        for (int32_t i = 0; i < obj->m_motorNum; i++) {
-            if (fds[i].revents & POLLPRI) {
-                if (lseek(fds[i].fd, 0, SEEK_SET) < 0) {
-                    ctrllog::warn("threadFun: seek failed");
-                    continue;
+            for (int32_t i = 0; i < obj->m_motorNum; i++) {
+                if (fds[i].revents & POLLPRI) {
+                    if (lseek(fds[i].fd, 0, SEEK_SET) < 0) {
+                        ctrllog::warn("threadFun: seek failed");
+                        continue;
                 }
                 int len = read(fds[i].fd, buffer, sizeof(buffer));
                 if (len < 0) {
-                    ctrllog::warn("threadFun: read failed");
-                    continue;
-                }
-                obj->m_motor[i]->m_swCounter++;
+                        ctrllog::warn("threadFun: read failed");
+                        continue;
+                    }
+                    obj->m_motor[i]->m_swCounter++;
 
-                if ((obj->m_motor[i]->getCtrlSteps() >= 0)
-                    || (obj->m_carCtrl->getCtrlMode() == CTRL_MODE_TIME))
-                    obj->m_motor[i]->moveActualSteps(1);
-                else
-                    obj->m_motor[i]->moveActualSteps(-1);
+                    if ((obj->m_motor[i]->getCtrlSteps() >= 0)
+                        || (obj->m_carCtrl->getCtrlMode() == CTRL_MODE_TIME)) {
+                        obj->m_motor[i]->moveActualSteps(1);
+                    } else {
+                        obj->m_motor[i]->moveActualSteps(-1);
+                    }
+                }
             }
         }
     }
 }
 
-void CarSpeed::setMotorState(int32_t motor, int32_t state)
+void CarSpeed::setMotorState(int32_t motor, MotorState state)
 {
     m_motor[motor]->setRunState(state);
 }
 
-int32_t CarSpeed::getMotorState(int32_t motor)
+MotorState CarSpeed::getMotorState(int32_t motor)
 {
     return m_motor[motor]->getRunState();
 }
