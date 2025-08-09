@@ -114,8 +114,13 @@ int32_t CarCtrl::setRunTime(int32_t time)
     for (int32_t i = 0; i < m_carSpeed.getMotorNum(); i++) {
         m_carSpeed.setActualSteps(i, 0);
     }
-    setAllMotorState(static_cast<int32_t>(MotorState::Forward));
-    m_runTimer.start(time * 1000);
+    if (time > 0) {
+        setAllMotorState(static_cast<int32_t>(MotorState::Forward));
+        m_runTimer.start(time * 1000);
+    } else {
+        setAllMotorState(static_cast<int32_t>(MotorState::Back));
+        m_runTimer.start(-time * 1000);
+    }
 
     return 0;
 }
@@ -147,13 +152,13 @@ int32_t CarCtrl::setMotorSpeedLevel(int32_t level)
         return -1;
     }
     ctrllog::warn("CarCtrl::setMotorSpeedLevel {}", level);
-    m_carSpeed.setMotorSpeedLevel(level - 1);
+    m_carSpeed.setMotorSpeedLevel(level);
     return 0;
 }
 
 int32_t CarCtrl::getMotorSpeedLevel()
 {
-    return m_carSpeed.getMotorSpeedLevel() + 1;
+    return m_carSpeed.getMotorSpeedLevel();
 }
 
 void CarCtrl::setAllMotorState(int32_t state)
@@ -170,6 +175,9 @@ void CarCtrl::setAllMotorState(int32_t state)
     MotorState stat = convertFun(state);
     for (int32_t i = 0; i < m_carSpeed.getMotorNum(); i++) {
         m_carSpeed.setMotorState(i, stat);
+    }
+    if (state == 0) {
+        m_carSpeed.steerTurn(0, 0);
     }
 }
 
@@ -211,15 +219,19 @@ int32_t CarCtrl::setCarMoving(CarDirection dir)
         for (int32_t i = 0; i < m_carSpeed.getMotorNum(); i++) {
             m_carSpeed.setMotorState(i, MotorState::Forward);
         }
+        m_carSpeed.steerTurn(0, 0);
         break;
     case CarDirection::dirDown:
         for (int32_t i = 0; i < m_carSpeed.getMotorNum(); i++) {
             m_carSpeed.setMotorState(i, MotorState::Back);
         }
+        m_carSpeed.steerTurn(0, 0);
         break;
     case CarDirection::dirLeft:
         if (m_carSpeed.getMotorNum() == 2) {
             m_carSpeed.setMotorState(0, MotorState::Forward);
+            m_carSpeed.setMotorState(1, MotorState::Forward);
+            m_carSpeed.steerTurn(1, 0);
         } else {
             m_carSpeed.setMotorState(0, MotorState::Back);
             m_carSpeed.setMotorState(1, MotorState::Forward);
@@ -229,7 +241,9 @@ int32_t CarCtrl::setCarMoving(CarDirection dir)
         break;
     case CarDirection::dirRight:
         if (m_carSpeed.getMotorNum() == 2) {
+            m_carSpeed.setMotorState(0, MotorState::Forward);
             m_carSpeed.setMotorState(1, MotorState::Forward);
+            m_carSpeed.steerTurn(-1, 0);
         } else {
             m_carSpeed.setMotorState(0, MotorState::Forward);
             m_carSpeed.setMotorState(1, MotorState::Back);
@@ -256,8 +270,8 @@ int32_t CarCtrl::setCarMoving(CarDirection dir)
     return 0;
 }
 
-int32_t CarCtrl::steerTurn(int32_t time)
+int32_t CarCtrl::steerTurn(int32_t dir, uint32_t time)
 {
-    m_carSpeed.steerTurn(time);
+    m_carSpeed.steerTurn(dir, time);
     return 0;
 }

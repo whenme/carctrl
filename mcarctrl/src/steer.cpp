@@ -12,7 +12,7 @@ Steer::Steer(asio::io_context& context, std::vector<uint32_t> port) :
     m_outputGpio[0] = new Gpio(port.at(0), GPIO_DIR_OUT, GPIO_EDGE_NONE);
     m_outputGpio[1] = new Gpio(port.at(1), GPIO_DIR_OUT, GPIO_EDGE_NONE);
     if ((m_outputGpio[0] == nullptr) || (m_outputGpio[1] == nullptr)) {
-        ctrllog::warn("fail to create motor from output gpio {},{}", port.at(0), port.at(1));
+        ctrllog::error("fail to create motor from output gpio {},{}", port.at(0), port.at(1));
     }
 }
 
@@ -24,20 +24,24 @@ Steer::~Steer()
     delete m_outputGpio[1];
 }
 
-void Steer::turn(int32_t time)
+void Steer::turn(int32_t dir, uint32_t time)
 {
-    ctrllog::warn("set turn time {}", time);
-    if (time > 0) { //turn left
+    ctrllog::warn("set steer turn dir {} time {}", dir, time);
+    if (dir > 0) { //turn left
         m_outputGpio[0]->setValue(0);
         m_outputGpio[1]->setValue(1);
-        m_steerTimer.start(time*1000);
-    } else if (time == 0) {  //stop
+        if (time) {
+            m_steerTimer.start(time*1000);
+        }
+    } else if (dir == 0) {  //stop
         m_outputGpio[0]->setValue(0);
         m_outputGpio[1]->setValue(0);
         m_steerTimer.stop();
     } else { //turn right
         m_outputGpio[0]->setValue(1);
         m_outputGpio[1]->setValue(0);
-        m_steerTimer.start(-time*1000);
+        if (time) {
+            m_steerTimer.start(time*1000);
+        }
     }
 }

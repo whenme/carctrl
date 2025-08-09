@@ -12,6 +12,7 @@
         "ir_back_left": 17,
         "ir_back_right": 18,
         "pwm": {
+            "zero":  [0,  0,  0,  0],
             "one":   [11, 10, 11, 10],
             "two":   [19, 21, 20, 20],
             "three": [29, 31, 30, 31],
@@ -29,8 +30,9 @@
         "motor_num": 2,
         "motor_front": [7, 8],
         "motor_back":  [9, 10],
-        "steer":       [20, 21],
+        "steer":       [21, 20],
         "pwm": {
+            "zero":  [0,  0],
             "one":   [10, 10],
             "two":   [20, 20],
             "three": [30, 30],

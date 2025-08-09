@@ -14,7 +14,7 @@ class CliCar : public CliCommandGroup
 {
 public:
     CliCar();
-    virtual ~CliCar();
+    virtual ~CliCar() = default;
 
     void initCliCommand(std::unique_ptr<Menu>& rootMenu) override;
     coro_rpc::coro_rpc_client& getClient();

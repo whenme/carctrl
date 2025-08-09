@@ -5,17 +5,13 @@
 #include <cli/cli_impl.h>
 #include <cli/cli_car.hpp>
 #include <video/sound_intf.hpp>
-#include <rpc_service/rpc_service.hpp>
+#include <rpc_service.hpp>
 
 using namespace async_simple::coro;
 
 namespace cli
 {
 CliCar::CliCar(): CliCommandGroup("car")
-{
-}
-
-CliCar::~CliCar()
 {
 }
 
@@ -157,11 +153,11 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                         rpc_call_int_param<setRunTime>(m_client, runtime);
                     },
                     "set car run time for speed regulation");
-    cliMenu->insert("set-steertime", {"time: seconds", "time: >0:turn left, <0:turn right, =0:center"},
-                    [&](std::ostream& out, int32_t time) {
-                        rpc_call_int_param<setSteerTurn>(m_client, time);
+    cliMenu->insert("set-steer", {"dir: >0 left, =0 stop, <0 right", "time: 0 stop, >0 time"},
+                    [&](std::ostream& out, int32_t dir, uint32_t time) {
+                        rpc_call_int_param<setSteerTurn>(m_client, dir, time);
                     },
-                    "set steer time. time: >0:left, =0:center, <0:right");
+                    "set steer direction and time. dir: >0 left, =0 stop, <0 right. time: 0 stop, >0 time");
     cliMenu->insert("stop",
                     [&](std::ostream& out) {
                         rpc_call_void_param<setAllMotorState>(m_client, 0);

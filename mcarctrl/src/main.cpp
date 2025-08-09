@@ -6,7 +6,7 @@
 #include <xapi/pty_shell.hpp>
 #include <ylt/coro_rpc/coro_rpc_server.hpp>
 
-#include <rpc_service/rpc_service.hpp>
+#include <rpc_service.hpp>
 #include "car_ctrl.hpp"
 
 int32_t main(int argc, char **argv)

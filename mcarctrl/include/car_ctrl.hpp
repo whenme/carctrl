@@ -2,7 +2,7 @@
 
 #pragma once
 #include <xapi/iotimer.hpp>
-#include <rpc_service/rpc_service.hpp>
+#include <rpc_service.hpp>
 #include "gpio.hpp"
 #include "car_speed.hpp"
 
@@ -37,7 +37,7 @@ public:
     void    setMotorPwm(int32_t motor, int32_t pwm);
     int32_t getMotorPwm(int32_t motor);
 
-    int32_t steerTurn(int32_t time);
+    int32_t steerTurn(int32_t dir, uint32_t time);
 
 private:
     static void runTimeCallback(const asio::error_code &e, void *ctxt);

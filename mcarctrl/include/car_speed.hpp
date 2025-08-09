@@ -21,8 +21,8 @@ public:
 
     int32_t getActualSpeed(int32_t motor);
     int32_t getMotorNum();
-    void    setMotorSpeedLevel(int32_t level);
     int32_t getMotorSpeedLevel();
+    void    setMotorSpeedLevel(int32_t level);
 
     void       setRunSteps(int32_t motor, int32_t steps);
     MotorState getRunState(int32_t motor);
@@ -37,8 +37,8 @@ public:
     void    setMotorPwm(int32_t motor, int32_t pwm);
     int32_t getMotorPwm(int32_t motor);
 
-    // time >0 turn left, <0 turn right, =0 stop. 
-    void    steerTurn(int32_t time = 0);
+    // dir >0 turn left, <0 turn right, =0 stop.
+    void    steerTurn(int32_t dir, uint32_t time = 0);
 
 private:
     static void threadFun(void *ctxt);

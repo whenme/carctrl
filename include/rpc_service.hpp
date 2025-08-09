@@ -34,7 +34,7 @@ int32_t getMotorPwm(int32_t motor);
 void    setAllMotorState(int32_t state);
 int32_t getCtrlMode();
 int32_t getMotorNum();
-int32_t setSteerTurn(int32_t time);
+int32_t setSteerTurn(int32_t dir, uint32_t time);
 
 using namespace async_simple::coro;
 

@@ -103,6 +103,7 @@ void CarSpeed::initJsonParam()
         }
     }
 
+    getPwmParam("zero");
     getPwmParam("one");
     getPwmParam("two");
     getPwmParam("three");
@@ -265,9 +266,9 @@ int32_t CarSpeed::getMotorSpeedLevel()
     return m_speedLevel;
 }
 
-void CarSpeed::steerTurn(int32_t time)
+void CarSpeed::steerTurn(int32_t dir, uint32_t time)
 {
     if (m_steer) {
-        m_steer->turn(time);
+        m_steer->turn(dir, time);
     }
 }

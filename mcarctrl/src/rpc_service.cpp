@@ -1,7 +1,7 @@
 
 #include <xapi/cmn_singleton.hpp>
 #include <xapi/easylog.hpp>
-#include <rpc_service/rpc_service.hpp>
+#include <rpc_service.hpp>
 #include "car_ctrl.hpp"
 
 int32_t setCtrlSteps(int32_t motor, int32_t steps)
@@ -88,8 +88,8 @@ int32_t setCarMoving(CarDirection dir)
     return ctrl.setCarMoving(dir);
 }
 
-int32_t setSteerTurn(int32_t time)
+int32_t setSteerTurn(int32_t dir, uint32_t time)
 {
     auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    return ctrl.steerTurn(time);
+    return ctrl.steerTurn(dir, time);
 }

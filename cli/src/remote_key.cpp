@@ -5,7 +5,7 @@
 #include <video/sound_intf.hpp>
 #include <cli/remote_key.hpp>
 #include <cli/cli_car.hpp>
-#include <rpc_service/rpc_service.hpp>
+#include <rpc_service.hpp>
 
 RemoteKey::RemoteKey(asio::io_context& context) :
     m_context(context),
@@ -166,8 +166,14 @@ void RemoteKey::handleKeyPress()
             if (!repeatKey)
                 soundIntf.speak("前进");
         } else {
-            rpc_call_void_param<setCarSteps>(client, CarDirection::dirUp, input);
-            soundIntf.speak(fmt::format("前进{}步", input));
+            if (motorNum == 2) {  //2 motor, input is time
+                rpc_call_int_param<setCarMoving>(client, CarDirection::dirUp);
+                rpc_call_int_param<setSteerTurn>(client, 0, input);
+                timerDirKey.start(k_stopTime);
+            } else { //4 motor, input is step
+                rpc_call_void_param<setCarSteps>(client, CarDirection::dirUp, input);
+                soundIntf.speak(fmt::format("前进{}步", input));
+            }
             input = 0;
         }
         break;
@@ -178,8 +184,14 @@ void RemoteKey::handleKeyPress()
             if (!repeatKey)
                 soundIntf.speak("后退");
         } else {
-            rpc_call_int_param<setCarSteps>(client, CarDirection::dirUp, -input);
-            soundIntf.speak(fmt::format("后退{}步", input));
+            if (motorNum == 2) {  //2 motor, input is time
+                rpc_call_int_param<setCarMoving>(client, CarDirection::dirDown);
+                rpc_call_int_param<setSteerTurn>(client, 0, input);
+                timerDirKey.start(k_stopTime);
+            } else { //4 motor, input is step
+                rpc_call_int_param<setCarSteps>(client, CarDirection::dirUp, -input);
+                soundIntf.speak(fmt::format("后退{}步", input));
+            }
             input = 0;
         }
         break;
@@ -190,10 +202,13 @@ void RemoteKey::handleKeyPress()
             if (!repeatKey)
                 soundIntf.speak("向左移动");
         } else {
-            rpc_call_int_param<setCarSteps>(client, CarDirection::dirLeft, input);
-            if (motorNum < 4) {
-                soundIntf.speak(fmt::format("左轮前进{}步", input));
+            if (motorNum == 2) {
+                rpc_call_int_param<setCarMoving>(client, CarDirection::dirUp);
+                rpc_call_int_param<setSteerTurn>(client, 1, input);
+                timerDirKey.start(k_stopTime);
+                soundIntf.speak(fmt::format("左移{}秒", input));
             } else {
+                rpc_call_int_param<setCarSteps>(client, CarDirection::dirLeft, input);
                 soundIntf.speak(fmt::format("左移{}步", input));
             }
             input = 0;
@@ -206,10 +221,13 @@ void RemoteKey::handleKeyPress()
             if (!repeatKey)
                 soundIntf.speak("向右移动");
         } else {
-            rpc_call_int_param<setCarSteps>(client, CarDirection::dirLeft, -input);
-            if (motorNum < 4) {
-                soundIntf.speak(fmt::format("右轮前进{}步", input));
+            if (motorNum == 2) {
+                rpc_call_int_param<setCarMoving>(client, CarDirection::dirUp);
+                rpc_call_int_param<setSteerTurn>(client, -1, input);
+                timerDirKey.start(k_stopTime);
+                soundIntf.speak(fmt::format("右移{}秒", input));
             } else {
+                rpc_call_int_param<setCarSteps>(client, CarDirection::dirLeft, -input);
                 soundIntf.speak(fmt::format("右移{}步", input));
             }
             input = 0;
