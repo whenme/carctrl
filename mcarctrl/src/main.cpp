@@ -23,7 +23,8 @@ int32_t main(int argc, char **argv)
     coro_server.register_handler<getActualSpeed, setCtrlSteps, getCtrlSteps,
                                  getActualSteps, setRunTime, setMotorSpeedLevel,
                                  getMotorSpeedLevel, setAllMotorState, getMotorNum,
-                                 getMotorPwm, setCarSteps, setCarMoving, setSteerTurn>();
+                                 getMotorPwm, setCarSteps, setCarMoving,
+                                 setSteerTurn, quitApp>();
 
     auto timerCallback = [](const asio::error_code &e, void *ctxt)
     {

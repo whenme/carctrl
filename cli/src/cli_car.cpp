@@ -158,11 +158,17 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                         rpc_call_int_param<setSteerTurn>(m_client, dir, time);
                     },
                     "set steer direction and time. dir: >0 left, =0 stop, <0 right. time: 0 stop, >0 time");
-    cliMenu->insert("stop",
+    cliMenu->insert("stop-motor",
                     [&](std::ostream& out) {
                         rpc_call_void_param<setAllMotorState>(m_client, 0);
                     },
                     "stop all motors");
+    cliMenu->insert("quit",
+                    [&](std::ostream& out) {
+                        rpc_call_void_param<quitApp>(m_client, 0);
+                        exit(0);
+                    },
+                    "quit application");
 
     if (rootMenu != nullptr) {
         rootMenu->insert(std::move(cliMenu));

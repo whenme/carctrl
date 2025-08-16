@@ -56,7 +56,6 @@ void CarSpeed::initJsonParam()
             port.push_back(inputPort);
             m_motor.push_back(new Motor(port));
         } else if (outputRet) {
-            ctrllog::warn("create motor port {}, {}", port[0], port[1]);
             m_motor.push_back(new Motor(port));
             ctrllog::warn("create motor with port {},{}", port[0], port[1]);
         } else {

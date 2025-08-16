@@ -27,13 +27,13 @@ void CliImpl::initCliCommand()
         m_cliGroup.push_back(&cmd);
     };
 
-    static CliExample cliExample;
+    //static CliExample cliExample;
     static CliCar     cliCar;
     static CliVideo   cliVideo;
 
     cmn::setSingletonInstance<CliCar>(&cliCar);
 
-    addCommandGroup(cliExample);
+    //addCommandGroup(cliExample);
     addCommandGroup(cliCar);
     addCommandGroup(cliVideo);
 

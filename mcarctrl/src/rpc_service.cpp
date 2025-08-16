@@ -93,3 +93,8 @@ int32_t setSteerTurn(int32_t dir, uint32_t time)
     auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
     return ctrl.steerTurn(dir, time);
 }
+
+void quitApp(int32_t param)
+{
+    exit(param);
+}

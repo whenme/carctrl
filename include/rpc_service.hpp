@@ -36,6 +36,8 @@ int32_t getCtrlMode();
 int32_t getMotorNum();
 int32_t setSteerTurn(int32_t dir, uint32_t time);
 
+void quitApp(int32_t param);
+
 using namespace async_simple::coro;
 
 template<auto func>
