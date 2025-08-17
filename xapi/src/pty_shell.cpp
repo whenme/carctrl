@@ -172,8 +172,7 @@ static int ptym_open (int *p_master, int *p_aux, char *p_slave_name)
     return 0;
 
   ptsnam=ptsname(*p_master);
-  if(ptsnam==NULL)
-  {
+  if(ptsnam==NULL) {
     close(*p_master);
     *p_master=-1;
     return 0;
@@ -219,9 +218,9 @@ static int setup_pseudo_tty_link(uint32_t dev_num, int *return_fd, int *return_a
 
   sprintf(localname, "scc%d", dev_num);
   master_fd[dev_num] = open(localname,O_RDWR);
-  if (master_fd[dev_num] >=0)
+  if (master_fd[dev_num] >=0) {
     filetype = FT_SLAVE;
-  else {
+  } else {
     /* Failed to open as slave ; create master */
     extern char *__progname;
     char *path = getcwd(localname, MAX_TTY_DEV_NAME_LEN);
@@ -473,10 +472,11 @@ static uint32_t scc_psos_send_buf(uint32_t channel, uint8_t *buf, short buf_len)
    * already >8KB data.
    */
 
-  if (use_stdio == 1)
+  if (use_stdio == 1) {
     fd = STDOUT_FILENO;
-  else
+  } else {
     fd = master_fd[channel];
+  }
 
 #define PIPE_FULL_COUNT_MAX 100
 
@@ -560,7 +560,7 @@ static uint32_t scc_psos_recv_buf(uint32_t channel, uint8_t *buf,
   int filedesc, ret;
   fd_set set;
 
-  if ((use_stdio == 1)&&(channel == (uint32_t)rs_shell_channel))
+  if ((use_stdio == 1) && (channel == (uint32_t)rs_shell_channel))
     filedesc = STDIN_FILENO;
   else
     filedesc = master_fd[channel];
@@ -624,6 +624,11 @@ void pty_shell_init(uint32_t channel)
   }
 
   rs_shell_channel = channel;
+}
+
+void pty_shell_exit()
+{
+    cleanup_tty_link();
 }
 
 int putchar(int c)

@@ -7,6 +7,7 @@ extern "C" {
 #endif
 
 void pty_shell_init(uint32_t channel);
+void pty_shell_exit();
 
 #ifdef __cplusplus
 }

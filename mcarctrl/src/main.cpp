@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <exception>
+#include <functional>
+
 #include <sys/stat.h>
 #include <xapi/cmn_singleton.hpp>
 #include <xapi/easylog.hpp>
@@ -11,8 +14,16 @@
 
 int32_t main(int argc, char **argv)
 {
+    auto cleanupExit = []() {
+        pty_shell_exit();
+    };
+
     pty_shell_init(2);
     init_log();
+
+    std::set_terminate(cleanupExit);
+    std::atexit(cleanupExit);
+    std::at_quick_exit(cleanupExit);
 
     coro_rpc::coro_rpc_server coro_server(std::thread::hardware_concurrency(), rpc_port);
     auto& asioContext = coro_server.get_io_context_pool().get_executor()->context();
