@@ -158,10 +158,11 @@ void CarSpeed::motorPwmCtrl()
         if (m_motor[i]->getRunState() != MotorState::Stop) {
             pwmCount[i]++;
             if (pwmCount[i] >= (runFlag[i] ? m_motor[i]->getRunPwm() : m_motor[i]->getStopPwm())) {
-                if (runFlag[i])
+                if (runFlag[i]) {
                     m_motor[i]->setNowState(MotorState::Stop);
-                else
+                } else {
                     m_motor[i]->setNowState(m_motor[i]->getRunState());
+                }
 
                 pwmCount[i] = 0;
                 runFlag[i] = runFlag[i] ? false : true;

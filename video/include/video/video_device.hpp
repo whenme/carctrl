@@ -15,7 +15,7 @@ struct CameraParam
 class VideoDevice
 {
 public:
-    VideoDevice();
+    VideoDevice(int32_t id);
     virtual ~VideoDevice();
 
     VideoCapture& getVideoCapture();
@@ -26,6 +26,7 @@ public:
 private:
     VideoCapture m_videoDev;
     CameraParam  m_videoParam;
+    int32_t      m_devId;
     bool         m_state {false};
 
     static constexpr int32_t video_frame_height = 720;

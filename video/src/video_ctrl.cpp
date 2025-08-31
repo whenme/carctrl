@@ -5,21 +5,23 @@
 #include <vector>
 
 VideoCtrl::VideoCtrl(asio::io_context& ioContext):
-  m_videoThread("video thread", cmn::CmnThread::ThreadPriorityNormal, videoThreadFun, this)
+    m_videoThread("video thread", cmn::CmnThread::ThreadPriorityNormal, videoThreadFun, this),
+    m_videoDev{VideoDevice(0), VideoDevice(1)}
 {
     //check there is GUI backend or not
     Mat img = imread("lena.png");
     if (!img.empty()) {
-        /*try {
+        try {
             imshow("lena", img);
             destroyWindow("lena");
         }
         catch(...) {
             // No GUI backend...
             m_showVideo = false;
-        }*/
+        }
     }
 
+    ctrllog::warn("show video: {}", m_showVideo);
     m_videoThread.start();
 }
 
@@ -32,14 +34,14 @@ VideoCtrl::~VideoCtrl()
 void VideoCtrl::videoThreadFun(void *ctxt)
 {
     VideoCtrl *obj = static_cast<VideoCtrl *>(ctxt);
-    if (!obj->m_videoDev.getDeviceState())
+    if (!obj->m_videoDev[0].getDeviceState())
         return;
 
     Mat frame, gray, edge;
     while(1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-        auto& video = obj->m_videoDev.getVideoCapture();
+        auto& video = obj->m_videoDev[0].getVideoCapture();
         video >> frame;
         if (frame.empty()) {
             ctrllog::warn("device read video error...");

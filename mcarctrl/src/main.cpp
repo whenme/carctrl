@@ -41,12 +41,12 @@ int32_t main(int argc, char **argv)
     {
         static int state = 0;
         struct stat buffer;
-        if (stat("/sys/class/leds/orangepi:green:status/brightness", &buffer) == 0) {
+        if (stat("/sys/class/leds/orangepi:red:status/brightness", &buffer) == 0) {
             if (state == 0) {
-                system("echo 1 > /sys/class/leds/orangepi:green:status/brightness");
+                system("echo 1 > /sys/class/leds/orangepi:red:status/brightness");
                 state = 1;
             } else {
-                system("echo 0 > /sys/class/leds/orangepi:green:status/brightness");
+                system("echo 0 > /sys/class/leds/orangepi:red:status/brightness");
                 state = 0;
             }
         }

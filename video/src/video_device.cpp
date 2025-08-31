@@ -4,18 +4,16 @@
 #include <video/video_device.hpp>
 #include <opencv2/videoio/legacy/constants_c.h>
 
-VideoDevice::VideoDevice()
+VideoDevice::VideoDevice(int32_t id) :
+    m_devId(id)
 {
-    for (int32_t i = 0; i < 2; i++) {
-        bool ret = m_videoDev.open(i);
-        if (ret) {
-            ctrllog::info("video capture {} exist!", i);
-            break;
-        }
+    if (m_videoDev.open(id)) {
+        ctrllog::info("video capture {} exist!", id);
     }
 
     if (!m_videoDev.isOpened()) {
         ctrllog::warn("Cannot find video device...");
+        return;
     } else {
         m_state = true;
 

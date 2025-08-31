@@ -14,8 +14,8 @@ public:
 
 private:
     cmn::CmnThread m_videoThread;
-    VideoDevice    m_videoDev;
-    bool           m_showVideo { false };
+    VideoDevice    m_videoDev[2];
+    bool           m_showVideo { true };
 
     void        showImage(std::string title, Mat& mat);
     static void videoThreadFun(void *ctxt);
