@@ -198,30 +198,29 @@ void CarSpeed::threadFun(void *ctxt)
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         obj->motorPwmCtrl();
 
-        if (inputFlag) { //with input counter
-            if (poll(fds, obj->m_motorNum, 0) <= 0) {
-                continue;
-            }
+        if ((!inputFlag) //without input counter
+           || (poll(fds, obj->m_motorNum, 0) <= 0)) { // input no changes
+            continue;
+        }
 
-            for (int32_t i = 0; i < obj->m_motorNum; i++) {
-                if (fds[i].revents & POLLPRI) {
-                    if (lseek(fds[i].fd, 0, SEEK_SET) < 0) {
-                        ctrllog::warn("threadFun: seek failed");
-                        continue;
+        for (int32_t i = 0; i < obj->m_motorNum; i++) {
+            if (fds[i].revents & POLLPRI) {
+                if (lseek(fds[i].fd, 0, SEEK_SET) < 0) {
+                    ctrllog::warn("threadFun: seek failed");
+                    continue;
                 }
                 int len = read(fds[i].fd, buffer, sizeof(buffer));
                 if (len < 0) {
-                        ctrllog::warn("threadFun: read failed");
-                        continue;
-                    }
-                    obj->m_motor[i]->m_swCounter++;
+                    ctrllog::warn("threadFun: read failed");
+                    continue;
+                }
+                obj->m_motor[i]->m_swCounter++;
 
-                    if ((obj->m_motor[i]->getCtrlSteps() >= 0)
-                        || (obj->m_carCtrl->getCtrlMode() == CTRL_MODE_TIME)) {
-                        obj->m_motor[i]->moveActualSteps(1);
-                    } else {
-                        obj->m_motor[i]->moveActualSteps(-1);
-                    }
+                if ((obj->m_motor[i]->getCtrlSteps() >= 0)
+                    || (obj->m_carCtrl->getCtrlMode() == CTRL_MODE_TIME)) {
+                    obj->m_motor[i]->moveActualSteps(1);
+                } else {
+                    obj->m_motor[i]->moveActualSteps(-1);
                 }
             }
         }
