@@ -26,8 +26,6 @@ public:
 private:
     VideoCapture m_videoDev;
     CameraParam  m_videoParam;
-    int32_t      m_devId;
-    bool         m_state {false};
 
     static constexpr int32_t video_frame_height = 720;
     static constexpr int32_t video_frame_width  = 1280;

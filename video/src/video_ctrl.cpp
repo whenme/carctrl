@@ -6,7 +6,7 @@
 
 VideoCtrl::VideoCtrl(asio::io_context& ioContext):
     m_videoThread("video thread", cmn::CmnThread::ThreadPriorityNormal, videoThreadFun, this),
-    m_videoDev{VideoDevice(0), VideoDevice(1)}
+    m_videoDev{nullptr, nullptr}
 {
     //check there is GUI backend or not
     Mat img = imread("lena.png");
@@ -21,7 +21,16 @@ VideoCtrl::VideoCtrl(asio::io_context& ioContext):
         }
     }
 
-    ctrllog::warn("show video: {}", m_showVideo);
+    for (int idCheck = 0; idCheck < 6; idCheck++) {
+        if (checkVideoCapture(idCheck)) {
+            m_videoDev[m_videoDevNum] = new VideoDevice(idCheck);
+            if (m_videoDev[m_videoDevNum]) {
+                m_videoDevNum++;
+            }
+        }
+    }
+
+    ctrllog::warn("show video: {}. Video device number: {}", m_showVideo, m_videoDevNum);
     m_videoThread.start();
 }
 
@@ -29,19 +38,25 @@ VideoCtrl::~VideoCtrl()
 {
     if (m_videoThread.getRunState())
         m_videoThread.stop();
+
+    for (int32_t id = 0; id < m_videoDevNum; id++) {
+        delete m_videoDev[id];
+    }
 }
 
 void VideoCtrl::videoThreadFun(void *ctxt)
 {
     VideoCtrl *obj = static_cast<VideoCtrl *>(ctxt);
-    if (!obj->m_videoDev[0].getDeviceState())
+    if (!obj->m_videoDev[0]) {
+        ctrllog::warn("no video capture found...");
         return;
+    }
 
     Mat frame, gray, edge;
     while(1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-        auto& video = obj->m_videoDev[0].getVideoCapture();
+        auto& video = obj->m_videoDev[0]->getVideoCapture();
         video >> frame;
         if (frame.empty()) {
             ctrllog::warn("device read video error...");
@@ -49,6 +64,7 @@ void VideoCtrl::videoThreadFun(void *ctxt)
         }
 
         obj->showImage("capture", frame);
+
         cvtColor(frame, gray, COLOR_BGR2GRAY); //to gray
         GaussianBlur(gray, gray, Size(5, 5), 0);  //gauss filter
         obj->showImage("gray", gray);
@@ -70,5 +86,18 @@ void VideoCtrl::showImage(std::string title, Mat& mat)
 {
     if (m_showVideo) {
         imshow(title, mat);
+    }
+}
+
+bool VideoCtrl::checkVideoCapture(int32_t id)
+{
+    VideoCapture videoDev;
+
+    if (videoDev.open(id)) {
+        ctrllog::info("video capture {} exist!", id);
+        videoDev.release();
+        return true;
+    } else {
+        return false;
     }
 }

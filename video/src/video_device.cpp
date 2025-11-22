@@ -4,19 +4,9 @@
 #include <video/video_device.hpp>
 #include <opencv2/videoio/legacy/constants_c.h>
 
-VideoDevice::VideoDevice(int32_t id) :
-    m_devId(id)
+VideoDevice::VideoDevice(int32_t id)
 {
     if (m_videoDev.open(id)) {
-        ctrllog::info("video capture {} exist!", id);
-    }
-
-    if (!m_videoDev.isOpened()) {
-        ctrllog::warn("Cannot find video device...");
-        return;
-    } else {
-        m_state = true;
-
         //set default parameter
         m_videoDev.set(CAP_PROP_FOURCC, CV_FOURCC('M', 'J', 'P', 'G'));
         m_videoDev.set(CAP_PROP_FPS, 10);
@@ -42,11 +32,6 @@ VideoCapture& VideoDevice::getVideoCapture()
     return m_videoDev;
 }
 
-bool VideoDevice::getDeviceState()
-{
-    return m_state;
-}
-
 CameraParam& VideoDevice::getDeviceParam()
 {
     return m_videoParam;
@@ -54,11 +39,6 @@ CameraParam& VideoDevice::getDeviceParam()
 
 int32_t VideoDevice::setDeviceParam(CameraParam param)
 {
-    if (!m_state) {
-        ctrllog::warn("video device error...");
-        return -1;
-    }
-
     int32_t ret = m_videoDev.set(CAP_PROP_FRAME_WIDTH, param.cameraWidth);
     if (!ret)
         m_videoParam.cameraWidth = param.cameraWidth;
