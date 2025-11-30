@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <xapi/easylog.hpp>
+#include <xapi/cmn_libfork.hpp>
 #include <opencv2/opencv.hpp>
 #include <video/video_ctrl.hpp>
+#include <functional>
 #include <vector>
 
 VideoCtrl::VideoCtrl(asio::io_context& ioContext):
@@ -9,7 +11,7 @@ VideoCtrl::VideoCtrl(asio::io_context& ioContext):
     m_videoDev{nullptr, nullptr}
 {
     //check there is GUI backend or not
-    Mat img = imread("lena.png");
+    /*Mat img = imread("lena.png");
     if (!img.empty()) {
         try {
             imshow("lena", img);
@@ -19,14 +21,14 @@ VideoCtrl::VideoCtrl(asio::io_context& ioContext):
             // No GUI backend...
             m_showVideo = false;
         }
-    }
+    }*/
 
-    for (int idCheck = 0; idCheck < 6; idCheck++) {
-        if (checkVideoCapture(idCheck)) {
-            m_videoDev[m_videoDevNum] = new VideoDevice(idCheck);
-            if (m_videoDev[m_videoDevNum]) {
-                m_videoDevNum++;
-            }
+    //find video device id. some video device begin from /dev/video4 as OPI3B
+    int32_t idExist = 0;
+    for (int32_t vid = 0; vid < video_dev_num; vid++) {
+        m_videoDev[m_videoDevNum] = new VideoDevice(idExist);
+        if (m_videoDev[m_videoDevNum]->getDeviceId() >= 0) {
+            idExist = m_videoDev[m_videoDevNum++]->getDeviceId()+1;
         }
     }
 
@@ -36,8 +38,9 @@ VideoCtrl::VideoCtrl(asio::io_context& ioContext):
 
 VideoCtrl::~VideoCtrl()
 {
-    if (m_videoThread.getRunState())
+    if (m_videoThread.getRunState()) {
         m_videoThread.stop();
+    }
 
     for (int32_t id = 0; id < m_videoDevNum; id++) {
         delete m_videoDev[id];
@@ -47,7 +50,7 @@ VideoCtrl::~VideoCtrl()
 void VideoCtrl::videoThreadFun(void *ctxt)
 {
     VideoCtrl *obj = static_cast<VideoCtrl *>(ctxt);
-    if (!obj->m_videoDev[0]) {
+    if (obj->m_videoDev[0]->getDeviceId() < 0) {
         ctrllog::warn("no video capture found...");
         return;
     }
@@ -59,7 +62,7 @@ void VideoCtrl::videoThreadFun(void *ctxt)
         auto& video = obj->m_videoDev[0]->getVideoCapture();
         video >> frame;
         if (frame.empty()) {
-            ctrllog::warn("device read video error...");
+            //ctrllog::warn("device read video error...");
             continue;
         }
 
@@ -86,18 +89,5 @@ void VideoCtrl::showImage(std::string title, Mat& mat)
 {
     if (m_showVideo) {
         imshow(title, mat);
-    }
-}
-
-bool VideoCtrl::checkVideoCapture(int32_t id)
-{
-    VideoCapture videoDev;
-
-    if (videoDev.open(id)) {
-        ctrllog::info("video capture {} exist!", id);
-        videoDev.release();
-        return true;
-    } else {
-        return false;
     }
 }

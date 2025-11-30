@@ -13,12 +13,13 @@ public:
     virtual ~VideoCtrl();
 
 private:
-    cmn::CmnThread m_videoThread;
-    VideoDevice*   m_videoDev[2];
-    bool           m_showVideo { true };
-    int32_t        m_videoDevNum {0};
-
-    bool        checkVideoCapture(int32_t id);
     void        showImage(std::string title, Mat& mat);
     static void videoThreadFun(void *ctxt);
+
+    static constexpr int32_t video_dev_num = 2;
+
+    cmn::CmnThread m_videoThread;
+    VideoDevice*   m_videoDev[video_dev_num];
+    bool           m_showVideo { true };
+    int32_t        m_videoDevNum {0};
 };
