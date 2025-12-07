@@ -2,8 +2,8 @@
 
 #include <xapi/cmn_singleton.hpp>
 #include <xapi/easylog.hpp>
-#include <cli/cli_impl.h>
-#include <cli/cli_car.hpp>
+#include <cli_impl.h>
+#include <cli_car.hpp>
 #include <video/sound_intf.hpp>
 #include <rpc_service.hpp>
 
@@ -23,7 +23,7 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
 
     syncAwait(m_client.connect("localhost", std::to_string(rpc_port)));
 
-    cliMenu->insert("show-param",
+    cliMenu->Insert("show-param",
                     [&](std::ostream& out) {
                         int32_t motorNum = rpc_call_int_param<getMotorNum>(m_client);
                         int32_t speedLevel = rpc_call_int_param<getMotorSpeedLevel>(m_client);
@@ -39,13 +39,13 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                     },
                     "show car speed/pwm/step");
 
-    cliMenu->insert("set-speedlevel", {"speed: 1-9 for speed level"},
+    cliMenu->Insert("set-speedlevel", {"speed: 1-9 for speed level"},
                     [&](std::ostream& out, int32_t speed) {
                         rpc_call_int_param<setMotorSpeedLevel>(m_client, speed);
                     },
                     "set motor speed level");
 
-    cliMenu->insert("set-motorpwm", {"motor:0-all,1~4 motor id", "pwm:0~100"},
+    cliMenu->Insert("set-motorpwm", {"motor:0-all,1~4 motor id", "pwm:0~100"},
                     [&](std::ostream& out, int32_t motor, int32_t pwm) {
                         int32_t motorNum = rpc_call_int_param<getMotorNum>(m_client);
                         if ((motor < 0) || (motor > motorNum) || (pwm > 100)) {
@@ -63,7 +63,7 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                     },
                     "set motor pwm");
 
-    cliMenu->insert("show-motorstep",
+    cliMenu->Insert("show-motorstep",
                     [&](std::ostream& out) {
                         int32_t motorNum = rpc_call_int_param<getMotorNum>(m_client);
                         for (int32_t ii = 1; ii <= motorNum; ii++) {
@@ -75,7 +75,7 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                     },
                     "show car steps");
 
-    cliMenu->insert("set-motorstep", {"wheel:0-all,1~4 motor id", "steps"},
+    cliMenu->Insert("set-motorstep", {"wheel:0-all,1~4 motor id", "steps"},
                     [&](std::ostream& out, int32_t wheel, int32_t steps) {
                         int32_t motorNum = rpc_call_int_param<getMotorNum>(m_client);
                         if ((wheel < 0) || (wheel > motorNum) || (steps == 0)) {
@@ -116,7 +116,7 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                     },
                     "set motor steps");
 
-    cliMenu->insert("set-carstep",
+    cliMenu->Insert("set-carstep",
                     {"direction:0-forward/backward, 1-left/right, 2-rotation", "step: >0-forward/left, <0-backward/right"},
                     [&](std::ostream& out, int32_t direction, int32_t steps) {
                         std::string sound;
@@ -148,22 +148,22 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                         soundIntf.speak(sound);
                     },
                     "set car steps");
-    cliMenu->insert("set-runtime", {"time: seconds"},
+    cliMenu->Insert("set-runtime", {"time: seconds"},
                     [&](std::ostream& out, int32_t runtime) {
                         rpc_call_int_param<setRunTime>(m_client, runtime);
                     },
                     "set car run time for speed regulation");
-    cliMenu->insert("set-steer", {"dir: >0 left, =0 stop, <0 right", "time: 0 stop, >0 time"},
+    cliMenu->Insert("set-steer", {"dir: >0 left, =0 stop, <0 right", "time: 0 stop, >0 time"},
                     [&](std::ostream& out, int32_t dir, uint32_t time) {
                         rpc_call_int_param<setSteerTurn>(m_client, dir, time);
                     },
                     "set steer direction and time. dir: >0 left, =0 stop, <0 right. time: 0 stop, >0 time");
-    cliMenu->insert("stop-motor",
+    cliMenu->Insert("stop-motor",
                     [&](std::ostream& out) {
                         rpc_call_void_param<setAllMotorState>(m_client, 0);
                     },
                     "stop all motors");
-    cliMenu->insert("quit",
+    cliMenu->Insert("quit",
                     [&](std::ostream& out) {
                         rpc_call_void_param<quitApp>(m_client, 0);
                         exit(0);
@@ -171,7 +171,7 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                     "quit application");
 
     if (rootMenu != nullptr) {
-        rootMenu->insert(std::move(cliMenu));
+        rootMenu->Insert(std::move(cliMenu));
     }
 }
 

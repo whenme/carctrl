@@ -27,74 +27,42 @@
  * DEALINGS IN THE SOFTWARE.
  ******************************************************************************/
 
-#ifndef CLI_DETAIL_GENERICCLIASYNCSESSION_H_
-#define CLI_DETAIL_GENERICCLIASYNCSESSION_H_
+#ifndef CLI_VOLATILEHISTORYSTORAGE_H_
+#define CLI_VOLATILEHISTORYSTORAGE_H_
 
-#include <string>
-#include "../cli.h" // CliSession
-#include "genericasioscheduler.h"
+#include "historystorage.h"
+#include <deque>
 
 namespace cli
 {
-namespace detail
+
+class VolatileHistoryStorage : public HistoryStorage
 {
-
-template <typename ASIOLIB>
-class GenericCliAsyncSession : public CliSession
-{
-public:
-    GenericCliAsyncSession(GenericAsioScheduler<ASIOLIB>& _scheduler, Cli& _cli) :
-        CliSession(_cli, std::cout, 1),
-        input(_scheduler.AsioContext(), ::dup(STDIN_FILENO))
-    {
-        Read();
-    }
-    ~GenericCliAsyncSession() noexcept override
-    {
-        try { input.close(); } catch (const std::exception&) { /* do nothing */ }
-    }
-
-private:
-
-    void Read()
-    {
-        Prompt();
-        // Read a line of input entered by the user.
-        asiolib::async_read_until(
-            input,
-            inputBuffer,
-            '\n',
-            std::bind( &GenericCliAsyncSession::NewLine, this,
-                       std::placeholders::_1,
-                       std::placeholders::_2 )
-        );
-    }
-
-    void NewLine(const asiolibec::error_code& error, std::size_t length )
-    {
-        if ( !error || error == asiolib::error::not_found )
+    public:
+        explicit VolatileHistoryStorage(std::size_t size = 1000) : maxSize(size) {}
+        void Store(const std::vector<std::string>& cmds) override
         {
-            auto bufs = inputBuffer.data();
-            auto size = static_cast<long>(length);
-            if ( !error ) --size; // remove \n
-            std::string s(asiolib::buffers_begin( bufs ), asiolib::buffers_begin( bufs ) + size);
-            inputBuffer.consume( length );
-
-            Feed( s );
-            Read();
+            using dt = std::deque<std::string>::difference_type;
+            commands.insert(commands.end(), cmds.begin(), cmds.end());
+            if (commands.size() > maxSize)
+                commands.erase(
+                    commands.begin(),
+                    commands.begin()+static_cast<dt>(commands.size()-maxSize)
+                );
         }
-        else
+        std::vector<std::string> Commands() const override
         {
-            input.close();
+            return std::vector<std::string>(commands.begin(), commands.end());
         }
-    }
-
-    asiolib::streambuf inputBuffer;
-    asiolib::posix::stream_descriptor input;
+        void Clear() override
+        {
+            commands.clear();
+        }
+    private:
+        const std::size_t maxSize;
+        std::deque<std::string> commands;
 };
 
-} // namespace detail
 } // namespace cli
 
-#endif // CLI_DETAIL_GENERICCLIASYNCSESSION_H_
-
+#endif // CLI_VOLATILEHISTORYSTORAGE_H_

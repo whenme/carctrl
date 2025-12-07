@@ -4,13 +4,17 @@
 #define __CLI_CLI_IMPL_H_INCLUDE__
 
 #pragma once
-#include "cli.h"
+#include "asio.hpp"
+#include "cli/cli.h"
+#include "cli/detail/genericasioscheduler.h"
+#include "cli/detail/genericasioremotecli.h"
+#include "cli/detail/genericcliasyncsession.h"
 
 namespace cli
 {
-using MainScheduler   = detail::GenericAsioScheduler<detail::StandaloneAsioLib>;
-using CliTelnetServer = detail::CliGenericTelnetServer<detail::StandaloneAsioLib>;
-using CliAsyncSession = detail::GenericCliAsyncSession<detail::StandaloneAsioLib>;
+using MainScheduler   = detail::GenericAsioScheduler<detail::NewStandaloneAsioLib>;
+using CliTelnetServer = detail::CliGenericTelnetServer<detail::NewStandaloneAsioLib>;
+using CliAsyncSession = detail::GenericCliAsyncSession<detail::NewStandaloneAsioLib>;
 
 class CliCommandGroup
 {
@@ -21,7 +25,7 @@ public:
     virtual ~CliCommandGroup() = default;
 
     //class are neither copyable nor movable
-    CMN_UNCOPYABLE_IMMOVABLE(CliCommandGroup)
+    //CMN_UNCOPYABLE_IMMOVABLE(CliCommandGroup)
 
     virtual void initCliCommand(std::unique_ptr<Menu>& rootMenu) = 0;
 
@@ -41,7 +45,7 @@ public:
     virtual ~CliImpl();
 
     //class are neither copyable nor movable
-    CMN_UNCOPYABLE_IMMOVABLE(CliImpl)
+    //CMN_UNCOPYABLE_IMMOVABLE(CliImpl)
 
     void initCliCommand();
     void runCliImpl();

@@ -27,48 +27,50 @@
  * DEALINGS IN THE SOFTWARE.
  ******************************************************************************/
 
-#ifndef CLI_DETAIL_INPUTDEVICE_H_
-#define CLI_DETAIL_INPUTDEVICE_H_
+#ifndef CLI_COLORPROFILE_H_
+#define CLI_COLORPROFILE_H_
 
-#include <functional>
-#include <string>
-#include "../scheduler.h"
+#include "detail/rang.h"
 
 namespace cli
 {
-namespace detail
+
+inline bool& Color() { static bool color; return color; }
+
+inline void SetColor() { Color() = true; }
+inline void SetNoColor() { Color() = false; }
+
+enum BeforePrompt { beforePrompt };
+enum AfterPrompt { afterPrompt };
+enum BeforeInput { beforeInput };
+enum AfterInput { afterInput };
+
+inline std::ostream& operator<<(std::ostream& os, BeforePrompt)
 {
+    if ( Color() ) { os << detail::rang::control::forceColor << detail::rang::fg::green << detail::rang::style::bold; }
+    return os;
+}
 
-enum class KeyType { ascii, up, down, left, right, backspace, canc, home, end, ret, eof, ignored, clear, };
-
-class InputDevice
+inline std::ostream& operator<<(std::ostream& os, AfterPrompt)
 {
-public:
-    using Handler = std::function< void( std::pair<KeyType,char> ) >;
+    os << detail::rang::style::reset;
+    return os;
+}
 
-    explicit InputDevice(Scheduler& _scheduler) : scheduler(_scheduler) {}
-    virtual ~InputDevice() = default;
-    virtual void ActivateInput() {}
-    virtual void DeactivateInput() {}
+inline std::ostream& operator<<(std::ostream& os, BeforeInput)
+{
+    if ( Color() ) { os << detail::rang::control::forceColor << detail::rang::fgB::gray; }
+    return os;
+}
 
-    template <typename H>
-    void Register(H&& h) { handler = std::forward<H>(h); }
+inline std::ostream& operator<<(std::ostream& os, AfterInput)
+{
+    os << detail::rang::style::reset;
+    return os;
+}
 
-protected:
-
-    void Notify(std::pair<KeyType,char> k)
-    {
-        scheduler.Post([this,k](){ if (handler) handler(k); });
-    }
-
-private:
-
-    Scheduler& scheduler;
-    Handler handler;
-};
-
-} // namespace detail
 } // namespace cli
 
-#endif // CLI_DETAIL_INPUTDEVICE_H_
+#endif // CLI_COLORPROFILE_H_
+
 

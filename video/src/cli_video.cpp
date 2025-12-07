@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <xapi/cmn_singleton.hpp>
-#include <cli/cli_impl.h>
+#include <cli_impl.h>
 #include <video/cli_video.hpp>
 #include <video/sound_intf.hpp>
 
@@ -13,19 +13,19 @@ void CliVideo::initCliCommand(std::unique_ptr<Menu>& rootMenu)
     auto  cliMenu = std::make_unique<Menu>(name);
     auto&     obj = cmn::getSingletonInstance<SoundIntf>();
 
-    cliMenu->insert("set-sound",
+    cliMenu->Insert("set-sound",
                     [&](std::ostream& out, int state) {
                         obj.setSoundState(state);
                     },
                     "set sound state on/off",
                     {"state:0-off, 1-on"});
-    cliMenu->insert("sing", [&](std::ostream&) {
+    cliMenu->Insert("sing", [&](std::ostream&) {
                         obj.sing();
                     },
                     "sing");
 
     if (rootMenu != nullptr) {
-        rootMenu->insert(std::move(cliMenu));
+        rootMenu->Insert(std::move(cliMenu));
     }
 }
 

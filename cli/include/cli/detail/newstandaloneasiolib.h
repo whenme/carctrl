@@ -27,74 +27,63 @@
  * DEALINGS IN THE SOFTWARE.
  ******************************************************************************/
 
-#ifndef CLI_DETAIL_GENERICCLIASYNCSESSION_H_
-#define CLI_DETAIL_GENERICCLIASYNCSESSION_H_
+#ifndef CLI_DETAIL_NEWSTANDALONEASIOLIB_H_
+#define CLI_DETAIL_NEWSTANDALONEASIOLIB_H_
 
-#include <string>
-#include "../cli.h" // CliSession
-#include "genericasioscheduler.h"
+#include <asio/version.hpp>
+#include <asio.hpp>
 
 namespace cli
 {
 namespace detail
 {
 
-template <typename ASIOLIB>
-class GenericCliAsyncSession : public CliSession
+namespace asiolib = asio;
+namespace asiolibec = asio;
+
+class NewStandaloneAsioLib
 {
 public:
-    GenericCliAsyncSession(GenericAsioScheduler<ASIOLIB>& _scheduler, Cli& _cli) :
-        CliSession(_cli, std::cout, 1),
-        input(_scheduler.AsioContext(), ::dup(STDIN_FILENO))
-    {
-        Read();
-    }
-    ~GenericCliAsyncSession() noexcept override
-    {
-        try { input.close(); } catch (const std::exception&) { /* do nothing */ }
-    }
 
-private:
+    using ContextType = asio::io_context;
+    using WorkGuard = asio::executor_work_guard<asio::io_context::executor_type>;
 
-    void Read()
+    class Executor
     {
-        Prompt();
-        // Read a line of input entered by the user.
-        asiolib::async_read_until(
-            input,
-            inputBuffer,
-            '\n',
-            std::bind( &GenericCliAsyncSession::NewLine, this,
-                       std::placeholders::_1,
-                       std::placeholders::_2 )
-        );
-    }
+    public:
+        explicit Executor(ContextType& ios) :
+            executor(ios.get_executor()) {}
+        explicit Executor(asio::ip::tcp::socket& socket) :
+            executor(socket.get_executor()) {}
+        template <typename T> void Post(T&& t) { asio::post(executor, std::forward<T>(t)); }
+    private:
+#if ASIO_VERSION >= 101700
+    using AsioExecutor = asio::any_io_executor;
+#else
+    using AsioExecutor = asio::executor;
+#endif
+         AsioExecutor executor;
+    };
 
-    void NewLine(const asiolibec::error_code& error, std::size_t length )
+    static asio::ip::address IpAddressFromString(const std::string& address)
     {
-        if ( !error || error == asiolib::error::not_found )
-        {
-            auto bufs = inputBuffer.data();
-            auto size = static_cast<long>(length);
-            if ( !error ) --size; // remove \n
-            std::string s(asiolib::buffers_begin( bufs ), asiolib::buffers_begin( bufs ) + size);
-            inputBuffer.consume( length );
-
-            Feed( s );
-            Read();
-        }
-        else
-        {
-            input.close();
-        }
+        return asio::ip::make_address(address);
     }
 
-    asiolib::streambuf inputBuffer;
-    asiolib::posix::stream_descriptor input;
+    static auto MakeWorkGuard(ContextType& context)
+    {
+        return asio::make_work_guard(context);
+    }
+
+    static void Reset(WorkGuard& wg)
+    {
+        wg.reset();
+    }
+
 };
 
 } // namespace detail
 } // namespace cli
 
-#endif // CLI_DETAIL_GENERICCLIASYNCSESSION_H_
+#endif // CLI_DETAIL_NEWSTANDALONEASIOLIB_H_
 

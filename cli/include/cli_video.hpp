@@ -2,25 +2,25 @@
 
 #pragma once
 #include <cli/cli.h>
-#include <cli/cli_impl.h>
+#include <cli_impl.h>
 #include <memory>
-#include <ylt/coro_rpc/coro_rpc_client.hpp>
 
 namespace cli
 {
 class CliCommandGroup;
 
-class CliCar : public CliCommandGroup
+class CliVideo : public CliCommandGroup
 {
 public:
-    CliCar();
-    virtual ~CliCar() = default;
+    CliVideo() : CliCommandGroup("video")
+    {
+    }
+    virtual ~CliVideo() = default;
 
     void initCliCommand(std::unique_ptr<Menu>& rootMenu) override;
-    coro_rpc::coro_rpc_client& getClient();
 
 private:
-    coro_rpc::coro_rpc_client m_client;
+    //static void setSoundState(std::ostream& out, int32_t state);
 };
 
 }  // namespace cli

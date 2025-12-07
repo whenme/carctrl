@@ -5,8 +5,8 @@
 #include <xapi/cmn_singleton.hpp>
 #include <xapi/easylog.hpp>
 #include <xapi/pty_shell.hpp>
-#include <cli/cli_impl.h>
-#include <cli/remote_key.hpp>
+#include <cli_impl.h>
+#include <remote_key.hpp>
 #include <video/sound_intf.hpp>
 #include <video/video_ctrl.hpp>
 

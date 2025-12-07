@@ -3,8 +3,8 @@
 #include <xapi/cmn_singleton.hpp>
 #include <xapi/easylog.hpp>
 #include <video/sound_intf.hpp>
-#include <cli/remote_key.hpp>
-#include <cli/cli_car.hpp>
+#include <remote_key.hpp>
+#include <cli_car.hpp>
 #include <rpc_service.hpp>
 
 RemoteKey::RemoteKey(asio::io_context& context) :

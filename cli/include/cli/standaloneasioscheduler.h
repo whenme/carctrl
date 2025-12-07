@@ -27,48 +27,12 @@
  * DEALINGS IN THE SOFTWARE.
  ******************************************************************************/
 
-#ifndef CLI_DETAIL_INPUTDEVICE_H_
-#define CLI_DETAIL_INPUTDEVICE_H_
+#ifndef CLI_STANDALONEASIOSCHEDULER_H_
+#define CLI_STANDALONEASIOSCHEDULER_H_
 
-#include <functional>
-#include <string>
-#include "../scheduler.h"
+#include "detail/genericasioscheduler.h"
+#include "detail/standaloneasiolib.h"
 
-namespace cli
-{
-namespace detail
-{
+namespace cli { using StandaloneAsioScheduler = detail::GenericAsioScheduler<detail::StandaloneAsioLib>; }
 
-enum class KeyType { ascii, up, down, left, right, backspace, canc, home, end, ret, eof, ignored, clear, };
-
-class InputDevice
-{
-public:
-    using Handler = std::function< void( std::pair<KeyType,char> ) >;
-
-    explicit InputDevice(Scheduler& _scheduler) : scheduler(_scheduler) {}
-    virtual ~InputDevice() = default;
-    virtual void ActivateInput() {}
-    virtual void DeactivateInput() {}
-
-    template <typename H>
-    void Register(H&& h) { handler = std::forward<H>(h); }
-
-protected:
-
-    void Notify(std::pair<KeyType,char> k)
-    {
-        scheduler.Post([this,k](){ if (handler) handler(k); });
-    }
-
-private:
-
-    Scheduler& scheduler;
-    Handler handler;
-};
-
-} // namespace detail
-} // namespace cli
-
-#endif // CLI_DETAIL_INPUTDEVICE_H_
-
+#endif // CLI_STANDALONEASIOSCHEDULER_H_

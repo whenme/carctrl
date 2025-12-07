@@ -27,74 +27,29 @@
  * DEALINGS IN THE SOFTWARE.
  ******************************************************************************/
 
-#ifndef CLI_DETAIL_GENERICCLIASYNCSESSION_H_
-#define CLI_DETAIL_GENERICCLIASYNCSESSION_H_
+#ifndef CLI_SCHEDULER_H_
+#define CLI_SCHEDULER_H_
 
-#include <string>
-#include "../cli.h" // CliSession
-#include "genericasioscheduler.h"
+#include <functional>
 
 namespace cli
 {
-namespace detail
-{
 
-template <typename ASIOLIB>
-class GenericCliAsyncSession : public CliSession
+/**
+ * A `Scheduler` represents an engine capable of running a task.
+ * Its method `Post` can be safely called from any thread to submit the task
+ * that will execute in an unspecified thread of execution as soon as possible
+ * (but in any case after the call to `Post` is terminated).
+ */
+class Scheduler
 {
 public:
-    GenericCliAsyncSession(GenericAsioScheduler<ASIOLIB>& _scheduler, Cli& _cli) :
-        CliSession(_cli, std::cout, 1),
-        input(_scheduler.AsioContext(), ::dup(STDIN_FILENO))
-    {
-        Read();
-    }
-    ~GenericCliAsyncSession() noexcept override
-    {
-        try { input.close(); } catch (const std::exception&) { /* do nothing */ }
-    }
+    virtual ~Scheduler() = default;
 
-private:
-
-    void Read()
-    {
-        Prompt();
-        // Read a line of input entered by the user.
-        asiolib::async_read_until(
-            input,
-            inputBuffer,
-            '\n',
-            std::bind( &GenericCliAsyncSession::NewLine, this,
-                       std::placeholders::_1,
-                       std::placeholders::_2 )
-        );
-    }
-
-    void NewLine(const asiolibec::error_code& error, std::size_t length )
-    {
-        if ( !error || error == asiolib::error::not_found )
-        {
-            auto bufs = inputBuffer.data();
-            auto size = static_cast<long>(length);
-            if ( !error ) --size; // remove \n
-            std::string s(asiolib::buffers_begin( bufs ), asiolib::buffers_begin( bufs ) + size);
-            inputBuffer.consume( length );
-
-            Feed( s );
-            Read();
-        }
-        else
-        {
-            input.close();
-        }
-    }
-
-    asiolib::streambuf inputBuffer;
-    asiolib::posix::stream_descriptor input;
+    /// Submits a completion token or function object for execution.
+    virtual void Post(const std::function<void()>& f) = 0;
 };
 
-} // namespace detail
 } // namespace cli
 
-#endif // CLI_DETAIL_GENERICCLIASYNCSESSION_H_
-
+#endif // CLI_SCHEDULER_H_

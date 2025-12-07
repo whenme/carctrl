@@ -27,74 +27,56 @@
  * DEALINGS IN THE SOFTWARE.
  ******************************************************************************/
 
-#ifndef CLI_DETAIL_GENERICCLIASYNCSESSION_H_
-#define CLI_DETAIL_GENERICCLIASYNCSESSION_H_
+#ifndef CLI_CLILOCALSESSION_H
+#define CLI_CLILOCALSESSION_H
 
-#include <string>
-#include "../cli.h" // CliSession
-#include "genericasioscheduler.h"
+#include <ostream> // std::ostream
+#include "detail/commandprocessor.h"
+#include "cli.h" // CliSession
+#include "detail/keyboard.h"
+#include "detail/screen.h"
 
 namespace cli
 {
-namespace detail
-{
 
-template <typename ASIOLIB>
-class GenericCliAsyncSession : public CliSession
+class Scheduler; // forward declaration
+
+/**
+ * @brief CliLocalTerminalSession represents a local session.
+ * You should instantiate it to start an interactive prompt on the standard
+ * input/output of your application.
+ * The handlers of the commands will be invoked in the same thread the @c Scheduler runs. 
+ */
+class CliLocalTerminalSession : public CliSession
 {
 public:
-    GenericCliAsyncSession(GenericAsioScheduler<ASIOLIB>& _scheduler, Cli& _cli) :
-        CliSession(_cli, std::cout, 1),
-        input(_scheduler.AsioContext(), ::dup(STDIN_FILENO))
+
+    /**
+     * @brief Construct a new Cli Local Terminal Session object that uses the specified @c std::ostream
+     * for output. You can also specify a size for the command history. 
+     * 
+     * @param _cli The cli object that defines the menu hierarchy for this session
+     * @param scheduler The scheduler that will process the command handlers
+     * @param _out the output stream where command output will be printed
+     * @param historySize the size of the command history
+     */
+    CliLocalTerminalSession(Cli& _cli, Scheduler& scheduler, std::ostream& _out, std::size_t historySize = 100) :
+        CliSession(_cli, _out, historySize),
+        kb(scheduler),
+        ih(*this, kb)
     {
-        Read();
-    }
-    ~GenericCliAsyncSession() noexcept override
-    {
-        try { input.close(); } catch (const std::exception&) { /* do nothing */ }
+        Enter();
+        Prompt();
     }
 
 private:
-
-    void Read()
-    {
-        Prompt();
-        // Read a line of input entered by the user.
-        asiolib::async_read_until(
-            input,
-            inputBuffer,
-            '\n',
-            std::bind( &GenericCliAsyncSession::NewLine, this,
-                       std::placeholders::_1,
-                       std::placeholders::_2 )
-        );
-    }
-
-    void NewLine(const asiolibec::error_code& error, std::size_t length )
-    {
-        if ( !error || error == asiolib::error::not_found )
-        {
-            auto bufs = inputBuffer.data();
-            auto size = static_cast<long>(length);
-            if ( !error ) --size; // remove \n
-            std::string s(asiolib::buffers_begin( bufs ), asiolib::buffers_begin( bufs ) + size);
-            inputBuffer.consume( length );
-
-            Feed( s );
-            Read();
-        }
-        else
-        {
-            input.close();
-        }
-    }
-
-    asiolib::streambuf inputBuffer;
-    asiolib::posix::stream_descriptor input;
+    detail::Keyboard kb;
+    detail::CommandProcessor<detail::LocalScreen> ih;
 };
 
-} // namespace detail
+using CliLocalSession = CliLocalTerminalSession;
+
 } // namespace cli
 
-#endif // CLI_DETAIL_GENERICCLIASYNCSESSION_H_
+#endif // CLI_CLILOCALSESSION_H
 

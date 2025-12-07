@@ -27,74 +27,44 @@
  * DEALINGS IN THE SOFTWARE.
  ******************************************************************************/
 
-#ifndef CLI_DETAIL_GENERICCLIASYNCSESSION_H_
-#define CLI_DETAIL_GENERICCLIASYNCSESSION_H_
+#ifndef CLI_DETAIL_COMMONPREFIX_H_
+#define CLI_DETAIL_COMMONPREFIX_H_
 
+#include <cassert>
 #include <string>
-#include "../cli.h" // CliSession
-#include "genericasioscheduler.h"
+#include <vector>
+#include <algorithm>
 
 namespace cli
 {
 namespace detail
 {
 
-template <typename ASIOLIB>
-class GenericCliAsyncSession : public CliSession
+inline std::string CommonPrefix(const std::vector<std::string>& v)
 {
-public:
-    GenericCliAsyncSession(GenericAsioScheduler<ASIOLIB>& _scheduler, Cli& _cli) :
-        CliSession(_cli, std::cout, 1),
-        input(_scheduler.AsioContext(), ::dup(STDIN_FILENO))
-    {
-        Read();
-    }
-    ~GenericCliAsyncSession() noexcept override
-    {
-        try { input.close(); } catch (const std::exception&) { /* do nothing */ }
-    }
+    assert(!v.empty());
+    std::string prefix;
 
-private:
+    // find the shorter string
+    auto smin = std::min_element(v.begin(), v.end(),
+                [] (const std::string& s1, const std::string& s2)
+                {
+                    return s1.size() < s2.size();
+                });
 
-    void Read()
+    for (std::size_t i = 0; i < smin->size(); ++i)
     {
-        Prompt();
-        // Read a line of input entered by the user.
-        asiolib::async_read_until(
-            input,
-            inputBuffer,
-            '\n',
-            std::bind( &GenericCliAsyncSession::NewLine, this,
-                       std::placeholders::_1,
-                       std::placeholders::_2 )
-        );
+        // check if i-th element is equal in each input string
+        const char c = (*smin)[i];
+        for (auto& x: v)
+            if (x[i] != c) return prefix;
+        prefix += c;
     }
 
-    void NewLine(const asiolibec::error_code& error, std::size_t length )
-    {
-        if ( !error || error == asiolib::error::not_found )
-        {
-            auto bufs = inputBuffer.data();
-            auto size = static_cast<long>(length);
-            if ( !error ) --size; // remove \n
-            std::string s(asiolib::buffers_begin( bufs ), asiolib::buffers_begin( bufs ) + size);
-            inputBuffer.consume( length );
-
-            Feed( s );
-            Read();
-        }
-        else
-        {
-            input.close();
-        }
-    }
-
-    asiolib::streambuf inputBuffer;
-    asiolib::posix::stream_descriptor input;
-};
+    return prefix;
+}
 
 } // namespace detail
 } // namespace cli
 
-#endif // CLI_DETAIL_GENERICCLIASYNCSESSION_H_
-
+#endif // CLI_DETAIL_COMMONPREFIX_H_
