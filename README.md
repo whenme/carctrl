@@ -25,7 +25,7 @@
 >
 >   &emsp;Please show log with tool calamares:
 >
->   ./calamares -t tty_carctrl
+>   ./calamares -t tty_agvctrl
 >
 ### 4) run applications
 >   &emsp;As multi-applications and RPC connection between applications, the applications should run at the same time. With script [execute.sh](https://github.com/whenme/carctrl/blob/main/tools/execute.sh) to run/stop applications.
@@ -63,13 +63,13 @@
 >   &emsp;./execute.sh -s
 
 ### 3) get log from tty:
->   &emsp;./calamares -t tty_carctrl
+>   &emsp;./calamares -t tty_agvctrl
 >
->   &emsp;./calamares -t tty_interface
+>   &emsp;./calamares -t tty_intf
 >
 > or it can show log with general commands:
 >
->   &emsp;cat tty_carctrl
+>   &emsp;cat tty_agvctrl
 
 ### 4) telnet to login CLI:
 >   &emsp;telnet localhost 5000
