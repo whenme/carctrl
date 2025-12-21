@@ -14,7 +14,7 @@ add_executable(${car_app_name} mcarctrl)
 target_link_libraries (${car_app_name} xapi mcarctrl)
 
 add_executable(${cli_app_name} cli)
-target_link_libraries(${cli_app_name} cli xapi video harfbuzz)
+target_link_libraries(${cli_app_name} cli xapi video)
 
 add_subdirectory (xapi)
 add_subdirectory (mcarctrl)
