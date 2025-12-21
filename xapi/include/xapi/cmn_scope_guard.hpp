@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #pragma once
-
-#include <types/attributes.h>
+#include <xapi/attributes.h>
 
 #include <functional>
 #include <type_traits>
@@ -50,7 +49,7 @@ public:
 
     ScopeGuard() = delete;
 
-    TNG_UNCOPYABLE_IMMOVABLE(ScopeGuard)
+    CMN_UNCOPYABLE_IMMOVABLE(ScopeGuard)
 
     /** Dismiss the scope guard so the callable will _not_ be invoked when the guard is destructed.
      */

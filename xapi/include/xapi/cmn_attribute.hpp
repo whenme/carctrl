@@ -49,7 +49,7 @@
 /** Declare that the specified class is a pure interface
  */
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
-#define CMN_PURE_INTERFACE(ClassName) TNG_UNCOPYABLE_IMMOVABLE(ClassName)
+#define CMN_PURE_INTERFACE(ClassName) CMN_UNCOPYABLE_IMMOVABLE(ClassName)
 
 /** Define a boolean constant that is @c true when the specified type contains the specified nested type, or @c false
  * otherwise
