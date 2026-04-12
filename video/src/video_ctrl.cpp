@@ -11,17 +11,17 @@ VideoCtrl::VideoCtrl(asio::io_context& ioContext):
     m_videoDev{nullptr, nullptr}
 {
     //check there is GUI backend or not
-    /*Mat img = imread("lena.png");
+    cv::Mat img = cv::imread("lena.png");
     if (!img.empty()) {
         try {
-            imshow("lena", img);
-            destroyWindow("lena");
+            cv::imshow("lena", img);
+            cv::destroyWindow("lena");
         }
         catch(...) {
             // No GUI backend...
             m_showVideo = false;
         }
-    }*/
+    }
 
     //find video device id. some video device begin from /dev/video4 as OPI3B
     int32_t idExist = 0;
@@ -33,6 +33,23 @@ VideoCtrl::VideoCtrl(asio::io_context& ioContext):
     }
 
     ctrllog::warn("show video: {}. Video device number: {}", m_showVideo, m_videoDevNum);
+    if (!m_videoDevNum) {
+        m_showVideo = false;
+    }
+
+    // Try to enter stereo mode when two cameras are available
+    if (m_videoDevNum >= 2) {
+        if (m_stereoVision.loadCalibration(stereo_calib_file)) {
+            CameraParam param;
+            m_videoDev[0]->getDeviceParam(param);
+            m_stereoVision.initRectifyMap(cv::Size(param.cameraWidth, param.cameraHeight));
+            m_stereoMode = true;
+            ctrllog::info("stereo mode enabled with {} cameras", m_videoDevNum);
+        } else {
+            ctrllog::warn("stereo calibration not found, falling back to mono mode");
+        }
+    }
+
     m_videoThread.start();
 }
 
@@ -55,39 +72,78 @@ void VideoCtrl::videoThreadFun(void *ctxt)
         return;
     }
 
-    Mat frame, gray, edge;
+    cv::Mat frame, gray, edge;
     while(1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-        auto& video = obj->m_videoDev[0]->getVideoCapture();
-        video >> frame;
-        if (frame.empty()) {
-            //ctrllog::warn("device read video error...");
+        // Stereo mode: dual-camera disparity/depth
+        if (obj->m_stereoMode && obj->m_videoDevNum >= 2) {
+            cv::Mat frameL, frameR;
+            auto& videoL = obj->m_videoDev[0]->getVideoCapture();
+            auto& videoR = obj->m_videoDev[1]->getVideoCapture();
+            videoL >> frameL;
+            videoR >> frameR;
+            if (frameL.empty() || frameR.empty()) {
+                continue;
+            }
+            obj->showImage("left", frameL);
+            obj->showImage("right", frameR);
+
+            cv::Mat disparity, depth;
+            obj->m_stereoVision.computeDisparity(frameL, frameR, disparity, depth);
+
+            cv::Mat colorDisp;
+            obj->m_stereoVision.getDisparityColor(disparity, colorDisp);
+            if (!colorDisp.empty()) {
+                obj->showImage("disparity", colorDisp);
+            }
+
+            // Log center-point distance
+            if (!depth.empty()) {
+                float dist = obj->m_stereoVision.getDistance(depth, depth.cols / 2, depth.rows / 2);
+                if (dist > 0) {
+                    ctrllog::warn("stereo center distance: {:.2f} m", dist);
+                }
+            }
+
+            cv::waitKey(1000 / videoL.get(CAP_PROP_FPS));
             continue;
         }
 
+        // Mono mode: single-camera lane detection
+        auto& video = obj->m_videoDev[0]->getVideoCapture();
+        video >> frame;
+        if (frame.empty()) { //device read video error
+            continue;
+        }
         obj->showImage("capture", frame);
 
-        cvtColor(frame, gray, COLOR_BGR2GRAY); //to gray
-        GaussianBlur(gray, gray, Size(5, 5), 0);  //gauss filter
+        cv::cvtColor(frame, gray, COLOR_BGR2GRAY); //to gray
+        cv::GaussianBlur(gray, gray, Size(5, 5), 0);  //gauss filter
         obj->showImage("gray", gray);
 
-        Canny(gray, edge, 40, 100, 3, false); //edge detection
+        //co_await lf::fork[GaussianBlur](gray, gray, Size(5, 5), 0);
+        //co_await lf::just(GaussianBlur)(gray, gray, Size(5, 5), 0);  //gauss filter
+        //lf::sync_wait(lf::lazy_pool{}, wrapperFun, GaussianBlur, gray, gray, Size(5, 5), 0, 0, BORDER_DEFAULT);
+        //lf::wrapperTaskFun(GaussianBlur, gray, gray, Size(5, 5), 0.0, 0.0, BORDER_DEFAULT);
+        //cmn::wrapperFunc(GaussianBlur, gray, gray, Size(5, 5), 0.0, 0.0, BORDER_DEFAULT);
+
+        cv::Canny(gray, edge, 40, 100, 3, false); //edge detection
         //threshold(edge, edge, 170, 255, THRESH_BINARY);
 
         std::vector<Vec4i> lineP1;
-        HoughLinesP(edge, lineP1, 1, CV_PI/180, 90, 30, 40); //100/90
+        cv::HoughLinesP(edge, lineP1, 1, CV_PI/180, 90, 30, 40); //100/90
         for (size_t i = 0; i < lineP1.size(); i++) { //draw line
-            line(edge, Point(lineP1[i][0], lineP1[i][1]), Point(lineP1[i][2], lineP1[i][3]), Scalar(255), 3);
+            cv::line(edge, Point(lineP1[i][0], lineP1[i][1]), Point(lineP1[i][2], lineP1[i][3]), Scalar(255), 3);
         }
         obj->showImage("edge", edge);
-        waitKey(1000 / video.get(CAP_PROP_FPS));
+        cv::waitKey(1000 / video.get(CAP_PROP_FPS));
     }
 }
 
 void VideoCtrl::showImage(std::string title, Mat& mat)
 {
     if (m_showVideo) {
-        imshow(title, mat);
+        cv::imshow(title, mat);
     }
 }
