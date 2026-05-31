@@ -5,6 +5,7 @@ set (library_name cli)
 add_library (${library_name} src/cli_example.cpp
                              src/cli_impl.cpp
                              src/cli_car.cpp
+                             src/car_web_server.cpp
                              src/cli_video.cpp
                              src/remote_key.cpp
                              src/main.cpp)

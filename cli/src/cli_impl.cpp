@@ -4,9 +4,11 @@
 #include <cli_example.h>
 #include <cli_car.hpp>
 #include <cli_video.hpp>
+#include <car_web_server.hpp>
 #include <cli/filehistorystorage.h>
 #include <cli/clilocalsession.h>
 #include <xapi/cmn_singleton.hpp>
+#include <video/video_ctrl.hpp>
 
 #include <algorithm>
 #include <vector>
@@ -69,6 +71,10 @@ void CliImpl::runCliImpl()
     server.ExitAction([](auto& out) {
         out << "Terminating this session...\n";
     });
+
+    auto& cliCar = cmn::getSingletonInstance<CliCar>();
+    auto& videoCtrl = cmn::getSingletonInstance<VideoCtrl>();
+    CarWebServer webServer(m_scheduler.AsioContext(), cliCar, videoCtrl, k_MWebServerPort);
 
     m_scheduler.Run();
 }

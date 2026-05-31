@@ -58,6 +58,7 @@ private:
     std::vector<CliCommandGroup*> m_cliGroup;
 
     static constexpr uint16_t    k_MTelnetServerPort = 5000;
+    static constexpr uint16_t    k_MWebServerPort = 8080;
     static constexpr std::size_t k_MLocalHistorySize = 200;
 };
 

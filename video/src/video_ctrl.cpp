@@ -14,7 +14,7 @@ VideoCtrl::VideoCtrl(asio::io_context& ioContext):
     cv::Mat img = cv::imread("lena.png");
     if (!img.empty()) {
         try {
-            cv::imshow("lena", img);
+            //cv::imshow("lena", img);
             cv::destroyWindow("lena");
         }
         catch(...) {
@@ -86,6 +86,7 @@ void VideoCtrl::videoThreadFun(void *ctxt)
             if (frameL.empty() || frameR.empty()) {
                 continue;
             }
+            obj->updateWebFrame(frameL);
             obj->showImage("left", frameL);
             obj->showImage("right", frameR);
 
@@ -116,6 +117,7 @@ void VideoCtrl::videoThreadFun(void *ctxt)
         if (frame.empty()) { //device read video error
             continue;
         }
+        obj->updateWebFrame(frame);
         obj->showImage("capture", frame);
 
         cv::cvtColor(frame, gray, COLOR_BGR2GRAY); //to gray
@@ -144,6 +146,34 @@ void VideoCtrl::videoThreadFun(void *ctxt)
 void VideoCtrl::showImage(std::string title, Mat& mat)
 {
     if (m_showVideo) {
-        cv::imshow(title, mat);
+        //cv::imshow(title, mat);
     }
+}
+
+void VideoCtrl::updateWebFrame(const cv::Mat& mat)
+{
+    if (mat.empty()) {
+        return;
+    }
+
+    std::vector<uint8_t> encoded;
+    const std::vector<int> params = {cv::IMWRITE_JPEG_QUALITY, 80};
+    if (!cv::imencode(".jpg", mat, encoded, params)) {
+        return;
+    }
+
+    std::lock_guard lock(m_webFrameMutex);
+    m_webJpeg = std::move(encoded);
+    m_hasWebFrame = true;
+}
+
+bool VideoCtrl::getWebFrame(std::vector<uint8_t>& out)
+{
+    std::lock_guard lock(m_webFrameMutex);
+    if (!m_hasWebFrame) {
+        return false;
+    }
+
+    out = m_webJpeg;
+    return true;
 }
