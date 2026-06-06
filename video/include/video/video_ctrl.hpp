@@ -15,11 +15,13 @@ public:
     VideoCtrl(asio::io_context& ioContext);
     virtual ~VideoCtrl();
 
-    bool getWebFrame(std::vector<uint8_t>& out);
+    bool getWebFrame(int32_t camera, std::vector<uint8_t>& out);
+    int32_t getWebCameraCount();
+    bool isCameraExist(int32_t camera);
 
 private:
     void        showImage(std::string title, Mat& mat);
-    void        updateWebFrame(const cv::Mat& mat);
+    void        updateWebFrame(int32_t camera, const cv::Mat& mat);
     static void videoThreadFun(void *ctxt);
 
     static constexpr int32_t video_dev_num = 2;
@@ -32,6 +34,6 @@ private:
     int32_t        m_videoDevNum {0};
     StereoVision   m_stereoVision;
     std::mutex     m_webFrameMutex;
-    std::vector<uint8_t> m_webJpeg;
-    bool           m_hasWebFrame {false};
+    std::vector<std::vector<uint8_t>> m_webJpeg;
+    std::vector<bool> m_hasWebFrame;
 };

@@ -10,6 +10,9 @@ VideoCtrl::VideoCtrl(asio::io_context& ioContext):
     m_videoThread("video thread", cmn::CmnThread::ThreadPriorityNormal, videoThreadFun, this),
     m_videoDev{nullptr, nullptr}
 {
+    m_webJpeg.resize(video_dev_num);
+    m_hasWebFrame.resize(video_dev_num, false);
+
     //check there is GUI backend or not
     cv::Mat img = cv::imread("lena.png");
     if (!img.empty()) {
@@ -26,9 +29,10 @@ VideoCtrl::VideoCtrl(asio::io_context& ioContext):
     //find video device id. some video device begin from /dev/video4 as OPI3B
     int32_t idExist = 0;
     for (int32_t vid = 0; vid < video_dev_num; vid++) {
-        m_videoDev[m_videoDevNum] = new VideoDevice(idExist);
-        if (m_videoDev[m_videoDevNum]->getDeviceId() >= 0) {
-            idExist = m_videoDev[m_videoDevNum++]->getDeviceId()+1;
+        m_videoDev[vid] = new VideoDevice(idExist);
+        if (m_videoDev[vid]->getDeviceId() >= 0) {
+            m_videoDevNum++;
+            idExist = m_videoDev[vid]->getDeviceId() + 1;
         }
     }
 
@@ -59,15 +63,18 @@ VideoCtrl::~VideoCtrl()
         m_videoThread.stop();
     }
 
-    for (int32_t id = 0; id < m_videoDevNum; id++) {
+    for (int32_t id = 0; id < video_dev_num; id++) {
         delete m_videoDev[id];
+        m_videoDev[id] = nullptr;
     }
 }
 
 void VideoCtrl::videoThreadFun(void *ctxt)
 {
     VideoCtrl *obj = static_cast<VideoCtrl *>(ctxt);
-    if (obj->m_videoDev[0]->getDeviceId() < 0) {
+    const bool hasCam0 = obj->isCameraExist(0);
+    const bool hasCam1 = obj->isCameraExist(1);
+    if (!hasCam0 && !hasCam1) {
         ctrllog::warn("no video capture found...");
         return;
     }
@@ -76,17 +83,32 @@ void VideoCtrl::videoThreadFun(void *ctxt)
     while(1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-        // Stereo mode: dual-camera disparity/depth
-        if (obj->m_stereoMode && obj->m_videoDevNum >= 2) {
-            cv::Mat frameL, frameR;
+        cv::Mat frameL, frameR;
+        bool hasFrameL = false;
+        bool hasFrameR = false;
+
+        if (hasCam0) {
             auto& videoL = obj->m_videoDev[0]->getVideoCapture();
-            auto& videoR = obj->m_videoDev[1]->getVideoCapture();
             videoL >> frameL;
+            hasFrameL = !frameL.empty();
+            if (hasFrameL) {
+                obj->updateWebFrame(0, frameL);
+            }
+        }
+
+        if (hasCam1) {
+            auto& videoR = obj->m_videoDev[1]->getVideoCapture();
             videoR >> frameR;
-            if (frameL.empty() || frameR.empty()) {
+            hasFrameR = !frameR.empty();
+            if (hasFrameR) {
+                obj->updateWebFrame(1, frameR);
+            }
+        }
+
+        if (obj->m_stereoMode && hasCam0 && hasCam1) {
+            if (!hasFrameL || !hasFrameR) {
                 continue;
             }
-            obj->updateWebFrame(frameL);
             obj->showImage("left", frameL);
             obj->showImage("right", frameR);
 
@@ -99,7 +121,6 @@ void VideoCtrl::videoThreadFun(void *ctxt)
                 obj->showImage("disparity", colorDisp);
             }
 
-            // Log center-point distance
             if (!depth.empty()) {
                 float dist = obj->m_stereoVision.getDistance(depth, depth.cols / 2, depth.rows / 2);
                 if (dist > 0) {
@@ -107,17 +128,19 @@ void VideoCtrl::videoThreadFun(void *ctxt)
                 }
             }
 
-            cv::waitKey(1000 / videoL.get(CAP_PROP_FPS));
+            const auto fps = obj->m_videoDev[0]->getVideoCapture().get(CAP_PROP_FPS);
+            cv::waitKey(1000 / fps);
+            continue;
+            }
+
+        if (hasFrameL) {
+            frame = frameL;
+        } else if (hasFrameR) {
+            frame = frameR;
+        } else {
             continue;
         }
 
-        // Mono mode: single-camera lane detection
-        auto& video = obj->m_videoDev[0]->getVideoCapture();
-        video >> frame;
-        if (frame.empty()) { //device read video error
-            continue;
-        }
-        obj->updateWebFrame(frame);
         obj->showImage("capture", frame);
 
         cv::cvtColor(frame, gray, COLOR_BGR2GRAY); //to gray
@@ -139,7 +162,9 @@ void VideoCtrl::videoThreadFun(void *ctxt)
             cv::line(edge, Point(lineP1[i][0], lineP1[i][1]), Point(lineP1[i][2], lineP1[i][3]), Scalar(255), 3);
         }
         obj->showImage("edge", edge);
-        cv::waitKey(1000 / video.get(CAP_PROP_FPS));
+        const int32_t fpsCam = hasFrameL ? 0 : 1;
+        const auto fps = obj->m_videoDev[fpsCam]->getVideoCapture().get(CAP_PROP_FPS);
+        cv::waitKey(1000 / fps);
     }
 }
 
@@ -150,9 +175,9 @@ void VideoCtrl::showImage(std::string title, Mat& mat)
     }
 }
 
-void VideoCtrl::updateWebFrame(const cv::Mat& mat)
+void VideoCtrl::updateWebFrame(int32_t camera, const cv::Mat& mat)
 {
-    if (mat.empty()) {
+    if (mat.empty() || camera < 0 || camera >= static_cast<int32_t>(m_webJpeg.size())) {
         return;
     }
 
@@ -163,17 +188,35 @@ void VideoCtrl::updateWebFrame(const cv::Mat& mat)
     }
 
     std::lock_guard lock(m_webFrameMutex);
-    m_webJpeg = std::move(encoded);
-    m_hasWebFrame = true;
+    m_webJpeg[camera] = std::move(encoded);
+    m_hasWebFrame[camera] = true;
 }
 
-bool VideoCtrl::getWebFrame(std::vector<uint8_t>& out)
+bool VideoCtrl::getWebFrame(int32_t camera, std::vector<uint8_t>& out)
 {
-    std::lock_guard lock(m_webFrameMutex);
-    if (!m_hasWebFrame) {
+    if (camera < 0 || camera >= static_cast<int32_t>(m_webJpeg.size())) {
         return false;
     }
 
-    out = m_webJpeg;
+    std::lock_guard lock(m_webFrameMutex);
+    if (!m_hasWebFrame[camera]) {
+        return false;
+    }
+
+    out = m_webJpeg[camera];
     return true;
+}
+
+int32_t VideoCtrl::getWebCameraCount()
+{
+    return m_videoDevNum;
+}
+
+bool VideoCtrl::isCameraExist(int32_t camera)
+{
+    if (camera < 0 || camera >= video_dev_num || m_videoDev[camera] == nullptr) {
+        return false;
+    }
+
+    return m_videoDev[camera]->getDeviceId() >= 0;
 }

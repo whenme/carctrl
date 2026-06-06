@@ -40,12 +40,29 @@ constexpr const char* k_indexHtml = R"html(<!DOCTYPE html>
   .card { background: #1e293b; border-radius: 12px; padding: 1rem; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
   .camera-panel img {
     width: 100%;
-    max-height: calc(100vh - 6rem);
+    max-height: calc(100vh - 8rem);
     object-fit: contain;
     background: #000;
     border-radius: 8px;
     display: block;
   }
+  .camera-grid { display: grid; gap: .75rem; grid-template-columns: 1fr; }
+  .camera-feed span { color: #94a3b8; font-size: .85rem; }
+  .camera-feed { display: flex; flex-direction: column; gap: .35rem; }
+  .camera-placeholder {
+    width: 100%;
+    min-height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    border-radius: 8px;
+    color: #64748b;
+    font-size: .95rem;
+  }
+  .camera-placeholder.hidden, #camera.hidden { display: none; }
+  .layout.no-camera { grid-template-columns: 1fr; max-width: 420px; }
+  .camera-panel.hidden, .camera-control.hidden { display: none; }
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
   }
@@ -99,6 +116,10 @@ constexpr const char* k_indexHtml = R"html(<!DOCTYPE html>
           <button class="secondary" onclick="steer(0)">Center</button>
           <button class="secondary" onclick="steer(1)">Right</button>
         </div>
+        <div class="row camera-control" id="cameraControlRow">
+          <label>Camera</label>
+          <button id="cameraToggle" class="secondary" onclick="toggleCamera()">Hide Camera</button>
+        </div>
       </div>
     </section>
     <section class="card">
@@ -110,9 +131,10 @@ constexpr const char* k_indexHtml = R"html(<!DOCTYPE html>
       </table>
     </section>
   </div>
-  <section class="card camera-panel">
-    <h2>Camera</h2>
-    <img id="camera" src="/api/camera" alt="Camera feed">
+  <section class="card camera-panel" id="cameraPanel">
+    <h2>Camera Feed</h2>
+    <div id="cameraFeeds" class="camera-grid single"></div>
+    <div id="cameraPlaceholder" class="camera-placeholder hidden">Camera hidden</div>
   </section>
 </div>
 <p id="statusText"></p>
@@ -159,6 +181,79 @@ async function steer(dir) {
   await api(`/api/steer?dir=${dir}&time=500`, 'POST');
   setStatus(`Steer ${dir}`);
 }
+let cameraOn = true;
+let activeCameras = [];
+function cameraStreamUrl(index) {
+  return index === 0 ? `/api/camera?t=${Date.now()}` : `/api/camera/${index}?t=${Date.now()}`;
+}
+async function initCameras() {
+  const panel = document.getElementById('cameraPanel');
+  const controlRow = document.getElementById('cameraControlRow');
+  const layout = document.querySelector('.layout');
+  const container = document.getElementById('cameraFeeds');
+  try {
+    const info = await api('/api/camera/info');
+    activeCameras = (info.cameras || []).filter(c => c.exists).map(c => c.id);
+  } catch (err) {
+    activeCameras = [];
+  }
+  if (activeCameras.length <= 0) {
+    panel.classList.add('hidden');
+    controlRow.classList.add('hidden');
+    layout.classList.add('no-camera');
+    container.innerHTML = '';
+    return;
+  }
+  panel.classList.remove('hidden');
+  controlRow.classList.remove('hidden');
+  layout.classList.remove('no-camera');
+  container.className = 'camera-grid';
+  container.innerHTML = '';
+  for (const id of activeCameras) {
+    const feed = document.createElement('div');
+    feed.className = 'camera-feed';
+    feed.dataset.cameraId = id;
+    const label = document.createElement('span');
+    label.textContent = activeCameras.length >= 2 ? `Camera ${id + 1}` : 'Camera';
+    const img = document.createElement('img');
+    img.id = `camera${id}`;
+    img.alt = `Camera ${id + 1} feed`;
+    if (cameraOn) {
+      img.src = cameraStreamUrl(id);
+    }
+    feed.appendChild(label);
+    feed.appendChild(img);
+    container.appendChild(feed);
+  }
+}
+function toggleCamera() {
+  if (activeCameras.length <= 0) {
+    return;
+  }
+  const feeds = document.querySelectorAll('#cameraFeeds .camera-feed');
+  const placeholder = document.getElementById('cameraPlaceholder');
+  const button = document.getElementById('cameraToggle');
+  cameraOn = !cameraOn;
+  if (cameraOn) {
+    feeds.forEach(feed => {
+      const img = feed.querySelector('img');
+      const id = Number(feed.dataset.cameraId);
+      img.src = cameraStreamUrl(id);
+      img.classList.remove('hidden');
+    });
+    placeholder.classList.add('hidden');
+    button.textContent = 'Hide Camera';
+  } else {
+    feeds.forEach(feed => {
+      const img = feed.querySelector('img');
+      img.src = '';
+      img.classList.add('hidden');
+    });
+    placeholder.classList.remove('hidden');
+    button.textContent = 'Show Camera';
+  }
+}
+initCameras();
 refresh();
 setInterval(refresh, 1000);
 </script>
@@ -213,8 +308,9 @@ void CarWebServer::handleConnection(std::shared_ptr<asio::ip::tcp::socket> socke
                     return;
                 }
 
-                if (getRequestPath(*request) == "/api/camera") {
-                    handleCameraStream(socket);
+                const auto path = getRequestPath(*request);
+                if (path == "/api/camera" || path == "/api/camera/0" || path == "/api/camera/1") {
+                    handleCameraStream(socket, getCameraStreamId(path));
                     return;
                 }
 
@@ -232,8 +328,19 @@ void CarWebServer::handleConnection(std::shared_ptr<asio::ip::tcp::socket> socke
     (*readMore)();
 }
 
-void CarWebServer::handleCameraStream(std::shared_ptr<asio::ip::tcp::socket> socket)
+void CarWebServer::handleCameraStream(std::shared_ptr<asio::ip::tcp::socket> socket, int32_t cameraId)
 {
+    if (!m_videoCtrl.isCameraExist(cameraId)) {
+        const std::string response = httpResponse(404, "Not Found", "text/plain", "camera not found");
+        asio::async_write(*socket, asio::buffer(response),
+            [socket](const asio::error_code&, std::size_t) {
+                asio::error_code ec;
+                socket->shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+                socket->close(ec);
+            });
+        return;
+    }
+
     static const std::string header =
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: multipart/x-mixed-replace; boundary=frame\r\n"
@@ -243,21 +350,21 @@ void CarWebServer::handleCameraStream(std::shared_ptr<asio::ip::tcp::socket> soc
         "\r\n";
 
     asio::async_write(*socket, asio::buffer(header),
-        [this, socket](const asio::error_code& ec, std::size_t) {
+        [this, socket, cameraId](const asio::error_code& ec, std::size_t) {
             if (!ec) {
-                sendCameraFrame(socket);
+                sendCameraFrame(socket, cameraId);
             }
         });
 }
 
-void CarWebServer::sendCameraFrame(std::shared_ptr<asio::ip::tcp::socket> socket)
+void CarWebServer::sendCameraFrame(std::shared_ptr<asio::ip::tcp::socket> socket, int32_t cameraId)
 {
     auto jpeg = std::make_shared<std::vector<uint8_t>>();
-    if (!m_videoCtrl.getWebFrame(*jpeg) || jpeg->empty()) {
+    if (!m_videoCtrl.getWebFrame(cameraId, *jpeg) || jpeg->empty()) {
         auto timer = std::make_shared<asio::steady_timer>(m_context, std::chrono::milliseconds(100));
-        timer->async_wait([this, socket, timer](const asio::error_code& ec) {
+        timer->async_wait([this, socket, cameraId, timer](const asio::error_code& ec) {
             if (!ec) {
-                sendCameraFrame(socket);
+                sendCameraFrame(socket, cameraId);
             }
         });
         return;
@@ -267,25 +374,48 @@ void CarWebServer::sendCameraFrame(std::shared_ptr<asio::ip::tcp::socket> socket
         "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: {}\r\n\r\n", jpeg->size()));
 
     asio::async_write(*socket, asio::buffer(*partHeader),
-        [this, socket, partHeader, jpeg](const asio::error_code& ec, std::size_t) {
+        [this, socket, cameraId, partHeader, jpeg](const asio::error_code& ec, std::size_t) {
             if (ec) {
                 return;
             }
 
             asio::async_write(*socket, asio::buffer(*jpeg),
-                [this, socket](const asio::error_code& writeEc, std::size_t) {
+                [this, socket, cameraId](const asio::error_code& writeEc, std::size_t) {
                     if (writeEc) {
                         return;
                     }
 
                     auto timer = std::make_shared<asio::steady_timer>(m_context, std::chrono::milliseconds(100));
-                    timer->async_wait([this, socket, timer](const asio::error_code& timerEc) {
+                    timer->async_wait([this, socket, cameraId, timer](const asio::error_code& timerEc) {
                         if (!timerEc) {
-                            sendCameraFrame(socket);
+                            sendCameraFrame(socket, cameraId);
                         }
                     });
                 });
         });
+}
+
+int32_t CarWebServer::getCameraStreamId(const std::string& path)
+{
+    if (path == "/api/camera/1") {
+        return 1;
+    }
+    return 0;
+}
+
+std::string CarWebServer::buildCameraInfoJson()
+{
+    std::ostringstream body;
+    body << R"({"cameras":[)";
+    for (int32_t i = 0; i < 2; ++i) {
+        if (i > 0) {
+            body << ',';
+        }
+        body << fmt::format(R"({{"id":{},"exists":{}}})", i,
+                            m_videoCtrl.isCameraExist(i) ? "true" : "false");
+    }
+    body << "]}";
+    return body.str();
 }
 
 std::string CarWebServer::getRequestPath(const std::string& request)
@@ -423,6 +553,10 @@ std::string CarWebServer::handleRequest(const std::string& request)
 
     if (method == "GET" && path == "/api/status") {
         return httpResponse(200, "OK", "application/json", buildStatusJson());
+    }
+
+    if (method == "GET" && path == "/api/camera/info") {
+        return httpResponse(200, "OK", "application/json", buildCameraInfoJson());
     }
 
     if (method == "POST" && path == "/api/stop") {

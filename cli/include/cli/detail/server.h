@@ -33,7 +33,6 @@
 #include <memory>
 #include <queue>
 
-#include <asio.hpp>
 #include <cli/detail/newstandaloneasiolib.h>
 
 namespace cli
