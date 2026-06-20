@@ -9,10 +9,13 @@
 #include <cli/clilocalsession.h>
 #include <xapi/cmn_singleton.hpp>
 #include <video/video_ctrl.hpp>
+#include <rpc_service.hpp>
 
 #include <algorithm>
+#include <cstdlib>
 #include <vector>
 
+using namespace async_simple::coro;
 using namespace cli;
 
 CliImpl::~CliImpl()
@@ -45,6 +48,14 @@ void CliImpl::initCliCommand()
     for (auto& it : m_cliGroup) {
         it->initCliCommand(m_rootMenu);
     }
+
+    auto& cliCarQuit = cmn::getSingletonInstance<CliCar>();
+    m_rootMenu->Insert("quit",
+                       [&](std::ostream& out) {
+                           rpc_call_void_param<quitApp>(cliCarQuit.getClient(), 0);
+                           std::exit(0);
+                       },
+                       "quit all applications");
 }
 
 void CliImpl::runCliImpl()

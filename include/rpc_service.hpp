@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #pragma once
+#include <xapi/easylog.hpp>
 #include <ylt/coro_rpc/coro_rpc_context.hpp>
 #include <ylt/coro_rpc/coro_rpc_client.hpp>
 

@@ -163,12 +163,6 @@ void CliCar::initCliCommand(std::unique_ptr<Menu>& rootMenu)
                         rpc_call_void_param<setAllMotorState>(m_client, 0);
                     },
                     "stop all motors");
-    cliMenu->Insert("quit",
-                    [&](std::ostream& out) {
-                        rpc_call_void_param<quitApp>(m_client, 0);
-                        exit(0);
-                    },
-                    "quit application");
 
     if (rootMenu != nullptr) {
         rootMenu->Insert(std::move(cliMenu));
