@@ -8,6 +8,7 @@
 #include <xapi/cmn_thread.hpp>
 #include <video/video_device.hpp>
 #include <video/stereo_vision.hpp>
+#include <video/stereo_object_match.hpp>
 
 class VideoCtrl
 {
@@ -33,6 +34,7 @@ private:
     bool           m_stereoMode  { false };
     int32_t        m_videoDevNum {0};
     StereoVision   m_stereoVision;
+    StereoObjectMatch m_stereoObjectMatch;
     std::mutex     m_webFrameMutex;
     std::vector<std::vector<uint8_t>> m_webJpeg;
     std::vector<bool> m_hasWebFrame;

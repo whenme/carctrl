@@ -79,19 +79,28 @@ void StereoVision::initRectifyMap(cv::Size imageSize)
     ctrllog::info("stereo: rectification maps initialized ({}x{})", imageSize.width, imageSize.height);
 }
 
-void StereoVision::computeDisparity(const cv::Mat& leftFrame, const cv::Mat& rightFrame,
-                                    cv::Mat& disparity, cv::Mat& depth)
+void StereoVision::rectifyPair(const cv::Mat& leftFrame, const cv::Mat& rightFrame,
+                               cv::Mat& rectL, cv::Mat& rectR)
 {
     if (!isReady()) {
+        rectL.release();
+        rectR.release();
         return;
     }
 
-    // Step 1: Apply rectification (undistort + rectify)
-    cv::Mat rectL, rectR;
     cv::remap(leftFrame, rectL, m_mapLx, m_mapLy, cv::INTER_LINEAR);
     cv::remap(rightFrame, rectR, m_mapRx, m_mapRy, cv::INTER_LINEAR);
+}
 
-    // Step 2: Convert to grayscale
+void StereoVision::computeDisparityFromRectified(const cv::Mat& rectL, const cv::Mat& rectR,
+                                                 cv::Mat& disparity, cv::Mat& depth)
+{
+    if (!isReady() || rectL.empty() || rectR.empty()) {
+        disparity.release();
+        depth.release();
+        return;
+    }
+
     cv::Mat grayL, grayR;
     if (rectL.channels() == 3) {
         cv::cvtColor(rectL, grayL, cv::COLOR_BGR2GRAY);
@@ -101,15 +110,18 @@ void StereoVision::computeDisparity(const cv::Mat& leftFrame, const cv::Mat& rig
         grayR = rectR;
     }
 
-    // Step 3: Compute disparity via SGBM
     cv::Mat disp16;
     m_sgbm->compute(grayL, grayR, disp16);
-
-    // SGBM output is CV_16S with values scaled by 16
     disp16.convertTo(disparity, CV_32F, 1.0 / 16.0);
-
-    // Step 4: Reproject to 3D using Q matrix
     cv::reprojectImageTo3D(disparity, depth, m_Q, true);
+}
+
+void StereoVision::computeDisparity(const cv::Mat& leftFrame, const cv::Mat& rightFrame,
+                                    cv::Mat& disparity, cv::Mat& depth)
+{
+    cv::Mat rectL, rectR;
+    rectifyPair(leftFrame, rightFrame, rectL, rectR);
+    computeDisparityFromRectified(rectL, rectR, disparity, depth);
 }
 
 float StereoVision::getDistance(const cv::Mat& depth, int x, int y)

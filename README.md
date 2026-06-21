@@ -38,6 +38,8 @@
 >
 >   apt-get install libcereal-dev libopencv-dev
 >
+>   Stereo matching logs object names (Chinese) when MobileNet-SSD VOC models are present: download `MobileNetSSD_deploy.prototxt` and `MobileNetSSD_deploy.caffemodel` (OpenCV tutorial / GitHub opencv_extra) into the runtime directory, or set `CARCTRL_SSD_PROTO` and `CARCTRL_SSD_MODEL` to their paths.
+>
 
 ### 2) clone code
 >   git clone https://github.com/whenme/carctrl.git

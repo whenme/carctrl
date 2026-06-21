@@ -112,8 +112,13 @@ void VideoCtrl::videoThreadFun(void *ctxt)
             obj->showImage("left", frameL);
             obj->showImage("right", frameR);
 
+            cv::Mat rectL, rectR;
+            obj->m_stereoVision.rectifyPair(frameL, frameR, rectL, rectR);
+
             cv::Mat disparity, depth;
-            obj->m_stereoVision.computeDisparity(frameL, frameR, disparity, depth);
+            obj->m_stereoVision.computeDisparityFromRectified(rectL, rectR, disparity, depth);
+
+            obj->m_stereoObjectMatch.tryDetectAndLog(rectL, rectR);
 
             cv::Mat colorDisp;
             obj->m_stereoVision.getDisparityColor(disparity, colorDisp);
@@ -131,7 +136,7 @@ void VideoCtrl::videoThreadFun(void *ctxt)
             const auto fps = obj->m_videoDev[0]->getVideoCapture().get(CAP_PROP_FPS);
             cv::waitKey(1000 / fps);
             continue;
-            }
+        }
 
         if (hasFrameL) {
             frame = frameL;

@@ -21,6 +21,14 @@ public:
     void computeDisparity(const cv::Mat& leftFrame, const cv::Mat& rightFrame,
                           cv::Mat& disparity, cv::Mat& depth);
 
+    /** Rectify left/right to epipolar-aligned images (used before disparity or DNN). */
+    void rectifyPair(const cv::Mat& leftFrame, const cv::Mat& rightFrame,
+                     cv::Mat& rectL, cv::Mat& rectR);
+
+    /** Disparity/depth from already-rectified stereo pair. */
+    void computeDisparityFromRectified(const cv::Mat& rectL, const cv::Mat& rectR,
+                                       cv::Mat& disparity, cv::Mat& depth);
+
     // Query distance at pixel (x, y) in meters, returns -1.0f if invalid
     float getDistance(const cv::Mat& depth, int x, int y);
 
