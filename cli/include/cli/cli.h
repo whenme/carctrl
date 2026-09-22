@@ -272,8 +272,8 @@ namespace cli
             if (name.rfind(line, 0) == 0) return {name}; // name starts_with line
             return {};
         }
-    protected:
         const std::string& Name() const { return name; }
+    protected:
         bool IsEnabled() const { return enabled; }
     private:
         const std::string name;
@@ -524,11 +524,30 @@ namespace cli
 
         void MainHelp(std::ostream& out)
         {
+            MainHelpExcept(out, {});
+        }
+
+        void MainHelpExcept(std::ostream& out, const std::vector<std::string>& skipNames)
+        {
             if (!IsEnabled()) return;
             for (const auto& cmd: *cmds)
+            {
+                if (std::find(skipNames.begin(), skipNames.end(), cmd->Name()) != skipNames.end())
+                    continue;
                 cmd->Help(out);
+            }
             if (parent != nullptr)
                 parent->Help(out);
+        }
+
+        void HelpCommand(std::ostream& out, const std::string& name) const
+        {
+            if (!IsEnabled()) return;
+            for (const auto& cmd: *cmds)
+            {
+                if (cmd->Name() == name)
+                    cmd->Help(out);
+            }
         }
 
         void Help(std::ostream& out) const override
@@ -890,22 +909,22 @@ namespace cli
             globalScopeMenu->Insert(
                 "help",
                 [this](std::ostream&){ Help(); },
-                "This help message"
+                "show the help message"
             );
             globalScopeMenu->Insert(
                 "exit",
                 [this](std::ostream&){ Exit(); },
-                "Quit the session"
+                "quit the session"
             );
             globalScopeMenu->Insert(
                 "history",
                 [this](std::ostream&){ ShowHistory(); },
-                "Show the history"
+                "show the history"
             );
             globalScopeMenu->Insert(
                 "!", {"history entry index"},
                 [this](std::ostream&, unsigned cmdIndex){ ExecFromHistory(cmdIndex); },
-                "Exec a command by index in the history"
+                "exec a command by index in the history"
             );
         }
 
@@ -953,8 +972,29 @@ namespace cli
     inline void CliSession::Help() const
     {
         out << "Commands available:\n";
-        globalScopeMenu->MainHelp(out);
-        current -> MainHelp( out );
+        if (current == cli.RootMenu())
+        {
+            // Root help: menus and remaining builtins, then exit, quit, history, !.
+            globalScopeMenu->MainHelpExcept(out, {"history", "!", "exit"});
+            current->MainHelpExcept(out, {"quit"});
+            globalScopeMenu->HelpCommand(out, "exit");
+            current->HelpCommand(out, "quit");
+            globalScopeMenu->HelpCommand(out, "history");
+            globalScopeMenu->HelpCommand(out, "!");
+        }
+        else if (current->Name() == "car" || current->Name() == "video")
+        {
+            globalScopeMenu->MainHelpExcept(out, {"history", "!", "exit"});
+            current->MainHelp(out);
+            globalScopeMenu->HelpCommand(out, "exit");
+            globalScopeMenu->HelpCommand(out, "history");
+            globalScopeMenu->HelpCommand(out, "!");
+        }
+        else
+        {
+            globalScopeMenu->MainHelp(out);
+            current->MainHelp(out);
+        }
     }
 
     inline std::vector<std::string> CliSession::GetCompletions(std::string currentLine) const
