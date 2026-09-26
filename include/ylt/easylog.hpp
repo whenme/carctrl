@@ -15,6 +15,7 @@
  */
 #pragma once
 #include <atomic>
+#include <chrono>
 #include <functional>
 #include <string_view>
 #include <utility>
@@ -30,6 +31,8 @@
 #include <fmt/format.h>
 #endif
 #endif
+
+#include <memory>
 
 #include "easylog/appender.hpp"
 
@@ -51,11 +54,21 @@ class logger {
     write(record);
   }
 
+  void apply_extra_appenders(record_t &record) {
+    if (!appenders_.empty()) [[unlikely]] {
+      for (auto &app : appenders_) {
+        app(record);
+      }
+    }
+  }
+
   void write(record_t &record) {
     if (async_ && appender_) {
+      apply_extra_appenders(record);
       append_record(std::move(record));
     }
     else {
+      apply_extra_appenders(record);
       append_format(record);
     }
 
@@ -73,29 +86,54 @@ class logger {
 
   void init(Severity min_severity, bool async, bool enable_console,
             const std::string &filename, size_t max_file_size, size_t max_files,
-            bool flush_every_time) {
-    static appender appender(filename, async, enable_console, max_file_size,
-                             max_files, flush_every_time);
+            bool flush_every_time,
+            std::chrono::milliseconds log_sample_interval = {},
+            std::chrono::milliseconds log_sample_duartion = {}) {
+    appender_ =
+        std::make_unique<appender>(filename, async, enable_console,
+                                   max_file_size, max_files, flush_every_time);
     async_ = async;
-    appender_ = &appender;
     min_severity_ = min_severity;
     enable_console_ = enable_console;
+    log_sample_interval_ = log_sample_interval;
+    log_sample_duration_ = log_sample_duartion;
   }
 
   bool check_severity(Severity severity) {
     return severity >= min_severity_.load(std::memory_order::relaxed);
   }
 
-  void add_appender(std::function<void(std::string_view)> fn) {
+  bool check_tm(std::chrono::system_clock::time_point tm) {
+    if (log_sample_interval_.load(std::memory_order::relaxed).count() <= 0) {
+      return true;
+    }
+    auto duration = (tm - init_time_) / std::chrono::milliseconds{1};
+    return (duration %
+                log_sample_interval_.load(std::memory_order::relaxed).count() <
+            log_sample_duration_.load(std::memory_order::relaxed).count());
+  }
+
+  void add_appender(std::function<void(record_t &)> fn) {
     appenders_.emplace_back(std::move(fn));
   }
 
-  void stop_async_log() { appender_->stop(); }
+  void stop_async_log() {
+    if (appender_) {
+      appender_->stop();
+    }
+  }
 
   // set and get
   void set_min_severity(Severity severity) { min_severity_ = severity; }
   Severity get_min_severity() {
     return min_severity_.load(std::memory_order::relaxed);
+  }
+
+  void set_sample_duration(std::chrono::milliseconds ms) noexcept {
+    log_sample_duration_.store(ms, std::memory_order_relaxed);
+  }
+  void set_sample_interval(std::chrono::milliseconds ms) noexcept {
+    log_sample_interval_.store(ms, std::memory_order_relaxed);
   }
 
   void set_console(bool enable) {
@@ -112,14 +150,13 @@ class logger {
 
  private:
   logger() {
-    static appender appender{};
-    appender.start_thread();
-    appender.enable_console(true);
+    appender_ = std::make_unique<appender>();
+    appender_->enable_console(true);
     async_ = true;
-    appender_ = &appender;
   }
 
-  logger(const logger &) = default;
+  logger(const logger&) = delete;
+  logger& operator=(const logger&) = delete;
 
   void append_record(record_t record) { appender_->write(std::move(record)); }
 
@@ -142,8 +179,11 @@ class logger {
 #endif
   bool async_ = false;
   bool enable_console_ = true;
-  appender *appender_ = nullptr;
-  std::vector<std::function<void(std::string_view)>> appenders_;
+  std::atomic<std::chrono::milliseconds> log_sample_interval_;
+  std::atomic<std::chrono::milliseconds> log_sample_duration_;
+  std::chrono::system_clock::time_point init_time_{};
+  std::unique_ptr<appender> appender_ = nullptr;
+  std::vector<std::function<void(record_t &record)>> appenders_;
   inline static std::atomic<bool> has_destruct_ = false;
 };
 
@@ -164,6 +204,21 @@ inline void set_min_severity(Severity severity) {
 template <size_t Id = 0>
 inline Severity get_min_severity() {
   return logger<Id>::instance().get_min_severity();
+}
+
+template <size_t Id = 0>
+inline void set_sample_duration(std::chrono::milliseconds ms) {
+  logger<Id>::instance().set_sample_duration(ms);
+}
+
+template <size_t Id = 0>
+inline Severity add_appenders(std::function<void(record_t &record)> app) {
+  return logger<Id>::instance().add_appender(std::move(app));
+}
+
+template <size_t Id = 0>
+inline void set_sample_interval(std::chrono::milliseconds ms) {
+  logger<Id>::instance().set_sample_interval(ms);
 }
 
 template <size_t Id = 0>
@@ -197,39 +252,38 @@ inline void stop_async_log() {
 }
 
 template <size_t Id = 0>
-inline void add_appender(std::function<void(std::string_view)> fn) {
+inline void add_appender(std::function<void(record_t &)> fn) {
   logger<Id>::instance().add_appender(std::move(fn));
 }
 }  // namespace easylog
 
-#define ELOG_IMPL(severity, Id, ...)                                  \
-  if (!easylog::logger<Id>::instance().check_severity(severity)) {    \
-    ;                                                                 \
-  }                                                                   \
-  else                                                                \
-    easylog::logger<Id>::instance() +=                                \
-        easylog::record_t(std::chrono::system_clock::now(), severity, \
-                          GET_STRING(__FILE__, __LINE__))             \
-            .ref()
+#define ELOG_IMPL(severity, Id, ...)                               \
+  if (!easylog::logger<Id>::instance().check_severity(severity)) { \
+    ;                                                              \
+  }                                                                \
+  else if (auto tm = std::chrono::system_clock::now();             \
+           easylog::logger<Id>::instance().check_tm(tm))           \
+  easylog::logger<Id>::instance() +=                               \
+      easylog::record_t(tm, severity, GET_STRING(__FILE__, __LINE__)).ref()
 
 #ifndef ELOG
 #define ELOG(severity, ...) \
   ELOG_IMPL(easylog::Severity::severity, __VA_ARGS__, 0)
 #endif
 
-#define ELOGV_IMPL(severity, Id, fmt, ...)                            \
-  if (!easylog::logger<Id>::instance().check_severity(severity)) {    \
-    ;                                                                 \
-  }                                                                   \
-  else {                                                              \
-    easylog::logger<Id>::instance() +=                                \
-        easylog::record_t(std::chrono::system_clock::now(), severity, \
-                          GET_STRING(__FILE__, __LINE__))             \
-            .sprintf(fmt, __VA_ARGS__);                               \
-    if constexpr (severity == easylog::Severity::CRITICAL) {          \
-      easylog::flush<Id>();                                           \
-      std::exit(EXIT_FAILURE);                                        \
-    }                                                                 \
+#define ELOGV_IMPL(severity, Id, fmt, ...)                              \
+  if (!easylog::logger<Id>::instance().check_severity(severity)) {      \
+    ;                                                                   \
+  }                                                                     \
+  else if (auto tm = std::chrono::system_clock::now();                  \
+           easylog::logger<Id>::instance().check_tm(tm)) {              \
+    easylog::logger<Id>::instance() +=                                  \
+        easylog::record_t(tm, severity, GET_STRING(__FILE__, __LINE__)) \
+            .sprintf(fmt, __VA_ARGS__);                                 \
+    if constexpr (severity == easylog::Severity::CRITICAL) {            \
+      easylog::flush<Id>();                                             \
+      std::exit(EXIT_FAILURE);                                          \
+    }                                                                   \
   }
 
 #ifndef ELOGV
@@ -244,19 +298,19 @@ inline void add_appender(std::function<void(std::string_view)> fn) {
 
 #if __has_include(<fmt/format.h>) || __has_include(<format>)
 
-#define ELOGFMT_IMPL0(severity, Id, prefix, ...)                      \
-  if (!easylog::logger<Id>::instance().check_severity(severity)) {    \
-    ;                                                                 \
-  }                                                                   \
-  else {                                                              \
-    easylog::logger<Id>::instance() +=                                \
-        easylog::record_t(std::chrono::system_clock::now(), severity, \
-                          GET_STRING(__FILE__, __LINE__))             \
-            .format(prefix::format(__VA_ARGS__));                     \
-    if constexpr (severity == easylog::Severity::CRITICAL) {          \
-      easylog::flush<Id>();                                           \
-      std::exit(EXIT_FAILURE);                                        \
-    }                                                                 \
+#define ELOGFMT_IMPL0(severity, Id, prefix, ...)                        \
+  if (!easylog::logger<Id>::instance().check_severity(severity)) {      \
+    ;                                                                   \
+  }                                                                     \
+  else if (auto tm = std::chrono::system_clock::now();                  \
+           easylog::logger<Id>::instance().check_tm(tm)) {              \
+    easylog::logger<Id>::instance() +=                                  \
+        easylog::record_t(tm, severity, GET_STRING(__FILE__, __LINE__)) \
+            .format(prefix::format(__VA_ARGS__));                       \
+    if constexpr (severity == easylog::Severity::CRITICAL) {            \
+      easylog::flush<Id>();                                             \
+      std::exit(EXIT_FAILURE);                                          \
+    }                                                                   \
   }
 
 #if __has_include(<fmt/format.h>)

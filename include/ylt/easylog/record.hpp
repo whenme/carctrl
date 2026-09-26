@@ -18,6 +18,7 @@
 #include <charconv>
 #include <chrono>
 #include <cstring>
+#include <type_traits>
 
 #include "ylt/util/time_util.h"
 #if __has_include(<memory_resource>)
@@ -128,10 +129,7 @@ class record_t {
 
   Severity get_severity() const { return severity_; }
 
-  const char *get_message() {
-    ss_.push_back('\n');
-    return ss_.data();
-  }
+  std::string_view get_message() const { return ss_; }
 
   std::string_view get_file_str() const { return file_str_; }
 
@@ -164,7 +162,9 @@ class record_t {
       auto [ptr, ec] = std::to_chars(buf, buf + 32, data);
       ss_.append(buf, std::distance(buf, ptr));
     }
-    else if constexpr (std::is_pointer_v<U>) {
+    else if constexpr (std::is_pointer_v<U> &&
+                       !std::is_same_v<const char *, U> &&
+                       !std::is_same_v<char *, U>) {
       char buf[32] = {"0x"};
       auto [ptr, ec] = std::to_chars(buf + 2, buf + 32, (uintptr_t)data, 16);
       ss_.append(buf, std::distance(buf, ptr));
@@ -208,6 +208,13 @@ class record_t {
   }
 
  private:
+  friend class appender;
+
+  std::string_view get_message_inner() {
+    ss_.push_back('\n');
+    return ss_;
+  }
+
   template <typename... Args>
   void printf_string_format(const char *fmt, Args &&...args) {
     size_t size = snprintf(nullptr, 0, fmt, std::forward<Args>(args)...);

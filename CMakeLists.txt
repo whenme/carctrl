@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.5)
 
 set (car_app_name agvctrl)
 set (cli_app_name agvintf)

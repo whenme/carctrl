@@ -22,6 +22,7 @@
 #include <async_simple/coro/SyncAwait.h>
 
 #include <atomic>
+#include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -44,6 +45,7 @@
 
 #include <asio/connect.hpp>
 #include <asio/experimental/channel.hpp>
+#include <asio/high_resolution_timer.hpp>
 #include <asio/ip/tcp.hpp>
 #include <asio/read.hpp>
 #include <asio/read_at.hpp>
@@ -371,7 +373,7 @@ inline async_simple::coro::Lazy<std::error_code> async_accept(
     asio::ip::tcp::acceptor &acceptor, asio::ip::tcp::socket &socket) noexcept {
   return async_io<std::error_code>(
       [&](auto &&cb) {
-        ELOG_INFO << "call asio acceptor.async_accept";
+        ELOG_TRACE << "call asio acceptor.async_accept";
         acceptor.async_accept(socket, cb);
       },
       acceptor);
@@ -508,6 +510,24 @@ inline async_simple::coro::Lazy<std::error_code> async_connect(
 template <typename EndPointSeq>
 inline async_simple::coro::Lazy<std::error_code> async_connect(
     asio::ip::tcp::socket &socket, const EndPointSeq &endpoint) noexcept {
+  std::error_code ec;
+  auto local_ep = socket.local_endpoint(ec);
+  if (!ec && local_ep.address() != asio::ip::address()) {
+    ELOG_INFO << "get local ip: " << local_ep.address().to_string();
+    std::error_code result{};
+    for (auto &ep : endpoint) {
+      result = co_await async_io<std::error_code>(
+          [&](auto &&cb) {
+            socket.async_connect(ep, std::move(cb));
+          },
+          socket);
+      if (!result) {
+        break;
+      }
+    }
+    co_return result;
+  }
+
   auto result = co_await async_io<std::error_code>(
       [&](auto &&cb) {
         asio::async_connect(socket, endpoint, std::move(cb));
@@ -609,6 +629,23 @@ class period_timer : public asio::steady_timer {
   }
 };
 
+class high_resolution_timer : public asio::high_resolution_timer {
+ public:
+  using asio::high_resolution_timer::high_resolution_timer;
+  template <typename T>
+  high_resolution_timer(coro_io::ExecutorWrapper<T> *executor)
+      : asio::high_resolution_timer(executor->get_asio_executor()) {}
+
+  async_simple::coro::Lazy<bool> async_await() noexcept {
+    auto ec = co_await async_io<std::error_code>(
+        [&](auto &&cb) {
+          this->async_wait(std::move(cb));
+        },
+        *this);
+    co_return !ec;
+  }
+};
+
 template <typename Duration, typename Executor>
 inline async_simple::coro::Lazy<bool> sleep_for(Duration d, Executor *e) {
   coro_io::period_timer timer(e);
@@ -625,6 +662,11 @@ inline async_simple::coro::Lazy<bool> sleep_for(Duration d) {
       co_return false;
     }
     co_return true;
+  }
+  else if (auto ioc = coro_io::get_current();
+           ioc != nullptr && *ioc != nullptr) {
+    coro_io::ExecutorWrapper<> e((**ioc).get_executor());
+    co_return co_await sleep_for(d, &e);
   }
   else {
     co_return co_await sleep_for(d,

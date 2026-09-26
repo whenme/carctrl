@@ -35,13 +35,17 @@
 #include <vector>
 #include <ylt/easylog.hpp>
 
+#include "asio/ip/tcp.hpp"
 #include "async_simple/Common.h"
 #include "async_simple/Promise.h"
+#include "async_simple/coro/Collect.h"
 #include "async_simple/util/move_only_function.h"
 #include "common_service.hpp"
 #include "coro_connection.hpp"
 #include "ylt/coro_io/coro_io.hpp"
 #include "ylt/coro_io/io_context_pool.hpp"
+#include "ylt/coro_io/server_acceptor.hpp"
+#include "ylt/coro_rpc/impl/errno.h"
 #include "ylt/coro_rpc/impl/expected.hpp"
 namespace coro_rpc {
 /*!
@@ -83,12 +87,11 @@ class coro_rpc_server_base {
                            conn_timeout_duration = std::chrono::seconds(0),
                        bool is_enable_tcp_no_delay = true)
       : pool_(thread_num),
-        acceptor_(pool_.get_executor()->get_asio_executor()),
-        port_(port),
-        conn_timeout_duration_(conn_timeout_duration),
         flag_{stat::init},
-        is_enable_tcp_no_delay_(is_enable_tcp_no_delay) {
-    init_address(std::move(address));
+        is_enable_tcp_no_delay_(is_enable_tcp_no_delay),
+        conn_timeout_duration_(conn_timeout_duration) {
+    acceptors_.push_back(
+        std::make_unique<coro_io::tcp_server_acceptor>(address, port));
   }
 
   coro_rpc_server_base(size_t thread_num, std::string address,
@@ -96,29 +99,47 @@ class coro_rpc_server_base {
                            conn_timeout_duration = std::chrono::seconds(0),
                        bool is_enable_tcp_no_delay = true)
       : pool_(thread_num),
-        acceptor_(pool_.get_executor()->get_asio_executor()),
-        conn_timeout_duration_(conn_timeout_duration),
         flag_{stat::init},
-        is_enable_tcp_no_delay_(is_enable_tcp_no_delay) {
-    init_address(std::move(address));
+        is_enable_tcp_no_delay_(is_enable_tcp_no_delay),
+        conn_timeout_duration_(conn_timeout_duration) {
+    acceptors_.push_back(
+        std::make_unique<coro_io::tcp_server_acceptor>(address));
   }
 
-  coro_rpc_server_base(const server_config &config)
+  coro_rpc_server_base(
+      const server_config& config,
+      std::vector<std::unique_ptr<coro_io::server_acceptor_base>> acceptors =
+          {})
       : pool_(config.thread_num),
-        acceptor_(pool_.get_executor()->get_asio_executor()),
-        port_(config.port),
-        conn_timeout_duration_(config.conn_timeout_duration),
         flag_{stat::init},
-        is_enable_tcp_no_delay_(config.is_enable_tcp_no_delay) {
+        is_enable_tcp_no_delay_(config.is_enable_tcp_no_delay),
+        conn_timeout_duration_(config.conn_timeout_duration) {
 #ifdef YLT_ENABLE_SSL
     if (config.ssl_config) {
-      init_ssl_context_helper(context_, config.ssl_config.value());
+      use_ssl_ = init_ssl_context_helper(context_, config.ssl_config.value());
     }
-    else if (config.ibv_config) {
-      init_ibv(config.ibv_config);
+#ifdef YLT_ENABLE_NTLS
+    else if (config.ssl_ntls_config) {
+      use_ssl_ =
+          init_ntls_context_helper(context_, config.ssl_ntls_config.value());
+    }
+#endif  // YLT_ENABLE_NTLS
+#endif
+#ifdef YLT_ENABLE_IBV
+    if (!config.ibv_config.has_value() && !config.ibv_dev_lists.empty()) {
+      ibv_config_ = coro_io::ib_socket_t::config_t{};
+    }
+    if (config.ibv_config) {
+      init_ibv(config.ibv_config.value(), std::move(config.ibv_dev_lists));
     }
 #endif
-    init_address(config.address);
+    if (!acceptors.empty()) {
+      acceptors_ = std::move(acceptors);
+    }
+    else {
+      acceptors_.push_back(std::make_unique<coro_io::tcp_server_acceptor>(
+          config.address, config.port));
+    }
   }
 
   ~coro_rpc_server_base() {
@@ -130,10 +151,18 @@ class coro_rpc_server_base {
   void init_ssl(const ssl_configure &conf) {
     use_ssl_ = init_ssl_context_helper(context_, conf);
   }
+#ifdef YLT_ENABLE_NTLS
+  void init_ntls(const ssl_ntls_configure &conf) {
+    use_ssl_ = init_ntls_context_helper(context_, conf);
+  }
+#endif  // YLT_ENABLE_NTLS
 #endif
 #ifdef YLT_ENABLE_IBV
-  void init_ibv(const coro_io::ibverbs_config &conf = {}) {
+  void init_ibv(
+      const coro_io::ib_socket_t::config_t &conf = {},
+      std::vector<std::shared_ptr<coro_io::ib_device_t>> ibv_dev_lists = {}) {
     ibv_config_ = conf;
+    ibv_dev_lists_ = std::move(ibv_dev_lists);
   }
 #endif
 
@@ -157,6 +186,10 @@ class coro_rpc_server_base {
   }
 
  public:
+  const std::vector<std::unique_ptr<coro_io::server_acceptor_base>> &
+  get_acceptors() const noexcept {
+    return acceptors_;
+  }
   async_simple::Future<coro_rpc::err_code> async_start() noexcept {
     {
       std::unique_lock lock(start_mtx_);
@@ -170,7 +203,32 @@ class coro_rpc_server_base {
         return make_error_future(
             coro_rpc::err_code{coro_rpc::errc::server_has_ran});
       }
-      errc_ = listen();
+      for (auto &acceptor : acceptors_) {
+        acceptor->set_io_threads_pool(&pool_);
+        auto ec = acceptor->listen();
+        if (ec != coro_io::listen_errc ::ok) {
+          switch (ec) {
+            case coro_io::listen_errc::address_in_used:
+              errc_ = coro_rpc::err_code{coro_rpc::errc::address_in_used};
+              break;
+            case coro_io::listen_errc::bad_address:
+              errc_ = coro_rpc::err_code{coro_rpc::errc::bad_address};
+              break;
+            case coro_io::listen_errc::open_error:
+              errc_ = coro_rpc::err_code{coro_rpc::errc::open_error};
+              break;
+            case coro_io::listen_errc::listen_error:
+              errc_ = coro_rpc::err_code{coro_rpc::errc::listen_error};
+              break;
+            default:
+              errc_ = coro_rpc::err_code{coro_rpc::errc::io_error};
+              break;
+          }
+        }
+        if (errc_) {
+          break;
+        }
+      }
       if (!errc_) {
         if constexpr (requires(typename server_config::executor_pool_t &pool) {
                         pool.run();
@@ -188,18 +246,25 @@ class coro_rpc_server_base {
     if (!errc_) {
       async_simple::Promise<coro_rpc::err_code> promise;
       auto future = promise.getFuture();
-      accept().start([this, p = std::move(promise)](auto &&res) mutable {
-        ELOG_ERROR << "server quit!";
+      accept().start([this, p = std::move(promise)](
+                         async_simple::Try<coro_rpc::err_code> &&res) mutable {
+        ELOG_INFO << "server quit!";
         if (res.hasError()) {
+          try {
+            std::rethrow_exception(res.getException());
+          } catch (const std::exception &e) {
+            ELOG_ERROR << "server quit with exception: " << e.what();
+          }
           stop();
           errc_ = coro_rpc::err_code{coro_rpc::errc::io_error};
           p.setValue(errc_);
         }
         else {
+          ELOG_ERROR << "server quit with error: " << res.value().message();
           p.setValue(res.value());
         }
       });
-      return std::move(future);
+      return future;
     }
     else {
       return make_error_future(coro_rpc::err_code{errc_});
@@ -220,13 +285,14 @@ class coro_rpc_server_base {
     ELOG_INFO << "begin to stop coro_rpc_server";
 
     if (flag_ == stat::started) {
-      close_acceptor();
+      for (auto &acceptor : acceptors_) acceptor->close();
       {
         std::unique_lock lock(conns_mtx_);
         ELOG_INFO << "total connection count: " << conns_.size();
-        for (auto &conn : conns_) {
-          if (!conn.second->has_closed()) {
-            conn.second->async_close();
+        for (auto &conn_weak : conns_) {
+          auto conn = conn_weak.second.lock();
+          if (conn && !conn->has_closed()) {
+            conn->async_close();
           }
         }
 
@@ -247,10 +313,14 @@ class coro_rpc_server_base {
 
   /*!
    * Get listening port
-   * @return
+   * @return listening port
    */
-  uint16_t port() const { return port_; };
-  std::string_view address() const { return address_; }
+  uint16_t port() const { return acceptors_[0]->port(); };
+  /*
+   * Get listening address
+   * @return listening address
+   */
+  std::string_view address() const { return acceptors_[0]->address(); }
   coro_rpc::err_code get_errc() const { return errc_; }
 
   template <typename... ServerType>
@@ -348,78 +418,56 @@ class coro_rpc_server_base {
 
   auto &get_io_context_pool() noexcept { return pool_; }
 
- private:
-  coro_rpc::err_code listen() {
-    ELOG_INFO << "begin to listen";
-    using asio::ip::tcp;
-    asio::error_code ec;
-    asio::ip::tcp::resolver::query query(address_, std::to_string(port_));
-    asio::ip::tcp::resolver resolver(acceptor_.get_executor());
-    asio::ip::tcp::resolver::iterator it = resolver.resolve(query, ec);
-
-    asio::ip::tcp::resolver::iterator it_end;
-    if (ec || it == it_end) {
-      ELOG_ERROR << "resolve address " << address_
-                 << " error: " << ec.message();
-      return coro_rpc::errc::bad_address;
-    }
-
-    auto endpoint = it->endpoint();
-    acceptor_.open(endpoint.protocol(), ec);
-    if (ec) {
-      ELOG_ERROR << "open failed, error: " << ec.message();
-      return coro_rpc::errc::open_error;
-    }
-#ifdef __GNUC__
-    acceptor_.set_option(tcp::acceptor::reuse_address(true), ec);
-#endif
-    acceptor_.bind(endpoint, ec);
-    if (ec) {
-      ELOG_ERROR << "bind port " << port_.load() << " error: " << ec.message();
-      acceptor_.cancel(ec);
-      acceptor_.close(ec);
-      return coro_rpc::errc::address_in_used;
-    }
-#ifdef _MSC_VER
-    acceptor_.set_option(tcp::acceptor::reuse_address(true));
-#endif
-    acceptor_.listen(asio::socket_base::max_listen_connections, ec);
-    if (ec) {
-      ELOG_ERROR << "port " << port_.load()
-                 << " listen error: " << ec.message();
-      acceptor_.cancel(ec);
-      acceptor_.close(ec);
-      return coro_rpc::errc::listen_error;
-    }
-
-    auto end_point = acceptor_.local_endpoint(ec);
-    if (ec) {
-      ELOG_ERROR << "get local endpoint port " << port_.load()
-                 << " error: " << ec.message();
-      return coro_rpc::errc::address_in_used;
-    }
-    port_ = end_point.port();
-
-    ELOG_INFO << "listen port " << port_.load() << " successfully";
-    return {};
+  /*!
+   * Set client filter callback
+   * @param filter callback function that takes endpoint and returns bool
+   *               true to allow connection, false to reject
+   */
+  void client_filter(
+      std::function<bool(const asio::ip::tcp::endpoint &)> filter) {
+    client_filter_ = std::move(filter);
   }
 
+ private:
   async_simple::coro::Lazy<coro_rpc::err_code> accept() {
+    std::vector<async_simple::coro::Lazy<coro_rpc::err_code>> tasks;
+    acceptors_[0]->address();
+    acceptors_[0]->port();
+    for (auto &acceptor : acceptors_) {
+      tasks.emplace_back(accept_impl(*acceptor));
+    }
+    auto results = co_await async_simple::coro::collectAny(std::move(tasks));
+    ELOG_INFO << "acceptor:" << acceptors_[results.index()]->address() << ":"
+              << acceptors_[results.index()]->port()
+              << " exit by:" << results.value();
+    co_return results.value();
+  }
+
+  uint64_t get_global_conn_id() {
+    static std::atomic<uint64_t> global_conn_id = 0;
+    return ++global_conn_id;
+  }
+  async_simple::coro::Lazy<coro_rpc::err_code> accept_impl(
+      coro_io::server_acceptor_base &acceptor) {
+    ELOG_INFO << "begin to accept looping";
     for (;;) {
-      auto executor = pool_.get_executor();
-      asio::ip::tcp::socket socket(executor->get_asio_executor());
-      auto error = co_await coro_io::async_accept(acceptor_, socket);
+      auto result = co_await acceptor.accept();
+      std::error_code error;
 #ifdef UNIT_TEST_INJECT
-      if (g_action == inject_action::force_inject_server_accept_error) {
-        asio::error_code ignored_ec;
-        socket.shutdown(asio::ip::tcp::socket::shutdown_both, ignored_ec);
-        socket.close(ignored_ec);
-        error = make_error_code(std::errc::io_error);
-        // only inject once
-        g_action = inject_action::nothing;
+      if (result.has_value()) {
+        if (g_action == inject_action::force_inject_server_accept_error) {
+          coro_io::socket_wrapper_t &wrapper = result.value();
+          asio::error_code ignored_ec;
+          wrapper.close();
+          g_action = inject_action::nothing;
+          result = ylt::unexpected<std::error_code>{
+              make_error_code(std::errc::io_error)};
+          // only inject once
+        }
       }
 #endif
-      if (error) {
+      if (!result.has_value()) {
+        auto error = result.error();
         if (error == asio::error::operation_aborted) {
           ELOG_INFO << "server was canceled:" << error.message();
         }
@@ -428,41 +476,45 @@ class coro_rpc_server_base {
         }
         if (error == asio::error::operation_aborted ||
             error == asio::error::bad_descriptor) {
-          acceptor_close_waiter_.set_value();
           co_return coro_rpc::errc::operation_canceled;
         }
         continue;
       }
+      coro_io::socket_wrapper_t &wrapper = result.value();
 
-      int64_t conn_id = ++conn_id_;
-      ELOG_INFO << "new client conn_id " << conn_id << " coming";
-      if (is_enable_tcp_no_delay_) {
-        socket.set_option(asio::ip::tcp::no_delay(true), error);
+      // Client filter check
+      if (client_filter_) {
+        asio::ip::tcp::endpoint remote_endpoint = {
+            wrapper.remote_endpoint().address,
+            (uint16_t)wrapper.remote_endpoint().port};
+
+        if (!client_filter_(remote_endpoint)) {
+          ELOG_WARN << "Connection from "
+                    << remote_endpoint.address().to_string()
+                    << " rejected by client filter";
+          continue;
+        }
+        ELOG_INFO << "Connection from " << remote_endpoint.address().to_string()
+                  << " allowed by client filter";
       }
-      coro_io::socket_wrapper_t wrapper;
-      bool init_failed = false;
-      do {
+
+      uint64_t conn_id = get_global_conn_id();
+      ELOG_INFO << "new client conn_id " << conn_id << " coming, peer addr["
+                << wrapper.remote_endpoint() << "], local addr["
+                << wrapper.local_endpoint() << "]";
+
+      if (auto &socket = wrapper.socket(); socket) {
+        if (is_enable_tcp_no_delay_) {
+          std::error_code error;
+          socket->set_option(asio::ip::tcp::no_delay(true), error);
+        }
 #ifdef YLT_ENABLE_SSL
         if (use_ssl_) {
-          wrapper = {std::move(socket), executor, context_};
-          break;
+          wrapper = coro_io::socket_wrapper_t{std::move(*socket),
+                                              wrapper.get_executor(), context_};
         }
 #endif
-#ifdef YLT_ENABLE_IBV
-        if (ibv_config_.has_value()) {
-          try {
-            wrapper = {std::move(socket), executor, *ibv_config_, nullptr,
-                       nullptr};
-          } catch (...) {
-            init_failed = true;
-          }
-          break;
-        }
-#endif
-        wrapper = {std::move(socket), executor};
-      } while (false);
-      if (init_failed)
-        continue;
+      }
       auto conn = std::make_shared<coro_connection>(std::move(wrapper),
                                                     conn_timeout_duration_);
       conn->set_quit_callback(
@@ -471,66 +523,101 @@ class coro_rpc_server_base {
             conns_.erase(id);
           },
           conn_id);
-      if (connection_transfer_) {
-        conn->set_transfer_callback(&connection_transfer_);
-      }
       {
         std::unique_lock lock(conns_mtx_);
         conns_.emplace(conn_id, conn);
       }
-      start_one(conn).via(conn->get_executor()).detach();
+      ELOG_TRACE << "start new connection, conn_id:" << conn_id;
+      start_one(std::move(conn))
+          .directlyStart(
+              [id = conn_id, this](async_simple::Try<void> &&res) {
+                ELOG_INFO << "connection over, conn id:" << id;
+              },
+              wrapper.get_executor());
     }
+    co_return coro_rpc::err_code{};
   }
 
-  async_simple::coro::Lazy<void> start_one(auto conn) noexcept {
-    co_await conn->template start<typename server_config::rpc_protocol>(
-        router_);
+#ifdef YLT_ENABLE_IBV
+
+  std::shared_ptr<coro_io::ib_device_t> get_rr_device() {
+    assert(ibv_dev_lists_.size());
+    return ibv_dev_lists_[rr_index_.fetch_add(1, std::memory_order_relaxed) %
+                          ibv_dev_lists_.size()];
   }
 
-  void close_acceptor() {
-    asio::dispatch(acceptor_.get_executor(), [this]() {
-      asio::error_code ec;
-      (void)acceptor_.cancel(ec);
-      (void)acceptor_.close(ec);
-    });
-    acceptor_close_waiter_.get_future().wait();
-  }
-
-  void init_address(std::string address) {
-    if (size_t pos = address.find(':'); pos != std::string::npos) {
-      auto port_sv = std::string_view(address).substr(pos + 1);
-
-      uint16_t port;
-      auto [ptr, ec] = std::from_chars(
-          port_sv.data(), port_sv.data() + port_sv.size(), port, 10);
-      if (ec != std::errc{}) {
-        address_ = std::move(address);
-        return;
+  async_simple::coro::Lazy<bool> update_to_rdma(coro_connection *conn) {
+    bool init_ok = true;
+    auto &wrapper = conn->socket_wrapper();
+    try {
+      if (!ibv_dev_lists_.empty()) {
+        ibv_config_->device = get_rr_device();
       }
-
-      port_ = port;
-      address = address.substr(0, pos);
+      wrapper = {std::move(*wrapper.socket()), wrapper.get_executor(),
+                 *ibv_config_};
+    } catch (...) {
+      ELOG_WARN << "init rdma connection failed";
+      init_ok = false;
     }
+    co_return init_ok;
+  }
+#endif
 
-    address_ = std::move(address);
+  async_simple::coro::Lazy<void> start_one(
+      std::shared_ptr<coro_connection> conn) noexcept {
+    [[maybe_unused]] bool init_failed = false;
+
+    ELOG_TRACE << "start handshake for conn:" << conn->get_connection_id()
+               << ",local endpoint:" << conn->get_local_endpoint()
+               << ",remote endpoint:" << conn->get_remote_endpoint();
+    auto result =
+        co_await conn->handshake<typename server_config::rpc_protocol>();
+    if (result.ec.value() &&
+        result.ec.value() != (int)std::errc::protocol_error) {
+      ELOG_WARN << "connection error:" << result.ec.message();
+      co_return;
+    }
+    ELOG_TRACE << "finish handshake for conn:" << conn->get_connection_id();
+    if (result.ec == std::errc::protocol_error) {
+      do {
+#ifdef YLT_ENABLE_IBV
+        if (ibv_config_.has_value() && result.magic_number.size() == 1 &&
+            result.magic_number[0] ==
+                coro_io::ib_socket_t::ib_md5_first_header) {
+          ELOG_TRACE << "protocol is rdma, try to update";
+          auto result = co_await update_to_rdma(conn.get());
+          if (!result) {
+            ELOG_WARN << "rdma init failed";
+            co_return;
+          }
+          break;
+        }
+#endif
+        if (connection_transfer_) {
+          ELOG_TRACE
+              << "protocol is not coro_rpc. try to transfer to other server";
+          connection_transfer_(std::move(conn->socket_wrapper()),
+                               result.magic_number);
+        }
+        co_return;
+      } while (false);
+    }
+    co_await conn->template start<typename server_config::rpc_protocol>(
+        router_, result.magic_number);
   }
 
   typename server_config::executor_pool_t pool_;
-  asio::ip::tcp::acceptor acceptor_;
-  std::promise<void> acceptor_close_waiter_;
 
   std::thread thd_;
   stat flag_;
 
   std::mutex start_mtx_;
-  uint64_t conn_id_ = 0;
-  std::unordered_map<uint64_t, std::shared_ptr<coro_connection>> conns_;
+  std::unordered_map<uint64_t, std::weak_ptr<coro_connection>> conns_;
   std::mutex conns_mtx_;
 
   typename server_config::rpc_protocol::router router_;
 
-  std::atomic<uint16_t> port_;
-  std::string address_;
+  std::vector<std::unique_ptr<coro_io::server_acceptor_base>> acceptors_;
   bool is_enable_tcp_no_delay_;
   coro_rpc::err_code errc_ = {};
   std::chrono::steady_clock::duration conn_timeout_duration_;
@@ -544,7 +631,11 @@ class coro_rpc_server_base {
   bool use_ssl_ = false;
 #endif
 #ifdef YLT_ENABLE_IBV
-  std::optional<coro_io::ibverbs_config> ibv_config_;
+  std::optional<coro_io::ib_socket_t::config_t> ibv_config_;
+  std::vector<std::shared_ptr<coro_io::ib_device_t>> ibv_dev_lists_;
+  std::atomic<std::size_t> rr_index_ = 0;
 #endif
+
+  std::function<bool(const asio::ip::tcp::endpoint &)> client_filter_;
 };
 }  // namespace coro_rpc
