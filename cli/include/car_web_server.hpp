@@ -6,11 +6,13 @@
 #include <string>
 
 #include <asio.hpp>
-#include <cli_car.hpp>
-#include <video/video_ctrl.hpp>
+
+class VideoCtrl;
 
 namespace cli
 {
+
+class CliCar;
 
 class CarWebServer
 {
@@ -39,5 +41,8 @@ private:
     VideoCtrl&              m_videoCtrl;
     asio::ip::tcp::acceptor m_acceptor;
 };
+
+std::unique_ptr<CarWebServer> createCarWebServer(asio::io_context& context, CliCar& cliCar,
+                                                 VideoCtrl& videoCtrl, uint16_t port);
 
 }  // namespace cli

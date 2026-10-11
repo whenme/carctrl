@@ -4,8 +4,7 @@
 #define __CLI_CLI_EXAMPLE_H_INCLUDE__
 
 #pragma once
-#include <cli/cli.h>
-#include <cli_impl.h>
+#include <cli_command_group.hpp>
 #include <memory>
 
 namespace cli

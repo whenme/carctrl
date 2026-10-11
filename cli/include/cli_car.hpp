@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #pragma once
-#include <cli/cli.h>
-#include <cli_impl.h>
+#include <cli_command_group.hpp>
 #include <memory>
-#include <ylt/coro_rpc/coro_rpc_client.hpp>
 
 namespace cli
 {
-class CliCommandGroup;
 
 class CliCar : public CliCommandGroup
 {
@@ -17,10 +14,7 @@ public:
     virtual ~CliCar() = default;
 
     void initCliCommand(std::unique_ptr<Menu>& rootMenu) override;
-    coro_rpc::coro_rpc_client& getClient();
-
-private:
-    coro_rpc::coro_rpc_client m_client;
+    void quitApplications();
 };
 
 }  // namespace cli

@@ -5,38 +5,18 @@
 
 #pragma once
 #include "asio.hpp"
-#include "cli/cli.h"
+#include "cli_command_group.hpp"
 #include "cli/detail/genericasioscheduler.h"
 #include "cli/detail/genericasioremotecli.h"
 #include "cli/detail/genericcliasyncsession.h"
+
+#include <vector>
 
 namespace cli
 {
 using MainScheduler   = detail::GenericAsioScheduler<detail::NewStandaloneAsioLib>;
 using CliTelnetServer = detail::CliGenericTelnetServer<detail::NewStandaloneAsioLib>;
 using CliAsyncSession = detail::GenericCliAsyncSession<detail::NewStandaloneAsioLib>;
-
-class CliCommandGroup
-{
-public:
-    explicit CliCommandGroup(std::string name) : m_name(std::move(name))
-    {
-    }
-    virtual ~CliCommandGroup() = default;
-
-    //class are neither copyable nor movable
-    //CMN_UNCOPYABLE_IMMOVABLE(CliCommandGroup)
-
-    virtual void initCliCommand(std::unique_ptr<Menu>& rootMenu) = 0;
-
-    std::string& getGroupName()
-    {
-        return m_name;
-    }
-
-private:
-    std::string m_name;
-};
 
 class CliImpl
 {

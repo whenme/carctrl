@@ -43,5 +43,6 @@
             "eight": [80, 80],
             "nine":  [90, 90]
         }
-    }
+    },
+    "webserver": true
 }

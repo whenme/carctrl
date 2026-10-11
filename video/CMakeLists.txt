@@ -16,4 +16,7 @@ target_include_directories (${library_name} PUBLIC include)
 target_link_libraries (${library_name} xapi cli fmt
                                        ${OpenCV_LIBS})
 
+set_source_files_properties(src/video_ctrl.cpp
+    PROPERTIES COMPILE_OPTIONS "--param=ggc-min-expand=10;--param=ggc-min-heapsize=32768")
+
 install (FILES lena.png stereo_calib_template.yaml DESTINATION ${PROJECT_BINARY_DIR})

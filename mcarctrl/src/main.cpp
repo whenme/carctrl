@@ -6,6 +6,7 @@
 #include <xapi/cmn_singleton.hpp>
 #include <xapi/easylog.hpp>
 #include <xapi/iotimer.hpp>
+#include <xapi/param_json.hpp>
 #include <xapi/pty_shell.hpp>
 #include <ylt/coro_rpc/coro_rpc_server.hpp>
 
@@ -20,6 +21,7 @@ int32_t main(int argc, char **argv)
 
     pty_shell_init(2);
     init_log();
+    ParamJson::parseCmdOption(argc, argv);
 
     std::set_terminate(cleanupExit);
     std::atexit(cleanupExit);

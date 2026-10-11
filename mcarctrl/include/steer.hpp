@@ -3,7 +3,6 @@
 #pragma once
 #include <vector>
 #include <xapi/iotimer.hpp>
-#include <rpc_service.hpp>
 #include "gpio.hpp"
 
 class Steer

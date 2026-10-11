@@ -14,4 +14,9 @@ target_include_directories (${library_name} PUBLIC include ${PROJECT_SOURCE_DIR}
 
 target_link_libraries (${library_name} xapi fmt)
 
+set_source_files_properties(src/main.cpp
+    PROPERTIES COMPILE_OPTIONS "--param=ggc-min-expand=10;--param=ggc-min-heapsize=32768")
+
 install (FILES ${param_file} DESTINATION ${PROJECT_BINARY_DIR})
+
+add_subdirectory (test)

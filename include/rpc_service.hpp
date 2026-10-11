@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #pragma once
-#include <xapi/easylog.hpp>
-#include <ylt/coro_rpc/coro_rpc_context.hpp>
-#include <ylt/coro_rpc/coro_rpc_client.hpp>
+#include <cstdint>
 
 static constexpr uint16_t rpc_port = 8802;
 
@@ -38,38 +36,3 @@ int32_t getMotorNum();
 int32_t setSteerTurn(int32_t dir, uint32_t time);
 
 void quitApp(int32_t param);
-
-using namespace async_simple::coro;
-
-template<auto func>
-int32_t rpc_call_int_param(coro_rpc::coro_rpc_client& client)
-{
-    auto ret = syncAwait(client.call<func>());
-    if (!ret) {
-        ctrllog::error("failed to call function...");
-        return 0;
-    } else {
-        return ret.value();
-    }
-}
-
-template<auto func, typename... Args>
-int32_t rpc_call_int_param(coro_rpc::coro_rpc_client& client, Args... args)
-{
-    auto ret = syncAwait(client.call<func>(std::forward<Args>(args)...));
-    if (!ret) {
-        ctrllog::error("failed to call function...");
-        return 0;
-    } else {
-        return ret.value();
-    }
-}
-
-template<auto func, typename... Args>
-void rpc_call_void_param(coro_rpc::coro_rpc_client& client, Args... args)
-{
-    auto ret = syncAwait(client.call<func>(std::forward<Args>(args)...));
-    if (!ret) {
-        ctrllog::error("failed to call function...");
-    }
-}

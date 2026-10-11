@@ -16,9 +16,18 @@ public:
     virtual ~ParamJson() = default;
 
     /**
+     * @brief parse command options that overwrite json values
+     *
+     * Option form: -c +/path/item=value
+     * Example: -c +/param/param0=5 overwrites /param/param0 from the json file.
+     * Call this before constructing ParamJson. Repeat -c to overwrite more items.
+     */
+    static void parseCmdOption(int argc, char **argv);
+
+    /**
      * @brief get parameters from json item
      *
-     * @param item: json item name with comma seperated, chip.gpu_param.device_id
+     * @param item: json item name with slash seperated, chip/gpu_param/device_id
      * @param param: output value, vector or basic type.
      * @return true: success to get parameters
      *         false: failed to get parameters for item not exist or output type incorrect.
@@ -26,7 +35,7 @@ public:
     [[nodiscard]] bool getJsonParam(std::string item, auto& param)
     {
         std::vector<std::string> name;
-        int32_t count = splitStr(item, '.', name);
+        int32_t count = splitStr(item, '/', name);
         if ((count <= 0) || (m_jsonState == false))
             return false;
 
@@ -55,7 +64,9 @@ public:
 
 private:
     int32_t splitStr(std::string strSrc, char splitChar, std::vector<std::string>& output);
+    void applyCmdOption();
 
+    static std::vector<std::string> m_cmdOption;
     Json m_jsonObj;
     bool m_jsonState {false};
 };

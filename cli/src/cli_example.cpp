@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <cli_example.h>
-#include <cli_impl.h>
 
 namespace cli
 {

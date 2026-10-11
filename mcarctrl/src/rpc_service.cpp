@@ -1,97 +1,89 @@
-
 #include <xapi/cmn_singleton.hpp>
 #include <xapi/easylog.hpp>
 #include <rpc_service.hpp>
 #include "car_ctrl.hpp"
 
+namespace {
+CarCtrl& getCarCtrl()
+{
+    static auto& carCtrl = cmn::getSingletonInstance<CarCtrl>();
+    return carCtrl;
+}
+}  // namespace
+
 int32_t setCtrlSteps(int32_t motor, int32_t steps)
 {
-    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    return ctrl.setCtrlSteps(motor, steps);
+    return getCarCtrl().setCtrlSteps(motor, steps);
 }
 
 int32_t getCtrlSteps(int32_t motor)
 {
-    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    return ctrl.getCtrlSteps(motor);
+    return getCarCtrl().getCtrlSteps(motor);
 }
 
 int32_t getActualSteps(int32_t motor)
 {
-    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    return ctrl.getActualSteps(motor);
+    return getCarCtrl().getActualSteps(motor);
 }
 
 int32_t setRunTime(int32_t time)
 {
-    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    return ctrl.setRunTime(time);
+    return getCarCtrl().setRunTime(time);
 }
 
 int32_t getActualSpeed(int32_t motor)
 {
-    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    return ctrl.getActualSpeed(motor);
+    return getCarCtrl().getActualSpeed(motor);
 }
 
 int32_t setMotorSpeedLevel(int32_t level)
 {
-    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    return ctrl.setMotorSpeedLevel(level);
+    return getCarCtrl().setMotorSpeedLevel(level);
 }
 
 int32_t getMotorSpeedLevel()
 {
-    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    return ctrl.getMotorSpeedLevel();
+    return getCarCtrl().getMotorSpeedLevel();
 }
 
 void setMotorPwm(int32_t motor, int32_t pwm)
 {
-    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    ctrl.setMotorPwm(motor, pwm);
+    getCarCtrl().setMotorPwm(motor, pwm);
 }
 
 int32_t getMotorPwm(int32_t motor)
 {
-    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    return ctrl.getMotorPwm(motor);
+    return getCarCtrl().getMotorPwm(motor);
 }
 
 void setAllMotorState(int32_t state)
 {
-    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    return ctrl.setAllMotorState(state);
+    return getCarCtrl().setAllMotorState(state);
 }
 
 int32_t getCtrlMode()
 {
-    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    return ctrl.getCtrlMode();
+    return getCarCtrl().getCtrlMode();
 }
 
 int32_t getMotorNum()
 {
-    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    return ctrl.getMotorNum();
+    return getCarCtrl().getMotorNum();
 }
 
 int32_t setCarSteps(CarDirection dir, int32_t steps)
 {
-    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    return ctrl.setCarSteps(dir, steps);
+    return getCarCtrl().setCarSteps(dir, steps);
 }
 
 int32_t setCarMoving(CarDirection dir)
 {
-    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    return ctrl.setCarMoving(dir);
+    return getCarCtrl().setCarMoving(dir);
 }
 
 int32_t setSteerTurn(int32_t dir, uint32_t time)
 {
-    auto& ctrl = cmn::getSingletonInstance<CarCtrl>();
-    return ctrl.steerTurn(dir, time);
+    return getCarCtrl().steerTurn(dir, time);
 }
 
 void quitApp(int32_t param)

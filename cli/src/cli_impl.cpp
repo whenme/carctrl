@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <cli_impl.h>
-#include <cli_example.h>
 #include <cli_car.hpp>
 #include <cli_video.hpp>
 #include <car_web_server.hpp>
@@ -9,13 +8,7 @@
 #include <cli/clilocalsession.h>
 #include <xapi/cmn_singleton.hpp>
 #include <video/video_ctrl.hpp>
-#include <rpc_service.hpp>
 
-#include <algorithm>
-#include <cstdlib>
-#include <vector>
-
-using namespace async_simple::coro;
 using namespace cli;
 
 CliImpl::~CliImpl()
@@ -34,13 +27,11 @@ void CliImpl::initCliCommand()
         m_cliGroup.push_back(&cmd);
     };
 
-    //static CliExample cliExample;
     static CliCar     cliCar;
     static CliVideo   cliVideo;
 
     cmn::setSingletonInstance<CliCar>(&cliCar);
 
-    //addCommandGroup(cliExample);
     addCommandGroup(cliCar);
     addCommandGroup(cliVideo);
 
@@ -51,9 +42,8 @@ void CliImpl::initCliCommand()
 
     auto& cliCarQuit = cmn::getSingletonInstance<CliCar>();
     m_rootMenu->Insert("quit",
-                       [&](std::ostream& out) {
-                           rpc_call_void_param<quitApp>(cliCarQuit.getClient(), 0);
-                           std::exit(0);
+                       [&](std::ostream&) {
+                           cliCarQuit.quitApplications();
                        },
                        "quit all applications");
 }
@@ -85,7 +75,7 @@ void CliImpl::runCliImpl()
 
     auto& cliCar = cmn::getSingletonInstance<CliCar>();
     auto& videoCtrl = cmn::getSingletonInstance<VideoCtrl>();
-    CarWebServer webServer(m_scheduler.AsioContext(), cliCar, videoCtrl, k_MWebServerPort);
+    auto webServer = createCarWebServer(m_scheduler.AsioContext(), cliCar, videoCtrl, k_MWebServerPort);
 
     m_scheduler.Run();
 }

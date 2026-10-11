@@ -10,9 +10,9 @@
 
 #include <fmt/format.h>
 #include <xapi/easylog.hpp>
-#include <rpc_service.hpp>
-
-using namespace async_simple::coro;
+#include <xapi/param_json.hpp>
+#include <rpc_client.hpp>
+#include <video/video_ctrl.hpp>
 
 namespace cli
 {
@@ -499,10 +499,9 @@ std::string CarWebServer::getQueryParam(const std::string& query, const std::str
 
 std::string CarWebServer::buildStatusJson()
 {
-    auto& client = m_cliCar.getClient();
-    const int32_t motorNum = rpc_call_int_param<getMotorNum>(client);
-    const int32_t speedLevel = rpc_call_int_param<getMotorSpeedLevel>(client);
-    const int32_t ctrlMode = rpc_call_int_param<getCtrlMode>(client);
+    const int32_t motorNum = rpc_get_motor_num();
+    const int32_t speedLevel = rpc_get_motor_speed_level();
+    const int32_t ctrlMode = rpc_get_ctrl_mode();
 
     std::ostringstream body;
     body << fmt::format(R"({{"speedLevel":{},"motorNum":{},"ctrlMode":{},"motors":[)",
@@ -515,10 +514,10 @@ std::string CarWebServer::buildStatusJson()
         body << fmt::format(
             R"({{"id":{},"speed":{},"pwm":{},"ctrlStep":{},"actualStep":{}}})",
             ii,
-            rpc_call_int_param<getActualSpeed>(client, ii),
-            rpc_call_int_param<getMotorPwm>(client, ii),
-            rpc_call_int_param<getCtrlSteps>(client, ii),
-            rpc_call_int_param<getActualSteps>(client, ii));
+            rpc_get_actual_speed(ii),
+            rpc_get_motor_pwm(ii),
+            rpc_get_ctrl_steps(ii),
+            rpc_get_actual_steps(ii));
     }
 
     body << "]}";
@@ -560,7 +559,7 @@ std::string CarWebServer::handleRequest(const std::string& request)
     }
 
     if (method == "POST" && path == "/api/stop") {
-        rpc_call_void_param<setAllMotorState>(m_cliCar.getClient(), 0);
+        rpc_set_all_motor_state(0);
         return httpResponse(200, "OK", "application/json", R"({"ok":true})");
     }
 
@@ -570,7 +569,7 @@ std::string CarWebServer::handleRequest(const std::string& request)
             return httpResponse(400, "Bad Request", "application/json", R"({"ok":false,"error":"missing level"})");
         }
         const int32_t level = std::stoi(levelStr);
-        rpc_call_int_param<setMotorSpeedLevel>(m_cliCar.getClient(), level);
+        rpc_set_motor_speed_level(level);
         return httpResponse(200, "OK", "application/json", R"({"ok":true})");
     }
 
@@ -584,18 +583,18 @@ std::string CarWebServer::handleRequest(const std::string& request)
 
         const int32_t direction = std::stoi(directionStr);
         const int32_t steps = std::stoi(stepsStr);
-        const int32_t motorNum = rpc_call_int_param<getMotorNum>(m_cliCar.getClient());
+        const int32_t motorNum = rpc_get_motor_num();
 
         if (direction == 0) {
-            rpc_call_int_param<setCarSteps>(m_cliCar.getClient(), CarDirection::dirUp, steps);
+            rpc_set_car_steps(CarDirection::dirUp, steps);
         } else if (direction == 1) {
-            rpc_call_int_param<setCarSteps>(m_cliCar.getClient(), CarDirection::dirLeft, steps);
+            rpc_set_car_steps(CarDirection::dirLeft, steps);
         } else if (direction == 2) {
             if (motorNum < 4) {
                 return httpResponse(400, "Bad Request", "application/json",
                                     R"({"ok":false,"error":"rotation requires 4 motors"})");
             }
-            rpc_call_int_param<setCarSteps>(m_cliCar.getClient(), CarDirection::dirRotation, steps);
+            rpc_set_car_steps(CarDirection::dirRotation, steps);
         } else {
             return httpResponse(400, "Bad Request", "application/json", R"({"ok":false,"error":"invalid direction"})");
         }
@@ -612,11 +611,28 @@ std::string CarWebServer::handleRequest(const std::string& request)
 
         const int32_t dir = std::stoi(dirStr);
         const uint32_t time = timeStr.empty() ? 0U : static_cast<uint32_t>(std::stoul(timeStr));
-        rpc_call_int_param<setSteerTurn>(m_cliCar.getClient(), dir, time);
+        rpc_set_steer_turn(dir, time);
         return httpResponse(200, "OK", "application/json", R"({"ok":true})");
     }
 
     return httpResponse(404, "Not Found", "text/plain", "not found");
+}
+
+std::unique_ptr<CarWebServer> createCarWebServer(asio::io_context& context, CliCar& cliCar,
+                                                 VideoCtrl& videoCtrl, uint16_t port)
+{
+    bool runWebServer = false;
+    ParamJson param("param.json");
+    bool ret = param.getJsonParam("webserver", runWebServer);
+    if (!ret)
+        ctrllog::warn("json parameter error: webserver");
+
+    if (ret && runWebServer) {
+        return std::make_unique<CarWebServer>(context, cliCar, videoCtrl, port);
+    }
+    if (ret)
+        ctrllog::info("car web server is disabled");
+    return nullptr;
 }
 
 }  // namespace cli

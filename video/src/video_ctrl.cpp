@@ -1,12 +1,47 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <xapi/easylog.hpp>
-#include <xapi/cmn_libfork.hpp>
-#include <opencv2/opencv.hpp>
 #include <video/video_ctrl.hpp>
-#include <functional>
+
+#include <chrono>
+#include <mutex>
+#include <thread>
 #include <vector>
 
-VideoCtrl::VideoCtrl(asio::io_context& ioContext):
+#include <opencv2/opencv.hpp>
+#include <xapi/cmn_thread.hpp>
+#include <xapi/easylog.hpp>
+#include <video/stereo_object_match.hpp>
+#include <video/stereo_vision.hpp>
+#include <video/video_device.hpp>
+
+struct VideoCtrl::Impl
+{
+    static constexpr int32_t video_dev_num = 2;
+    static constexpr const char* stereo_calib_file = "stereo_calib.yaml";
+
+    Impl();
+    ~Impl();
+
+    void        showImage(std::string title, Mat& mat);
+    void        updateWebFrame(int32_t camera, const cv::Mat& mat);
+    static void videoThreadFun(void *ctxt);
+
+    bool getWebFrame(int32_t camera, std::vector<uint8_t>& out);
+    int32_t getWebCameraCount();
+    bool isCameraExist(int32_t camera);
+
+    cmn::CmnThread m_videoThread;
+    VideoDevice*   m_videoDev[video_dev_num];
+    bool           m_showVideo   { true };
+    bool           m_stereoMode  { false };
+    int32_t        m_videoDevNum {0};
+    StereoVision   m_stereoVision;
+    StereoObjectMatch m_stereoObjectMatch;
+    std::mutex     m_webFrameMutex;
+    std::vector<std::vector<uint8_t>> m_webJpeg;
+    std::vector<bool> m_hasWebFrame;
+};
+
+VideoCtrl::Impl::Impl() :
     m_videoThread("video thread", cmn::CmnThread::ThreadPriorityNormal, videoThreadFun, this),
     m_videoDev{nullptr, nullptr}
 {
@@ -57,7 +92,7 @@ VideoCtrl::VideoCtrl(asio::io_context& ioContext):
     m_videoThread.start();
 }
 
-VideoCtrl::~VideoCtrl()
+VideoCtrl::Impl::~Impl()
 {
     if (m_videoThread.getRunState()) {
         m_videoThread.stop();
@@ -69,9 +104,9 @@ VideoCtrl::~VideoCtrl()
     }
 }
 
-void VideoCtrl::videoThreadFun(void *ctxt)
+void VideoCtrl::Impl::videoThreadFun(void *ctxt)
 {
-    VideoCtrl *obj = static_cast<VideoCtrl *>(ctxt);
+    auto *obj = static_cast<VideoCtrl::Impl *>(ctxt);
     const bool hasCam0 = obj->isCameraExist(0);
     const bool hasCam1 = obj->isCameraExist(1);
     if (!hasCam0 && !hasCam1) {
@@ -173,14 +208,14 @@ void VideoCtrl::videoThreadFun(void *ctxt)
     }
 }
 
-void VideoCtrl::showImage(std::string title, Mat& mat)
+void VideoCtrl::Impl::showImage(std::string title, Mat& mat)
 {
     if (m_showVideo) {
         //cv::imshow(title, mat);
     }
 }
 
-void VideoCtrl::updateWebFrame(int32_t camera, const cv::Mat& mat)
+void VideoCtrl::Impl::updateWebFrame(int32_t camera, const cv::Mat& mat)
 {
     if (mat.empty() || camera < 0 || camera >= static_cast<int32_t>(m_webJpeg.size())) {
         return;
@@ -197,7 +232,7 @@ void VideoCtrl::updateWebFrame(int32_t camera, const cv::Mat& mat)
     m_hasWebFrame[camera] = true;
 }
 
-bool VideoCtrl::getWebFrame(int32_t camera, std::vector<uint8_t>& out)
+bool VideoCtrl::Impl::getWebFrame(int32_t camera, std::vector<uint8_t>& out)
 {
     if (camera < 0 || camera >= static_cast<int32_t>(m_webJpeg.size())) {
         return false;
@@ -212,16 +247,38 @@ bool VideoCtrl::getWebFrame(int32_t camera, std::vector<uint8_t>& out)
     return true;
 }
 
-int32_t VideoCtrl::getWebCameraCount()
+int32_t VideoCtrl::Impl::getWebCameraCount()
 {
     return m_videoDevNum;
 }
 
-bool VideoCtrl::isCameraExist(int32_t camera)
+bool VideoCtrl::Impl::isCameraExist(int32_t camera)
 {
     if (camera < 0 || camera >= video_dev_num || m_videoDev[camera] == nullptr) {
         return false;
     }
 
     return m_videoDev[camera]->getDeviceId() >= 0;
+}
+
+VideoCtrl::VideoCtrl(asio::io_context&) :
+    m_impl(std::make_unique<Impl>())
+{
+}
+
+VideoCtrl::~VideoCtrl() = default;
+
+bool VideoCtrl::getWebFrame(int32_t camera, std::vector<uint8_t>& out)
+{
+    return m_impl->getWebFrame(camera, out);
+}
+
+int32_t VideoCtrl::getWebCameraCount()
+{
+    return m_impl->getWebCameraCount();
+}
+
+bool VideoCtrl::isCameraExist(int32_t camera)
+{
+    return m_impl->isCameraExist(camera);
 }
